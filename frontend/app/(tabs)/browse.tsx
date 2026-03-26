@@ -14,6 +14,7 @@ import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
 import api, { Pledge, Wish, Category } from '../../utils/api';
 import { useAuthStore } from '../../store/authStore';
+import ReportModal from '../../components/ReportModal';
 
 type TabType = 'pledges' | 'wishes';
 
@@ -27,6 +28,8 @@ export default function BrowseScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportItem, setReportItem] = useState<{ type: 'pledge' | 'wish'; id: string; title: string } | null>(null);
 
   const loadData = async () => {
     try {
@@ -93,6 +96,11 @@ export default function BrowseScreen() {
       '',
       'default'
     );
+  };
+
+  const handleReport = (item: Pledge | Wish, type: 'pledge' | 'wish') => {
+    setReportItem({ type, id: item.id, title: item.title });
+    setReportModalVisible(true);
   };
 
   const items = activeTab === 'pledges' ? pledges : wishes;
@@ -318,19 +326,28 @@ export default function BrowseScreen() {
                 </View>
               )}
 
-              <TouchableOpacity
-                style={[
-                  styles.connectButton,
-                  {
-                    backgroundColor:
-                      activeTab === 'pledges' ? Colors.pledgeMedium : Colors.wishMedium,
-                  },
-                ]}
-                onPress={() => handleConnect(item, activeTab === 'pledges' ? 'pledge' : 'wish')}
-              >
-                <MaterialIcons name="chat" size={18} color={Colors.surface} />
-                <Text style={styles.connectButtonText}>Connect</Text>
-              </TouchableOpacity>
+              <View style={styles.cardActions}>
+                <TouchableOpacity
+                  style={[
+                    styles.connectButton,
+                    {
+                      backgroundColor:
+                        activeTab === 'pledges' ? Colors.pledgeMedium : Colors.wishMedium,
+                    },
+                  ]}
+                  onPress={() => handleConnect(item, activeTab === 'pledges' ? 'pledge' : 'wish')}
+                >
+                  <MaterialIcons name="chat" size={18} color={Colors.surface} />
+                  <Text style={styles.connectButtonText}>Connect</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.reportButton}
+                  onPress={() => handleReport(item, activeTab === 'pledges' ? 'pledge' : 'wish')}
+                >
+                  <MaterialIcons name="flag" size={18} color={Colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
             </View>
           ))
         ) : (
@@ -339,6 +356,17 @@ export default function BrowseScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <ReportModal
+        visible={reportModalVisible}
+        onClose={() => {
+          setReportModalVisible(false);
+          setReportItem(null);
+        }}
+        reportType={reportItem?.type || 'pledge'}
+        itemId={reportItem?.id}
+        itemTitle={reportItem?.title}
+      />
     </SafeAreaView>
   );
 }
@@ -492,7 +520,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.primary,
   },
+  cardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   connectButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -504,6 +538,13 @@ const styles = StyleSheet.create({
     color: Colors.surface,
     fontSize: 16,
     fontWeight: '600',
+  },
+  reportButton: {
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   emptyText: {
     fontSize: 16,

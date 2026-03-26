@@ -213,6 +213,18 @@ backend:
           agent: "testing"
           comment: "User profile endpoint working correctly. Returns complete user information including id, email, name, bio, location, avatar, and creation date."
 
+  - task: "Reports & Admin System"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Implemented complete reporting system with POST /reports for creating reports, GET /reports/all for admins to view all reports, and PATCH /reports/{id}/status for updating report status. Admin-only access control added based on ADMIN_EMAILS env variable. Frontend ReportModal component and Admin dashboard created."
+
 frontend:
   - task: "Authentication Flow"
     implemented: true

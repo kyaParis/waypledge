@@ -1,8 +1,12 @@
 import { Tabs } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
+import { useAuthStore } from '../../store/authStore';
 
 export default function TabsLayout() {
+  const user = useAuthStore((state) => state.user);
+  const isAdmin = user?.is_admin || false;
+
   return (
     <Tabs
       screenOptions={{
@@ -77,6 +81,16 @@ export default function TabsLayout() {
           title: 'Profile',
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="person" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="admin"
+        options={{
+          title: 'Admin',
+          href: isAdmin ? '/admin' : null,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="admin-panel-settings" size={size} color={color} />
           ),
         }}
       />

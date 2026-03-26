@@ -29,6 +29,13 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "your-secret-key-change-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
 
+# Admin emails (comma-separated)
+ADMIN_EMAILS = [e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").split(",") if e.strip()]
+
+def is_user_admin(email: str) -> bool:
+    """Check if a user email is in the admin list"""
+    return email.lower() in ADMIN_EMAILS
+
 # Create the main app
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -80,6 +87,7 @@ class UserResponse(BaseModel):
     location: str
     avatar: Optional[str] = None
     created_at: datetime
+    is_admin: bool = False
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -171,6 +179,25 @@ class GratitudeResponse(BaseModel):
     message: str
     created_at: datetime
 
+class ReportCreate(BaseModel):
+    report_type: str  # "pledge", "wish", "user", "other"
+    item_id: Optional[str] = None  # ID of pledge/wish/user being reported
+    item_title: Optional[str] = None
+    reason: str  # "inappropriate", "spam", "abuse", "scam", "other"
+    description: str
+
+class ReportResponse(BaseModel):
+    id: str
+    reporter_id: str
+    reporter_name: str
+    report_type: str
+    item_id: Optional[str] = None
+    item_title: Optional[str] = None
+    reason: str
+    description: str
+    status: str  # "pending", "reviewed", "resolved"
+    created_at: datetime
+
 class CategoryResponse(BaseModel):
     id: str
     name: str
@@ -207,12 +234,11 @@ async def register(user_data: UserRegister):
         bio=user_dict["bio"],
         location=user_dict["location"],
         avatar=user_dict["avatar"],
-        created_at=user_dict["created_at"]
+        created_at=user_dict["created_at"],
+        is_admin=is_user_admin(user_dict["email"])
     )
     
     return TokenResponse(access_token=token, token_type="bearer", user=user_response)
-
-@api_router.post("/auth/login", response_model=TokenResponse)
 async def login(user_data: UserLogin):
     user = await db.users.find_one({"email": user_data.email})
     if not user or not verify_password(user_data.password, user["password_hash"]):
@@ -227,7 +253,8 @@ async def login(user_data: UserLogin):
         bio=user["bio"],
         location=user["location"],
         avatar=user.get("avatar"),
-        created_at=user["created_at"]
+        created_at=user["created_at"],
+        is_admin=is_user_admin(user["email"])
     )
     
     return TokenResponse(access_token=token, token_type="bearer", user=user_response)
@@ -241,7 +268,8 @@ async def get_me(current_user = Depends(get_current_user)):
         bio=current_user["bio"],
         location=current_user["location"],
         avatar=current_user.get("avatar"),
-        created_at=current_user["created_at"]
+        created_at=current_user["created_at"],
+        is_admin=is_user_admin(current_user["email"])
     )
 
 # Pledge endpoints
@@ -561,6 +589,68 @@ async def get_my_gratitude(current_user = Depends(get_current_user)):
         message=g["message"],
         created_at=g["created_at"]
     ) for g in gratitudes]
+
+# Report endpoints
+@api_router.post("/reports", response_model=ReportResponse)
+async def create_report(report: ReportCreate, current_user = Depends(get_current_user)):
+    report_dict = {
+        "reporter_id": str(current_user["_id"]),
+        "reporter_name": current_user["name"],
+        "report_type": report.report_type,
+        "item_id": report.item_id,
+        "item_title": report.item_title,
+        "reason": report.reason,
+        "description": report.description,
+        "status": "pending",
+        "created_at": datetime.utcnow()
+    }
+    result = await db.reports.insert_one(report_dict)
+    
+    # Log the report for admin notification
+    logger.warning(f"NEW REPORT: {report.reason} - {report.report_type} - Reporter: {current_user['name']} ({current_user['email']})")
+    
+    return ReportResponse(
+        id=str(result.inserted_id),
+        reporter_id=report_dict["reporter_id"],
+        reporter_name=report_dict["reporter_name"],
+        report_type=report_dict["report_type"],
+        item_id=report_dict["item_id"],
+        item_title=report_dict["item_title"],
+        reason=report_dict["reason"],
+        description=report_dict["description"],
+        status=report_dict["status"],
+        created_at=report_dict["created_at"]
+    )
+
+@api_router.get("/reports/all", response_model=List[ReportResponse])
+async def get_all_reports(current_user = Depends(get_current_user)):
+    # Only admins can view all reports
+    if not is_user_admin(current_user["email"]):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    reports = await db.reports.find().sort("created_at", -1).to_list(200)
+    return [ReportResponse(
+        id=str(r["_id"]),
+        reporter_id=r["reporter_id"],
+        reporter_name=r["reporter_name"],
+        report_type=r["report_type"],
+        item_id=r.get("item_id"),
+        item_title=r.get("item_title"),
+        reason=r["reason"],
+        description=r["description"],
+        status=r["status"],
+        created_at=r["created_at"]
+    ) for r in reports]
+
+@api_router.patch("/reports/{report_id}/status")
+async def update_report_status(report_id: str, status: str, current_user = Depends(get_current_user)):
+    # Only admins can update report status
+    if not is_user_admin(current_user["email"]):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    await db.reports.update_one(
+        {"_id": ObjectId(report_id)},
+        {"$set": {"status": status}}
+    )
+    return {"success": True, "message": f"Report marked as {status}"}
 
 # Categories endpoint
 @api_router.get("/categories", response_model=List[CategoryResponse])

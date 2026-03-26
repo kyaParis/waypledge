@@ -6,9 +6,11 @@ import {
   ScrollView,
   SafeAreaView,
   Image,
+  TouchableOpacity,
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 export default function AboutScreen() {
   return (
@@ -119,6 +121,18 @@ export default function AboutScreen() {
           <Text style={styles.tagline}>Every Pledge Lights the Way</Text>
         </View>
 
+        <TouchableOpacity 
+          style={styles.termsButton}
+          onPress={() => router.push('/terms')}
+        >
+          <MaterialIcons name="shield" size={24} color={Colors.primary} />
+          <View style={styles.termsTextContainer}>
+            <Text style={styles.termsButtonTitle}>Do No Harm Pledge</Text>
+            <Text style={styles.termsButtonSubtitle}>Our community agreement</Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={24} color={Colors.textSecondary} />
+        </TouchableOpacity>
+
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
@@ -221,5 +235,29 @@ const styles = StyleSheet.create({
     color: Colors.accent,
     marginTop: 12,
     textAlign: 'center',
+  },
+  termsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 24,
+    borderWidth: 2,
+    borderColor: Colors.primary + '30',
+  },
+  termsTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  termsButtonTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  termsButtonSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
 });

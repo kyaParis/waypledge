@@ -12,6 +12,7 @@ interface User {
   location: string;
   avatar: string | null;
   created_at: string;
+  is_admin: boolean;
 }
 
 interface AuthState {
