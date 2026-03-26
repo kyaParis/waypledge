@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   SafeAreaView,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
@@ -48,32 +47,20 @@ export default function ProfileScreen() {
     setRefreshing(false);
   };
 
-  const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await logout();
-              // Force navigation to welcome screen
-              router.push('/(auth)/welcome');
-              // Small delay then replace to clear stack
-              setTimeout(() => {
-                router.replace('/(auth)/welcome');
-              }, 100);
-            } catch (error) {
-              console.error('Logout error:', error);
-              Alert.alert('Error', 'Failed to logout. Please try again.');
-            }
-          },
-        },
-      ]
-    );
+  const handleLogout = async () => {
+    try {
+      console.log('Logging out...');
+      await logout();
+      console.log('Logout successful, navigating to welcome...');
+      // Use window.location for web compatibility
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      } else {
+        router.replace('/(auth)/welcome');
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   return (
