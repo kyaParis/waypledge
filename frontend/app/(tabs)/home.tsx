@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   SafeAreaView,
+  Image,
 } from 'react-native';
 import { useAuthStore } from '../../store/authStore';
 import { Colors } from '../../constants/Colors';
@@ -61,7 +62,11 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.welcomeCard}>
-          <MaterialIcons name="favorite" size={40} color={Colors.accent} />
+          <Image
+            source={require('../../assets/waypledge-logo.png')}
+            style={styles.welcomeLogo}
+            resizeMode="contain"
+          />
           <Text style={styles.welcomeText}>
             A community built on mutual support and shared intention
           </Text>
@@ -196,8 +201,12 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  welcomeLogo: {
+    width: 80,
+    height: 80,
+    marginBottom: 12,
+  },
   welcomeText: {
-    marginTop: 12,
     fontSize: 16,
     color: Colors.text,
     textAlign: 'center',

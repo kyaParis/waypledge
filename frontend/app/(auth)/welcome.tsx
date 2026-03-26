@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
-import { MaterialIcons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
@@ -21,9 +20,11 @@ export default function WelcomeScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.logoContainer}>
-          <View style={styles.iconCircle}>
-            <MaterialIcons name="favorite" size={80} color={Colors.accent} />
-          </View>
+          <Image
+            source={require('../../assets/waypledge-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
           <Text style={styles.title}>WayPledge</Text>
           <Text style={styles.subtitle}>Give and Receive With Love</Text>
         </View>
@@ -74,19 +75,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 40,
   },
-  iconCircle: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: Colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
-    marginBottom: 24,
+  logo: {
+    width: 200,
+    height: 200,
+    marginBottom: 16,
   },
   title: {
     fontSize: 42,
