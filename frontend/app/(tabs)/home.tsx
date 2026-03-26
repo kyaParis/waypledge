@@ -98,9 +98,11 @@ export default function HomeScreen() {
             style={styles.welcomeLogo}
             resizeMode="contain"
           />
+          <Text style={styles.welcomeTitle}>The Way</Text>
           <Text style={styles.welcomeText}>
-            A community built on mutual support and shared intention
+            Where wishes and pledges move in trust. Not charity, not transaction, but circular exchange in the energy of love and unity.
           </Text>
+          <Text style={styles.welcomeTagline}>Every Pledge Lights the Way ✨</Text>
           <TouchableOpacity
             style={styles.howItWorksButton}
             onPress={() => setShowWelcome(true)}
@@ -250,12 +252,26 @@ const styles = StyleSheet.create({
     height: 80,
     marginBottom: 12,
   },
+  welcomeTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 12,
+  },
   welcomeText: {
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.text,
     textAlign: 'center',
     lineHeight: 22,
+    marginBottom: 8,
+  },
+  welcomeTagline: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.accent,
+    textAlign: 'center',
     marginBottom: 12,
+    fontStyle: 'italic',
   },
   howItWorksButton: {
     flexDirection: 'row',

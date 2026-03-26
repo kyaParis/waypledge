@@ -35,8 +35,25 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>What is WayPledge?</Text>
               <Text style={styles.text}>
-                A community platform for mutual support through shared intention, not
-                transactions. No money, no fees, no selling - just genuine human connection.
+                WayPledge is the flagship of The Way, a place where wishes and pledges move in trust.
+              </Text>
+              <Text style={styles.text}>
+                A wish can be shared when someone needs support, and a pledge can be offered freely without waiting for a wish. Both flow into the same circle.
+              </Text>
+              <Text style={styles.text}>
+                When a wish is met by pledges, the outcome is confirmed and the story is shared so trust grows. When a pledge is offered first, it waits in the field until the right wish appears.
+              </Text>
+              <Text style={styles.text}>
+                Over time this creates a living network where giving and receiving move in unity.
+              </Text>
+              <Text style={styles.highlightText}>
+                It is not charity, not transaction, but circular exchange in the energy of love and unity.
+              </Text>
+              <Text style={styles.text}>
+                Each act makes the next easier, safer, and clearer. Communities become self-supporting through simple, human gestures of trust.
+              </Text>
+              <Text style={styles.tagline}>
+                Every Pledge Lights the Way. ✨
               </Text>
             </View>
 
@@ -171,6 +188,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.text,
     lineHeight: 22,
+    marginBottom: 12,
+  },
+  highlightText: {
+    fontSize: 15,
+    color: Colors.primary,
+    lineHeight: 22,
+    fontWeight: '600',
+    marginBottom: 12,
+    fontStyle: 'italic',
+  },
+  tagline: {
+    fontSize: 16,
+    color: Colors.accent,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 4,
   },
   feature: {
     flexDirection: 'row',
