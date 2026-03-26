@@ -1175,26 +1175,7 @@ async def get_hive(hive_id: str):
     if not hive:
         raise HTTPException(status_code=404, detail="Hive not found")
     
-    member_count, pledge_count, wish_count = await get_hive_stats(hive_id)
-    
-    return HiveResponse(
-        id=str(hive["_id"]),
-        name=hive["name"],
-        description=hive["description"],
-        location=hive["location"],
-        vision=hive.get("vision", ""),
-        image=hive.get("image"),
-        hive_type=hive["hive_type"],
-        founder_id=hive["founder_id"],
-        founder_name=hive["founder_name"],
-        member_count=member_count,
-        pledge_count=pledge_count,
-        wish_count=wish_count,
-        external_url=hive.get("external_url"),
-        api_endpoint=hive.get("api_endpoint"),
-        is_verified=hive.get("is_verified", False),
-        created_at=hive["created_at"]
-    )
+    return await build_hive_response(hive)
 
 @api_router.post("/hives/{hive_id}/join")
 async def join_hive(hive_id: str, current_user = Depends(get_current_user)):
@@ -1266,25 +1247,8 @@ async def get_my_hives(current_user = Depends(get_current_user)):
     
     result = []
     for h in hives:
-        member_count, pledge_count, wish_count = await get_hive_stats(str(h["_id"]))
-        result.append(HiveResponse(
-            id=str(h["_id"]),
-            name=h["name"],
-            description=h["description"],
-            location=h["location"],
-            vision=h.get("vision", ""),
-            image=h.get("image"),
-            hive_type=h["hive_type"],
-            founder_id=h["founder_id"],
-            founder_name=h["founder_name"],
-            member_count=member_count,
-            pledge_count=pledge_count,
-            wish_count=wish_count,
-            external_url=h.get("external_url"),
-            api_endpoint=h.get("api_endpoint"),
-            is_verified=h.get("is_verified", False),
-            created_at=h["created_at"]
-        ))
+        hive_response = await build_hive_response(h)
+        result.append(hive_response)
     return result
 
 # ==========================================
@@ -1438,25 +1402,8 @@ async def get_federated_partners():
     
     result = []
     for h in hives:
-        member_count, pledge_count, wish_count = await get_hive_stats(str(h["_id"]))
-        result.append(HiveResponse(
-            id=str(h["_id"]),
-            name=h["name"],
-            description=h["description"],
-            location=h["location"],
-            vision=h.get("vision", ""),
-            image=h.get("image"),
-            hive_type=h["hive_type"],
-            founder_id=h["founder_id"],
-            founder_name=h["founder_name"],
-            member_count=member_count,
-            pledge_count=pledge_count,
-            wish_count=wish_count,
-            external_url=h.get("external_url"),
-            api_endpoint=h.get("api_endpoint"),
-            is_verified=h.get("is_verified", False),
-            created_at=h["created_at"]
-        ))
+        hive_response = await build_hive_response(h)
+        result.append(hive_response)
     return result
 
 # ==========================================
