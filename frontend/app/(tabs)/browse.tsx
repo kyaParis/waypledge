@@ -131,6 +131,30 @@ export default function BrowseScreen() {
         )}
       </View>
 
+      <View style={styles.locationQuickFilters}>
+        <TouchableOpacity
+          style={[
+            styles.quickFilterButton,
+            locationFilter === 'Online' && styles.quickFilterButtonActive,
+          ]}
+          onPress={() => setLocationFilter(locationFilter === 'Online' ? '' : 'Online')}
+        >
+          <MaterialIcons
+            name="language"
+            size={18}
+            color={locationFilter === 'Online' ? Colors.surface : Colors.primary}
+          />
+          <Text
+            style={[
+              styles.quickFilterText,
+              locationFilter === 'Online' && styles.quickFilterTextActive,
+            ]}
+          >
+            Online Only
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.tabs}>
         <TouchableOpacity
           style={[
@@ -270,8 +294,17 @@ export default function BrowseScreen() {
 
               {item.location && (
                 <View style={styles.locationContainer}>
-                  <MaterialIcons name="location-on" size={14} color={Colors.textSecondary} />
-                  <Text style={styles.locationText}>{item.location}</Text>
+                  <MaterialIcons
+                    name={item.location === 'Online' ? 'language' : 'location-on'}
+                    size={14}
+                    color={item.location === 'Online' ? Colors.primary : Colors.textSecondary}
+                  />
+                  <Text style={[
+                    styles.locationText,
+                    item.location === 'Online' && { color: Colors.primary, fontWeight: '600' }
+                  ]}>
+                    {item.location}
+                  </Text>
                 </View>
               )}
 
@@ -489,5 +522,33 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     fontStyle: 'italic',
+  },
+  locationQuickFilters: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  quickFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    gap: 6,
+    alignSelf: 'flex-start',
+  },
+  quickFilterButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  quickFilterText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  quickFilterTextActive: {
+    color: Colors.surface,
   },
 });

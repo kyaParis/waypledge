@@ -251,16 +251,69 @@ export default function CreateScreen() {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Location / Community</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., Frigiliana, Andalusia, Spain"
-              value={location}
-              onChangeText={setLocation}
-              placeholderTextColor={Colors.textSecondary}
-            />
-            <Text style={styles.helpText}>
-              Enter your community, city, region, or country. Be as specific as you like!
-            </Text>
+            <View style={styles.locationOptions}>
+              <TouchableOpacity
+                style={[
+                  styles.locationButton,
+                  location === 'Online' && styles.locationButtonActive,
+                ]}
+                onPress={() => setLocation('Online')}
+              >
+                <MaterialIcons
+                  name="language"
+                  size={18}
+                  color={location === 'Online' ? Colors.surface : Colors.primary}
+                />
+                <Text
+                  style={[
+                    styles.locationButtonText,
+                    location === 'Online' && styles.locationButtonTextActive,
+                  ]}
+                >
+                  Online/Virtual
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.locationButton,
+                  location && location !== 'Online' && styles.locationButtonActive,
+                ]}
+                onPress={() => setLocation('')}
+              >
+                <MaterialIcons
+                  name="location-on"
+                  size={18}
+                  color={location && location !== 'Online' ? Colors.surface : Colors.primary}
+                />
+                <Text
+                  style={[
+                    styles.locationButtonText,
+                    location && location !== 'Online' && styles.locationButtonTextActive,
+                  ]}
+                >
+                  Local
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {location !== 'Online' && (
+              <>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., Frigiliana, Andalusia, Spain"
+                  value={location}
+                  onChangeText={setLocation}
+                  placeholderTextColor={Colors.textSecondary}
+                />
+                <Text style={styles.helpText}>
+                  Enter your community, city, region, or country
+                </Text>
+              </>
+            )}
+            {location === 'Online' && (
+              <Text style={styles.helpText}>
+                Perfect for virtual services, online chat, advice, or remote support! 💻
+              </Text>
+            )}
           </View>
 
           {type === 'pledge' && (
@@ -369,6 +422,35 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 6,
     fontStyle: 'italic',
+  },
+  locationOptions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  locationButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: Colors.surface,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    gap: 8,
+  },
+  locationButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  locationButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  locationButtonTextActive: {
+    color: Colors.surface,
   },
   input: {
     backgroundColor: Colors.surface,
