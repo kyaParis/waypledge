@@ -98,7 +98,6 @@ export default function HomeScreen() {
             style={styles.welcomeLogo}
             resizeMode="contain"
           />
-          <Text style={styles.welcomeTitle}>The Way</Text>
           <Text style={styles.welcomeText}>
             Where wishes and pledges move in trust. Not charity, not transaction, but circular exchange in the energy of love and unity.
           </Text>
