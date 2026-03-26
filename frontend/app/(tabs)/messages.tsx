@@ -217,8 +217,15 @@ export default function MessagesScreen() {
             <MaterialIcons name="chat-bubble-outline" size={64} color={Colors.textSecondary} />
             <Text style={styles.emptyText}>No conversations yet</Text>
             <Text style={styles.emptySubtext}>
-              Connect with pledges or wishes to start chatting
+              Messages appear when you connect with pledges or wishes
             </Text>
+            <View style={styles.emptySteps}>
+              <Text style={styles.emptyStepTitle}>How to start chatting:</Text>
+              <Text style={styles.emptyStep}>1. Go to Browse tab</Text>
+              <Text style={styles.emptyStep}>2. Find a pledge or wish</Text>
+              <Text style={styles.emptyStep}>3. Click "Connect" button</Text>
+              <Text style={styles.emptyStep}>4. Your conversation appears here!</Text>
+            </View>
           </View>
         )}
 
@@ -297,6 +304,26 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
     marginTop: 8,
+    marginBottom: 24,
+  },
+  emptySteps: {
+    backgroundColor: Colors.surface,
+    padding: 20,
+    borderRadius: 12,
+    width: '100%',
+    maxWidth: 300,
+  },
+  emptyStepTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 12,
+  },
+  emptyStep: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 8,
+    paddingLeft: 8,
   },
   chatHeader: {
     flexDirection: 'row',

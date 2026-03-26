@@ -9,10 +9,12 @@ import {
   SafeAreaView,
   Image,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../../store/authStore';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
 import api, { Pledge, Wish, Gratitude } from '../../utils/api';
+import WelcomeModal from '../../components/WelcomeModal';
 
 export default function HomeScreen() {
   const user = useAuthStore((state) => state.user);
@@ -20,6 +22,7 @@ export default function HomeScreen() {
   const [recentWishes, setRecentWishes] = useState<Wish[]>([]);
   const [recentGratitude, setRecentGratitude] = useState<Gratitude[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   const loadData = async () => {
     try {
@@ -38,7 +41,28 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadData();
+    checkFirstTime();
   }, []);
+
+  const checkFirstTime = async () => {
+    try {
+      const hasSeenWelcome = await AsyncStorage.getItem('hasSeenWelcome');
+      if (!hasSeenWelcome) {
+        setShowWelcome(true);
+      }
+    } catch (error) {
+      console.error('Error checking first time:', error);
+    }
+  };
+
+  const handleCloseWelcome = async () => {
+    try {
+      await AsyncStorage.setItem('hasSeenWelcome', 'true');
+      setShowWelcome(false);
+    } catch (error) {
+      console.error('Error saving welcome state:', error);
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -48,6 +72,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <WelcomeModal visible={showWelcome} onClose={handleCloseWelcome} />
       <ScrollView
         style={styles.scrollView}
         refreshControl={
@@ -59,6 +84,12 @@ export default function HomeScreen() {
             <Text style={styles.greeting}>Welcome back,</Text>
             <Text style={styles.userName}>{user?.name || 'Friend'}! 👋</Text>
           </View>
+          <TouchableOpacity
+            style={styles.helpButton}
+            onPress={() => setShowWelcome(true)}
+          >
+            <MaterialIcons name="help-outline" size={28} color={Colors.primary} />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.welcomeCard}>
@@ -70,6 +101,13 @@ export default function HomeScreen() {
           <Text style={styles.welcomeText}>
             A community built on mutual support and shared intention
           </Text>
+          <TouchableOpacity
+            style={styles.howItWorksButton}
+            onPress={() => setShowWelcome(true)}
+          >
+            <MaterialIcons name="info" size={16} color={Colors.primary} />
+            <Text style={styles.howItWorksText}>How It Works</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.statsContainer}>
@@ -179,6 +217,12 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 10,
   },
+  helpButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   greeting: {
     fontSize: 16,
     color: Colors.textSecondary,
@@ -211,6 +255,22 @@ const styles = StyleSheet.create({
     color: Colors.text,
     textAlign: 'center',
     lineHeight: 22,
+    marginBottom: 12,
+  },
+  howItWorksButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: Colors.primary + '15',
+    borderRadius: 20,
+    marginTop: 8,
+  },
+  howItWorksText: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '600',
   },
   statsContainer: {
     flexDirection: 'row',
