@@ -216,6 +216,7 @@ class HiveCreate(BaseModel):
     location: str
     vision: Optional[str] = ""  # What this hive stands for
     image: Optional[str] = None
+    parent_hive_id: Optional[str] = None  # Link to parent (e.g., Spain for Altaona)
 
 class HiveResponse(BaseModel):
     id: str
@@ -233,6 +234,9 @@ class HiveResponse(BaseModel):
     external_url: Optional[str] = None  # For federated hives
     api_endpoint: Optional[str] = None  # For future federation
     is_verified: bool
+    parent_hive_id: Optional[str] = None  # Parent hive (e.g., Spain)
+    parent_hive_name: Optional[str] = None
+    child_hive_count: int = 0  # Number of sub-communities
     created_at: datetime
 
 # Federation Models - Connect External Platforms
@@ -915,11 +919,49 @@ async def get_user_profile(user_id: str):
 # ==========================================
 
 async def get_hive_stats(hive_id: str):
-    """Get member, pledge, and wish counts for a hive"""
+    """Get member, pledge, wish, and child hive counts for a hive"""
     member_count = await db.hive_members.count_documents({"hive_id": hive_id})
     pledge_count = await db.pledges.count_documents({"hive_id": hive_id, "status": "active"})
     wish_count = await db.wishes.count_documents({"hive_id": hive_id, "status": "active"})
-    return member_count, pledge_count, wish_count
+    child_count = await db.hives.count_documents({"parent_hive_id": hive_id})
+    return member_count, pledge_count, wish_count, child_count
+
+async def get_parent_hive_info(parent_id: Optional[str]):
+    """Get parent hive name"""
+    if not parent_id:
+        return None, None
+    parent = await db.hives.find_one({"_id": ObjectId(parent_id)})
+    if parent:
+        return parent_id, parent["name"]
+    return None, None
+
+async def build_hive_response(h: dict) -> HiveResponse:
+    """Build a HiveResponse from a hive document"""
+    hive_id = str(h["_id"])
+    member_count, pledge_count, wish_count, child_count = await get_hive_stats(hive_id)
+    parent_id, parent_name = await get_parent_hive_info(h.get("parent_hive_id"))
+    
+    return HiveResponse(
+        id=hive_id,
+        name=h["name"],
+        description=h["description"],
+        location=h["location"],
+        vision=h.get("vision", ""),
+        image=h.get("image"),
+        hive_type=h["hive_type"],
+        founder_id=h["founder_id"],
+        founder_name=h["founder_name"],
+        member_count=member_count,
+        pledge_count=pledge_count,
+        wish_count=wish_count,
+        external_url=h.get("external_url"),
+        api_endpoint=h.get("api_endpoint"),
+        is_verified=h.get("is_verified", False),
+        parent_hive_id=parent_id,
+        parent_hive_name=parent_name,
+        child_hive_count=child_count,
+        created_at=h["created_at"]
+    )
 
 async def find_similar_hives(name: str, location: str):
     """Find hives with similar name or in same location"""
@@ -979,6 +1021,14 @@ async def create_hive(hive: HiveCreate, force: bool = False, current_user = Depe
     if existing:
         raise HTTPException(status_code=400, detail="A hive with this name already exists")
     
+    # Validate parent hive if specified
+    parent_name = None
+    if hive.parent_hive_id:
+        parent = await db.hives.find_one({"_id": ObjectId(hive.parent_hive_id)})
+        if not parent:
+            raise HTTPException(status_code=404, detail="Parent hive not found")
+        parent_name = parent["name"]
+    
     # If not forcing, check for similar hives and warn
     if not force:
         similar = await find_similar_hives(hive.name, hive.location)
@@ -1005,6 +1055,7 @@ async def create_hive(hive: HiveCreate, force: bool = False, current_user = Depe
         "external_url": None,
         "api_endpoint": None,
         "is_verified": False,  # Admins can verify hives
+        "parent_hive_id": hive.parent_hive_id,  # Link to parent country/region
         "created_at": datetime.utcnow()
     }
     result = await db.hives.insert_one(hive_dict)
@@ -1020,7 +1071,7 @@ async def create_hive(hive: HiveCreate, force: bool = False, current_user = Depe
     }
     await db.hive_members.insert_one(member_dict)
     
-    logger.info(f"NEW HIVE CREATED: {hive.name} in {hive.location} by {current_user['name']}")
+    logger.info(f"NEW HIVE CREATED: {hive.name} in {hive.location} by {current_user['name']} (parent: {parent_name})")
     
     return HiveResponse(
         id=hive_id,
@@ -1038,6 +1089,9 @@ async def create_hive(hive: HiveCreate, force: bool = False, current_user = Depe
         external_url=hive_dict["external_url"],
         api_endpoint=hive_dict["api_endpoint"],
         is_verified=hive_dict["is_verified"],
+        parent_hive_id=hive.parent_hive_id,
+        parent_hive_name=parent_name,
+        child_hive_count=0,
         created_at=hive_dict["created_at"]
     )
 
@@ -1072,8 +1126,8 @@ async def unverify_hive(hive_id: str, current_user = Depends(get_current_user)):
     return {"success": True, "message": "Hive verification removed"}
 
 @api_router.get("/hives", response_model=List[HiveResponse])
-async def get_hives(location: Optional[str] = None, search: Optional[str] = None, verified_only: bool = False):
-    """Get all hives, optionally filtered by location or search. Verified hives shown first."""
+async def get_hives(location: Optional[str] = None, search: Optional[str] = None, verified_only: bool = False, parent_id: Optional[str] = None, country_only: bool = False):
+    """Get all hives, optionally filtered. Verified hives shown first."""
     query = {}
     if location:
         query["location"] = {"$regex": location, "$options": "i"}
@@ -1084,31 +1138,34 @@ async def get_hives(location: Optional[str] = None, search: Optional[str] = None
         ]
     if verified_only:
         query["is_verified"] = True
+    if parent_id:
+        query["parent_hive_id"] = parent_id
+    if country_only:
+        query["is_country_hive"] = True
     
     # Sort: verified first, then by creation date
     hives = await db.hives.find(query).sort([("is_verified", -1), ("created_at", -1)]).to_list(100)
     
     result = []
     for h in hives:
-        member_count, pledge_count, wish_count = await get_hive_stats(str(h["_id"]))
-        result.append(HiveResponse(
-            id=str(h["_id"]),
-            name=h["name"],
-            description=h["description"],
-            location=h["location"],
-            vision=h.get("vision", ""),
-            image=h.get("image"),
-            hive_type=h["hive_type"],
-            founder_id=h["founder_id"],
-            founder_name=h["founder_name"],
-            member_count=member_count,
-            pledge_count=pledge_count,
-            wish_count=wish_count,
-            external_url=h.get("external_url"),
-            api_endpoint=h.get("api_endpoint"),
-            is_verified=h.get("is_verified", False),
-            created_at=h["created_at"]
-        ))
+        hive_response = await build_hive_response(h)
+        result.append(hive_response)
+    return result
+
+@api_router.get("/hives/{hive_id}/children", response_model=List[HiveResponse])
+async def get_child_hives(hive_id: str):
+    """Get all child/sub hives of a parent hive"""
+    # Verify parent exists
+    parent = await db.hives.find_one({"_id": ObjectId(hive_id)})
+    if not parent:
+        raise HTTPException(status_code=404, detail="Parent hive not found")
+    
+    children = await db.hives.find({"parent_hive_id": hive_id}).sort([("is_verified", -1), ("name", 1)]).to_list(100)
+    
+    result = []
+    for h in children:
+        hive_response = await build_hive_response(h)
+        result.append(hive_response)
     return result
 
 @api_router.get("/hives/{hive_id}", response_model=HiveResponse)

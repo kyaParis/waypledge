@@ -38,6 +38,7 @@ export default function HiveScreen() {
   const { user, isAuthenticated } = useAuthStore();
   const [hives, setHives] = useState<Hive[]>([]);
   const [myHives, setMyHives] = useState<Hive[]>([]);
+  const [countryHives, setCountryHives] = useState<Hive[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,13 +50,19 @@ export default function HiveScreen() {
   const [newHiveDescription, setNewHiveDescription] = useState('');
   const [newHiveLocation, setNewHiveLocation] = useState('');
   const [newHiveVision, setNewHiveVision] = useState('');
+  const [newHiveParentId, setNewHiveParentId] = useState<string | null>(null);
+  const [showParentPicker, setShowParentPicker] = useState(false);
   const [creating, setCreating] = useState(false);
 
   const loadHives = useCallback(async () => {
     try {
       const params = searchQuery ? { search: searchQuery } : {};
-      const response = await api.get('/hives', { params });
-      setHives(response.data);
+      const [hivesRes, countryRes] = await Promise.all([
+        api.get('/hives', { params }),
+        api.get('/hives', { params: { country_only: true } })
+      ]);
+      setHives(hivesRes.data);
+      setCountryHives(countryRes.data);
     } catch (error) {
       console.error('Error loading hives:', error);
     }
@@ -125,18 +132,24 @@ export default function HiveScreen() {
       setCreating(true);
       
       const params = force ? '?force=true' : '';
-      await api.post(`/hives${params}`, {
+      const payload: any = {
         name: newHiveName.trim(),
         description: newHiveDescription.trim(),
         location: newHiveLocation.trim(),
         vision: newHiveVision.trim(),
-      });
+      };
+      if (newHiveParentId) {
+        payload.parent_hive_id = newHiveParentId;
+      }
+      
+      await api.post(`/hives${params}`, payload);
       
       // Reset form
       setNewHiveName('');
       setNewHiveDescription('');
       setNewHiveLocation('');
       setNewHiveVision('');
+      setNewHiveParentId(null);
       setShowCreateModal(false);
       setShowSimilarWarning(false);
       setSimilarHives([]);
@@ -431,6 +444,57 @@ export default function HiveScreen() {
                   value={newHiveVision}
                   onChangeText={setNewHiveVision}
                 />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Part of Country/Region *</Text>
+                <TouchableOpacity 
+                  style={styles.parentPickerButton}
+                  onPress={() => setShowParentPicker(!showParentPicker)}
+                >
+                  <MaterialIcons name="public" size={20} color={Colors.primary} />
+                  <Text style={newHiveParentId ? styles.parentPickerText : styles.parentPickerPlaceholder}>
+                    {newHiveParentId 
+                      ? countryHives.find(h => h.id === newHiveParentId)?.name || 'Select country'
+                      : 'Select the country this hive belongs to'}
+                  </Text>
+                  <MaterialIcons 
+                    name={showParentPicker ? "expand-less" : "expand-more"} 
+                    size={24} 
+                    color={Colors.textSecondary} 
+                  />
+                </TouchableOpacity>
+                
+                {showParentPicker && (
+                  <View style={styles.parentPickerList}>
+                    {countryHives.map((country) => (
+                      <TouchableOpacity
+                        key={country.id}
+                        style={[
+                          styles.parentPickerItem,
+                          newHiveParentId === country.id && styles.parentPickerItemSelected
+                        ]}
+                        onPress={() => {
+                          setNewHiveParentId(country.id);
+                          setShowParentPicker(false);
+                        }}
+                      >
+                        <Text style={[
+                          styles.parentPickerItemText,
+                          newHiveParentId === country.id && styles.parentPickerItemTextSelected
+                        ]}>
+                          {country.name.replace('WayPledge ', '')}
+                        </Text>
+                        {newHiveParentId === country.id && (
+                          <MaterialIcons name="check" size={20} color={Colors.primary} />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+                <Text style={styles.parentHint}>
+                  Your local hive (e.g., "Altaona") will appear under the selected country hive
+                </Text>
               </View>
 
               <View style={styles.pledgeReminder}>
@@ -903,5 +967,59 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     lineHeight: 18,
+  },
+  parentPickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 10,
+  },
+  parentPickerText: {
+    flex: 1,
+    fontSize: 16,
+    color: Colors.text,
+  },
+  parentPickerPlaceholder: {
+    flex: 1,
+    fontSize: 16,
+    color: Colors.textSecondary,
+  },
+  parentPickerList: {
+    marginTop: 8,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    maxHeight: 200,
+    overflow: 'hidden',
+  },
+  parentPickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  parentPickerItemSelected: {
+    backgroundColor: Colors.primary + '15',
+  },
+  parentPickerItemText: {
+    fontSize: 15,
+    color: Colors.text,
+  },
+  parentPickerItemTextSelected: {
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  parentHint: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 8,
+    fontStyle: 'italic',
   },
 });

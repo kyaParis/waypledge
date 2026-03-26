@@ -27,6 +27,9 @@ interface Hive {
   pledge_count: number;
   wish_count: number;
   is_verified: boolean;
+  parent_hive_id?: string;
+  parent_hive_name?: string;
+  child_hive_count: number;
 }
 
 interface Member {
@@ -62,25 +65,28 @@ export default function HiveDetailScreen() {
   const [members, setMembers] = useState<Member[]>([]);
   const [pledges, setPledges] = useState<Pledge[]>([]);
   const [wishes, setWishes] = useState<Wish[]>([]);
+  const [childHives, setChildHives] = useState<Hive[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'about' | 'pledges' | 'wishes' | 'members'>('about');
+  const [activeTab, setActiveTab] = useState<'about' | 'communities' | 'pledges' | 'wishes' | 'members'>('about');
   const [isMember, setIsMember] = useState(false);
   const [myRole, setMyRole] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     try {
-      const [hiveRes, membersRes, pledgesRes, wishesRes] = await Promise.all([
+      const [hiveRes, membersRes, pledgesRes, wishesRes, childrenRes] = await Promise.all([
         api.get(`/hives/${id}`),
         api.get(`/hives/${id}/members`),
         api.get(`/pledges?hive_id=${id}`),
         api.get(`/wishes?hive_id=${id}`),
+        api.get(`/hives/${id}/children`),
       ]);
       
       setHive(hiveRes.data);
       setMembers(membersRes.data);
       setPledges(pledgesRes.data);
       setWishes(wishesRes.data);
+      setChildHives(childrenRes.data);
 
       // Check if current user is a member
       if (user) {
@@ -228,14 +234,14 @@ export default function HiveDetailScreen() {
 
         {/* Tabs */}
         <View style={styles.tabContainer}>
-          {(['about', 'pledges', 'wishes', 'members'] as const).map((tab) => (
+          {(['about', 'communities', 'pledges', 'wishes', 'members'] as const).map((tab) => (
             <TouchableOpacity
               key={tab}
               style={[styles.tab, activeTab === tab && styles.activeTab]}
               onPress={() => setActiveTab(tab)}
             >
               <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab === 'communities' ? `Local (${childHives.length})` : tab.charAt(0).toUpperCase() + tab.slice(1)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -247,6 +253,18 @@ export default function HiveDetailScreen() {
             <View>
               <Text style={styles.sectionTitle}>About This Hive</Text>
               <Text style={styles.description}>{hive.description}</Text>
+              
+              {hive.parent_hive_name && (
+                <TouchableOpacity 
+                  style={styles.parentHiveCard}
+                  onPress={() => router.push(`/hive/${hive.parent_hive_id}`)}
+                >
+                  <MaterialIcons name="arrow-upward" size={20} color={Colors.primary} />
+                  <Text style={styles.parentHiveText}>Part of {hive.parent_hive_name}</Text>
+                  <MaterialIcons name="chevron-right" size={20} color={Colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+              
               <View style={styles.founderCard}>
                 <MaterialIcons name="person" size={24} color={Colors.accent} />
                 <View style={styles.founderInfo}>
@@ -254,6 +272,49 @@ export default function HiveDetailScreen() {
                   <Text style={styles.founderName}>{hive.founder_name}</Text>
                 </View>
               </View>
+            </View>
+          )}
+
+          {activeTab === 'communities' && (
+            <View>
+              <Text style={styles.sectionTitle}>Local Communities</Text>
+              <Text style={styles.subText}>Areas and communities within {hive.name}</Text>
+              
+              {childHives.length > 0 ? (
+                childHives.map((child) => (
+                  <TouchableOpacity 
+                    key={child.id} 
+                    style={styles.childHiveCard}
+                    onPress={() => router.push(`/hive/${child.id}`)}
+                  >
+                    <View style={styles.childHiveIcon}>
+                      <MaterialIcons name="hexagon" size={24} color={Colors.accent} />
+                    </View>
+                    <View style={styles.childHiveInfo}>
+                      <View style={styles.childHiveTitleRow}>
+                        <Text style={styles.childHiveName}>{child.name}</Text>
+                        {child.is_verified && (
+                          <MaterialIcons name="verified" size={14} color={Colors.primary} />
+                        )}
+                      </View>
+                      <Text style={styles.childHiveLocation}>{child.location}</Text>
+                      <View style={styles.childHiveStats}>
+                        <Text style={styles.childHiveStat}>{child.member_count} members</Text>
+                        <Text style={styles.childHiveStat}>{child.pledge_count} pledges</Text>
+                      </View>
+                    </View>
+                    <MaterialIcons name="chevron-right" size={24} color={Colors.textSecondary} />
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={styles.emptyCommunitiesBox}>
+                  <MaterialIcons name="add-circle-outline" size={48} color={Colors.border} />
+                  <Text style={styles.emptyCommunitiesTitle}>No local communities yet</Text>
+                  <Text style={styles.emptyCommunitiesText}>
+                    Be the first to create a local community within {hive.name}!
+                  </Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -608,5 +669,90 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     marginTop: 2,
+  },
+  parentHiveCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary + '10',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 16,
+    gap: 10,
+  },
+  parentHiveText: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '500',
+  },
+  subText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 16,
+  },
+  childHiveCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.accent,
+  },
+  childHiveIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.accent + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  childHiveInfo: {
+    flex: 1,
+  },
+  childHiveTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  childHiveName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  childHiveLocation: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  childHiveStats: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 4,
+  },
+  childHiveStat: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  emptyCommunitiesBox: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+  },
+  emptyCommunitiesTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginTop: 12,
+  },
+  emptyCommunitiesText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 32,
   },
 });
