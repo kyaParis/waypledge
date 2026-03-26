@@ -8,6 +8,7 @@ import {
   RefreshControl,
   SafeAreaView,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -66,11 +67,18 @@ export default function HiveDetailScreen() {
   const [pledges, setPledges] = useState<Pledge[]>([]);
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [childHives, setChildHives] = useState<Hive[]>([]);
+  const [childSearch, setChildSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'about' | 'communities' | 'pledges' | 'wishes' | 'members'>('about');
   const [isMember, setIsMember] = useState(false);
   const [myRole, setMyRole] = useState<string | null>(null);
+
+  // Filter child hives by search
+  const filteredChildHives = childHives.filter(child => 
+    child.name.toLowerCase().includes(childSearch.toLowerCase()) ||
+    child.location.toLowerCase().includes(childSearch.toLowerCase())
+  );
 
   const loadData = useCallback(async () => {
     try {
@@ -118,8 +126,11 @@ export default function HiveDetailScreen() {
     }
     try {
       await api.post(`/hives/${id}/join`);
+      // Immediately update local state
+      setIsMember(true);
+      setMyRole('member');
       alert('Welcome to the hive!');
-      await loadData();
+      await loadData(); // Also refresh from server
     } catch (error: any) {
       alert(error.response?.data?.detail || 'Failed to join');
     }
@@ -128,8 +139,11 @@ export default function HiveDetailScreen() {
   const handleLeave = async () => {
     try {
       await api.post(`/hives/${id}/leave`);
+      // Immediately update local state
+      setIsMember(false);
+      setMyRole(null);
       alert('You have left the hive');
-      await loadData();
+      await loadData(); // Also refresh from server
     } catch (error: any) {
       alert(error.response?.data?.detail || 'Failed to leave');
     }
@@ -277,11 +291,32 @@ export default function HiveDetailScreen() {
 
           {activeTab === 'communities' && (
             <View>
-              <Text style={styles.sectionTitle}>Local Communities</Text>
+              <View style={styles.communitiesHeader}>
+                <Text style={styles.sectionTitle}>Local Communities ({childHives.length})</Text>
+              </View>
               <Text style={styles.subText}>Areas and communities within {hive.name}</Text>
               
-              {childHives.length > 0 ? (
-                childHives.map((child) => (
+              {/* Search bar for communities - shows when there are 3+ */}
+              {childHives.length >= 3 && (
+                <View style={styles.childSearchContainer}>
+                  <MaterialIcons name="search" size={20} color={Colors.textSecondary} />
+                  <TextInput
+                    style={styles.childSearchInput}
+                    placeholder="Search communities..."
+                    placeholderTextColor={Colors.textSecondary}
+                    value={childSearch}
+                    onChangeText={setChildSearch}
+                  />
+                  {childSearch ? (
+                    <TouchableOpacity onPress={() => setChildSearch('')}>
+                      <MaterialIcons name="close" size={20} color={Colors.textSecondary} />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              )}
+              
+              {filteredChildHives.length > 0 ? (
+                filteredChildHives.map((child) => (
                   <TouchableOpacity 
                     key={child.id} 
                     style={styles.childHiveCard}
@@ -306,6 +341,14 @@ export default function HiveDetailScreen() {
                     <MaterialIcons name="chevron-right" size={24} color={Colors.textSecondary} />
                   </TouchableOpacity>
                 ))
+              ) : childSearch ? (
+                <View style={styles.emptyCommunitiesBox}>
+                  <MaterialIcons name="search-off" size={48} color={Colors.border} />
+                  <Text style={styles.emptyCommunitiesTitle}>No matches found</Text>
+                  <Text style={styles.emptyCommunitiesText}>
+                    Try a different search term
+                  </Text>
+                </View>
               ) : (
                 <View style={styles.emptyCommunitiesBox}>
                   <MaterialIcons name="add-circle-outline" size={48} color={Colors.border} />
@@ -754,5 +797,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     paddingHorizontal: 32,
+  },
+  communitiesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  childSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  childSearchInput: {
+    flex: 1,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: Colors.text,
   },
 });
