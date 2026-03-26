@@ -352,6 +352,71 @@ async def get_my_pledges(current_user = Depends(get_current_user)):
         created_at=p["created_at"]
     ) for p in pledges]
 
+@api_router.get("/pledges/{pledge_id}", response_model=PledgeResponse)
+async def get_pledge(pledge_id: str):
+    pledge = await db.pledges.find_one({"_id": ObjectId(pledge_id)})
+    if not pledge:
+        raise HTTPException(status_code=404, detail="Pledge not found")
+    return PledgeResponse(
+        id=str(pledge["_id"]),
+        user_id=pledge["user_id"],
+        user_name=pledge["user_name"],
+        title=pledge["title"],
+        description=pledge["description"],
+        category=pledge["category"],
+        tags=pledge["tags"],
+        location=pledge.get("location", ""),
+        status=pledge["status"],
+        image=pledge.get("image"),
+        created_at=pledge["created_at"]
+    )
+
+@api_router.put("/pledges/{pledge_id}", response_model=PledgeResponse)
+async def update_pledge(pledge_id: str, pledge_data: PledgeCreate, current_user = Depends(get_current_user)):
+    # Check if pledge exists and belongs to user
+    pledge = await db.pledges.find_one({"_id": ObjectId(pledge_id)})
+    if not pledge:
+        raise HTTPException(status_code=404, detail="Pledge not found")
+    if pledge["user_id"] != str(current_user["_id"]):
+        raise HTTPException(status_code=403, detail="Not authorized to edit this pledge")
+    
+    # Update the pledge
+    update_data = {
+        "title": pledge_data.title,
+        "description": pledge_data.description,
+        "category": pledge_data.category,
+        "tags": pledge_data.tags,
+        "location": pledge_data.location or "",
+        "image": pledge_data.image
+    }
+    await db.pledges.update_one({"_id": ObjectId(pledge_id)}, {"$set": update_data})
+    
+    # Return updated pledge
+    updated = await db.pledges.find_one({"_id": ObjectId(pledge_id)})
+    return PledgeResponse(
+        id=str(updated["_id"]),
+        user_id=updated["user_id"],
+        user_name=updated["user_name"],
+        title=updated["title"],
+        description=updated["description"],
+        category=updated["category"],
+        tags=updated["tags"],
+        location=updated.get("location", ""),
+        status=updated["status"],
+        image=updated.get("image"),
+        created_at=updated["created_at"]
+    )
+
+@api_router.delete("/pledges/{pledge_id}")
+async def delete_pledge(pledge_id: str, current_user = Depends(get_current_user)):
+    pledge = await db.pledges.find_one({"_id": ObjectId(pledge_id)})
+    if not pledge:
+        raise HTTPException(status_code=404, detail="Pledge not found")
+    if pledge["user_id"] != str(current_user["_id"]):
+        raise HTTPException(status_code=403, detail="Not authorized to delete this pledge")
+    await db.pledges.delete_one({"_id": ObjectId(pledge_id)})
+    return {"success": True, "message": "Pledge deleted"}
+
 # Wish endpoints
 @api_router.post("/wishes", response_model=WishResponse)
 async def create_wish(wish: WishCreate, current_user = Depends(get_current_user)):
@@ -429,6 +494,70 @@ async def get_my_wishes(current_user = Depends(get_current_user)):
         fulfilled_by=w.get("fulfilled_by"),
         created_at=w["created_at"]
     ) for w in wishes]
+
+@api_router.get("/wishes/{wish_id}", response_model=WishResponse)
+async def get_wish(wish_id: str):
+    wish = await db.wishes.find_one({"_id": ObjectId(wish_id)})
+    if not wish:
+        raise HTTPException(status_code=404, detail="Wish not found")
+    return WishResponse(
+        id=str(wish["_id"]),
+        user_id=wish["user_id"],
+        user_name=wish["user_name"],
+        title=wish["title"],
+        description=wish["description"],
+        category=wish["category"],
+        tags=wish["tags"],
+        location=wish.get("location", ""),
+        status=wish["status"],
+        fulfilled_by=wish.get("fulfilled_by"),
+        created_at=wish["created_at"]
+    )
+
+@api_router.put("/wishes/{wish_id}", response_model=WishResponse)
+async def update_wish(wish_id: str, wish_data: WishCreate, current_user = Depends(get_current_user)):
+    # Check if wish exists and belongs to user
+    wish = await db.wishes.find_one({"_id": ObjectId(wish_id)})
+    if not wish:
+        raise HTTPException(status_code=404, detail="Wish not found")
+    if wish["user_id"] != str(current_user["_id"]):
+        raise HTTPException(status_code=403, detail="Not authorized to edit this wish")
+    
+    # Update the wish
+    update_data = {
+        "title": wish_data.title,
+        "description": wish_data.description,
+        "category": wish_data.category,
+        "tags": wish_data.tags,
+        "location": wish_data.location or ""
+    }
+    await db.wishes.update_one({"_id": ObjectId(wish_id)}, {"$set": update_data})
+    
+    # Return updated wish
+    updated = await db.wishes.find_one({"_id": ObjectId(wish_id)})
+    return WishResponse(
+        id=str(updated["_id"]),
+        user_id=updated["user_id"],
+        user_name=updated["user_name"],
+        title=updated["title"],
+        description=updated["description"],
+        category=updated["category"],
+        tags=updated["tags"],
+        location=updated.get("location", ""),
+        status=updated["status"],
+        fulfilled_by=updated.get("fulfilled_by"),
+        created_at=updated["created_at"]
+    )
+
+@api_router.delete("/wishes/{wish_id}")
+async def delete_wish(wish_id: str, current_user = Depends(get_current_user)):
+    wish = await db.wishes.find_one({"_id": ObjectId(wish_id)})
+    if not wish:
+        raise HTTPException(status_code=404, detail="Wish not found")
+    if wish["user_id"] != str(current_user["_id"]):
+        raise HTTPException(status_code=403, detail="Not authorized to delete this wish")
+    await db.wishes.delete_one({"_id": ObjectId(wish_id)})
+    return {"success": True, "message": "Wish deleted"}
 
 # Connection endpoints
 @api_router.post("/connections", response_model=ConnectionResponse)

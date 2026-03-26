@@ -108,19 +108,33 @@ export default function ProfileScreen() {
           </View>
           {myPledges.length > 0 ? (
             myPledges.slice(0, 3).map((pledge) => (
-              <View key={pledge.id} style={[styles.itemCard, { borderLeftColor: Colors.pledgeDark }]}>
-                <Text style={styles.itemTitle}>{pledge.title}</Text>
+              <TouchableOpacity 
+                key={pledge.id} 
+                style={[styles.itemCard, { borderLeftColor: Colors.pledgeDark }]}
+                onPress={() => router.push(`/edit?id=${pledge.id}&type=pledge`)}
+              >
+                <View style={styles.itemHeader}>
+                  <Text style={styles.itemTitle}>{pledge.title}</Text>
+                  <MaterialIcons name="edit" size={18} color={Colors.textSecondary} />
+                </View>
                 <Text style={styles.itemDescription} numberOfLines={2}>
                   {pledge.description}
                 </Text>
+                {pledge.location ? (
+                  <View style={styles.locationRow}>
+                    <MaterialIcons name="place" size={14} color={Colors.textSecondary} />
+                    <Text style={styles.locationText}>{pledge.location}</Text>
+                  </View>
+                ) : null}
                 <View style={styles.itemFooter}>
                   <View style={[styles.statusBadge, { backgroundColor: Colors.pledgeLight }]}>
                     <Text style={[styles.statusText, { color: Colors.pledgeDark }]}>
                       {pledge.status}
                     </Text>
                   </View>
+                  <Text style={styles.tapToEdit}>Tap to edit</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))
           ) : (
             <Text style={styles.emptyText}>No pledges yet</Text>
@@ -134,19 +148,33 @@ export default function ProfileScreen() {
           </View>
           {myWishes.length > 0 ? (
             myWishes.slice(0, 3).map((wish) => (
-              <View key={wish.id} style={[styles.itemCard, { borderLeftColor: Colors.wishDark }]}>
-                <Text style={styles.itemTitle}>{wish.title}</Text>
+              <TouchableOpacity 
+                key={wish.id} 
+                style={[styles.itemCard, { borderLeftColor: Colors.wishDark }]}
+                onPress={() => router.push(`/edit?id=${wish.id}&type=wish`)}
+              >
+                <View style={styles.itemHeader}>
+                  <Text style={styles.itemTitle}>{wish.title}</Text>
+                  <MaterialIcons name="edit" size={18} color={Colors.textSecondary} />
+                </View>
                 <Text style={styles.itemDescription} numberOfLines={2}>
                   {wish.description}
                 </Text>
+                {wish.location ? (
+                  <View style={styles.locationRow}>
+                    <MaterialIcons name="place" size={14} color={Colors.textSecondary} />
+                    <Text style={styles.locationText}>{wish.location}</Text>
+                  </View>
+                ) : null}
                 <View style={styles.itemFooter}>
                   <View style={[styles.statusBadge, { backgroundColor: Colors.wishLight }]}>
                     <Text style={[styles.statusText, { color: Colors.wishDark }]}>
                       {wish.status}
                     </Text>
                   </View>
+                  <Text style={styles.tapToEdit}>Tap to edit</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))
           ) : (
             <Text style={styles.emptyText}>No wishes yet</Text>
@@ -283,20 +311,37 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+  itemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
   itemTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: 6,
+    flex: 1,
   },
   itemDescription: {
     fontSize: 14,
     color: Colors.textSecondary,
     marginBottom: 10,
   },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 10,
+  },
+  locationText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
   itemFooter: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   statusBadge: {
     paddingHorizontal: 10,
@@ -307,6 +352,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     textTransform: 'capitalize',
+  },
+  tapToEdit: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
   },
   gratitudeCard: {
     backgroundColor: Colors.surface,
