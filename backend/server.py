@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -234,6 +234,29 @@ class HiveResponse(BaseModel):
     api_endpoint: Optional[str] = None  # For future federation
     is_verified: bool
     created_at: datetime
+
+# Federation Models - Connect External Platforms
+class FederationRequest(BaseModel):
+    platform_name: str  # e.g., "UPledge"
+    platform_url: str  # e.g., "https://upledge.org"
+    api_endpoint: str  # e.g., "https://upledge.org/api"
+    contact_email: str
+    description: str  # About the platform
+    location: str  # Where they're based
+    pledge_agreement: bool  # Must agree to Do No Harm Pledge
+
+class FederationResponse(BaseModel):
+    id: str
+    platform_name: str
+    platform_url: str
+    api_endpoint: str
+    contact_email: str
+    description: str
+    location: str
+    status: str  # "pending", "approved", "rejected"
+    api_key: Optional[str] = None  # Generated on approval for API access
+    created_at: datetime
+    approved_at: Optional[datetime] = None
 
 class HiveMemberResponse(BaseModel):
     id: str
@@ -1107,6 +1130,306 @@ async def get_my_hives(current_user = Depends(get_current_user)):
             created_at=h["created_at"]
         ))
     return result
+
+# ==========================================
+# FEDERATION ENDPOINTS - Connect The Network
+# ==========================================
+
+import secrets
+
+@api_router.post("/federation/request", response_model=FederationResponse)
+async def request_federation(request: FederationRequest):
+    """
+    External platforms request to join the WayPledge network.
+    They must agree to the Do No Harm Pledge.
+    """
+    if not request.pledge_agreement:
+        raise HTTPException(
+            status_code=400, 
+            detail="You must agree to the Do No Harm Pledge to join the network"
+        )
+    
+    # Check if platform already registered
+    existing = await db.federation.find_one({
+        "$or": [
+            {"platform_url": request.platform_url},
+            {"api_endpoint": request.api_endpoint}
+        ]
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="This platform is already registered or pending")
+    
+    federation_dict = {
+        "platform_name": request.platform_name,
+        "platform_url": request.platform_url,
+        "api_endpoint": request.api_endpoint,
+        "contact_email": request.contact_email,
+        "description": request.description,
+        "location": request.location,
+        "status": "pending",
+        "api_key": None,
+        "created_at": datetime.utcnow(),
+        "approved_at": None
+    }
+    result = await db.federation.insert_one(federation_dict)
+    
+    logger.info(f"NEW FEDERATION REQUEST: {request.platform_name} from {request.platform_url}")
+    
+    return FederationResponse(
+        id=str(result.inserted_id),
+        platform_name=federation_dict["platform_name"],
+        platform_url=federation_dict["platform_url"],
+        api_endpoint=federation_dict["api_endpoint"],
+        contact_email=federation_dict["contact_email"],
+        description=federation_dict["description"],
+        location=federation_dict["location"],
+        status=federation_dict["status"],
+        api_key=None,
+        created_at=federation_dict["created_at"],
+        approved_at=None
+    )
+
+@api_router.get("/federation/requests", response_model=List[FederationResponse])
+async def get_federation_requests(current_user = Depends(get_current_user)):
+    """Admin: View all federation requests"""
+    if not is_user_admin(current_user["email"]):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    requests = await db.federation.find().sort("created_at", -1).to_list(100)
+    return [FederationResponse(
+        id=str(r["_id"]),
+        platform_name=r["platform_name"],
+        platform_url=r["platform_url"],
+        api_endpoint=r["api_endpoint"],
+        contact_email=r["contact_email"],
+        description=r["description"],
+        location=r["location"],
+        status=r["status"],
+        api_key=r.get("api_key"),
+        created_at=r["created_at"],
+        approved_at=r.get("approved_at")
+    ) for r in requests]
+
+@api_router.post("/federation/{request_id}/approve")
+async def approve_federation(request_id: str, current_user = Depends(get_current_user)):
+    """Admin: Approve a federation request and generate API key"""
+    if not is_user_admin(current_user["email"]):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    fed_request = await db.federation.find_one({"_id": ObjectId(request_id)})
+    if not fed_request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    if fed_request["status"] == "approved":
+        raise HTTPException(status_code=400, detail="Already approved")
+    
+    # Generate secure API key for the federated platform
+    api_key = f"wpf_{secrets.token_urlsafe(32)}"
+    
+    # Update federation request
+    await db.federation.update_one(
+        {"_id": ObjectId(request_id)},
+        {"$set": {
+            "status": "approved",
+            "api_key": api_key,
+            "approved_at": datetime.utcnow()
+        }}
+    )
+    
+    # Create a federated hive entry for this platform
+    hive_dict = {
+        "name": fed_request["platform_name"],
+        "description": fed_request["description"],
+        "location": fed_request["location"],
+        "vision": "Federated partner in the gift economy network",
+        "image": None,
+        "hive_type": "federated",
+        "founder_id": "federation",
+        "founder_name": fed_request["platform_name"],
+        "external_url": fed_request["platform_url"],
+        "api_endpoint": fed_request["api_endpoint"],
+        "is_verified": True,
+        "federation_id": str(fed_request["_id"]),
+        "created_at": datetime.utcnow()
+    }
+    await db.hives.insert_one(hive_dict)
+    
+    logger.info(f"FEDERATION APPROVED: {fed_request['platform_name']} - API Key generated")
+    
+    return {
+        "success": True,
+        "message": f"Federation approved for {fed_request['platform_name']}",
+        "api_key": api_key,
+        "note": "Share this API key securely with the platform. They will use it to sync data."
+    }
+
+@api_router.post("/federation/{request_id}/reject")
+async def reject_federation(request_id: str, current_user = Depends(get_current_user)):
+    """Admin: Reject a federation request"""
+    if not is_user_admin(current_user["email"]):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    await db.federation.update_one(
+        {"_id": ObjectId(request_id)},
+        {"$set": {"status": "rejected"}}
+    )
+    return {"success": True, "message": "Federation request rejected"}
+
+@api_router.get("/federation/partners", response_model=List[HiveResponse])
+async def get_federated_partners():
+    """Public: Get all approved federated platforms"""
+    hives = await db.hives.find({"hive_type": "federated"}).to_list(100)
+    
+    result = []
+    for h in hives:
+        member_count, pledge_count, wish_count = await get_hive_stats(str(h["_id"]))
+        result.append(HiveResponse(
+            id=str(h["_id"]),
+            name=h["name"],
+            description=h["description"],
+            location=h["location"],
+            vision=h.get("vision", ""),
+            image=h.get("image"),
+            hive_type=h["hive_type"],
+            founder_id=h["founder_id"],
+            founder_name=h["founder_name"],
+            member_count=member_count,
+            pledge_count=pledge_count,
+            wish_count=wish_count,
+            external_url=h.get("external_url"),
+            api_endpoint=h.get("api_endpoint"),
+            is_verified=h.get("is_verified", False),
+            created_at=h["created_at"]
+        ))
+    return result
+
+# ==========================================
+# FEDERATION SYNC API - For External Platforms
+# ==========================================
+
+async def verify_federation_key(api_key: str):
+    """Verify an API key belongs to an approved federated platform"""
+    fed = await db.federation.find_one({"api_key": api_key, "status": "approved"})
+    return fed
+
+@api_router.post("/federation/sync/pledges")
+async def sync_pledges_from_partner(
+    pledges: List[dict],
+    api_key: str = Header(..., alias="X-Federation-Key")
+):
+    """
+    Federated platforms push their pledges to WayPledge.
+    This creates a unified global search across all platforms.
+    """
+    partner = await verify_federation_key(api_key)
+    if not partner:
+        raise HTTPException(status_code=401, detail="Invalid or expired federation key")
+    
+    # Find the hive for this federated partner
+    hive = await db.hives.find_one({"federation_id": str(partner["_id"])})
+    if not hive:
+        raise HTTPException(status_code=404, detail="Federated hive not found")
+    
+    hive_id = str(hive["_id"])
+    synced = 0
+    
+    for pledge_data in pledges:
+        # Check if this pledge already exists (by external_id)
+        external_id = pledge_data.get("id") or pledge_data.get("external_id")
+        if not external_id:
+            continue
+            
+        existing = await db.pledges.find_one({
+            "external_id": external_id,
+            "source_platform": partner["platform_name"]
+        })
+        
+        pledge_dict = {
+            "user_id": "federated",
+            "user_name": pledge_data.get("user_name", "Anonymous"),
+            "title": pledge_data.get("title", "Untitled"),
+            "description": pledge_data.get("description", ""),
+            "category": pledge_data.get("category", "Other"),
+            "tags": pledge_data.get("tags", []),
+            "location": pledge_data.get("location", partner["location"]),
+            "status": "active",
+            "image": pledge_data.get("image"),
+            "hive_id": hive_id,
+            "external_id": external_id,
+            "source_platform": partner["platform_name"],
+            "source_url": f"{partner['platform_url']}/pledge/{external_id}",
+            "synced_at": datetime.utcnow()
+        }
+        
+        if existing:
+            await db.pledges.update_one(
+                {"_id": existing["_id"]},
+                {"$set": pledge_dict}
+            )
+        else:
+            pledge_dict["created_at"] = datetime.utcnow()
+            await db.pledges.insert_one(pledge_dict)
+        
+        synced += 1
+    
+    return {"success": True, "synced": synced, "message": f"Synced {synced} pledges from {partner['platform_name']}"}
+
+@api_router.post("/federation/sync/wishes")
+async def sync_wishes_from_partner(
+    wishes: List[dict],
+    api_key: str = Header(..., alias="X-Federation-Key")
+):
+    """Federated platforms push their wishes to WayPledge."""
+    partner = await verify_federation_key(api_key)
+    if not partner:
+        raise HTTPException(status_code=401, detail="Invalid or expired federation key")
+    
+    hive = await db.hives.find_one({"federation_id": str(partner["_id"])})
+    if not hive:
+        raise HTTPException(status_code=404, detail="Federated hive not found")
+    
+    hive_id = str(hive["_id"])
+    synced = 0
+    
+    for wish_data in wishes:
+        external_id = wish_data.get("id") or wish_data.get("external_id")
+        if not external_id:
+            continue
+            
+        existing = await db.wishes.find_one({
+            "external_id": external_id,
+            "source_platform": partner["platform_name"]
+        })
+        
+        wish_dict = {
+            "user_id": "federated",
+            "user_name": wish_data.get("user_name", "Anonymous"),
+            "title": wish_data.get("title", "Untitled"),
+            "description": wish_data.get("description", ""),
+            "category": wish_data.get("category", "Other"),
+            "tags": wish_data.get("tags", []),
+            "location": wish_data.get("location", partner["location"]),
+            "status": "active",
+            "fulfilled_by": None,
+            "hive_id": hive_id,
+            "external_id": external_id,
+            "source_platform": partner["platform_name"],
+            "source_url": f"{partner['platform_url']}/wish/{external_id}",
+            "synced_at": datetime.utcnow()
+        }
+        
+        if existing:
+            await db.wishes.update_one(
+                {"_id": existing["_id"]},
+                {"$set": wish_dict}
+            )
+        else:
+            wish_dict["created_at"] = datetime.utcnow()
+            await db.wishes.insert_one(wish_dict)
+        
+        synced += 1
+    
+    return {"success": True, "synced": synced, "message": f"Synced {synced} wishes from {partner['platform_name']}"}
 
 # Include the router
 app.include_router(api_router)

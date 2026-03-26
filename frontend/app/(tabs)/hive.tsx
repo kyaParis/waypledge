@@ -329,6 +329,16 @@ export default function HiveScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
+      {/* Connect Your Platform Link */}
+      <TouchableOpacity 
+        style={styles.federateLink}
+        onPress={() => router.push('/federate')}
+      >
+        <MaterialIcons name="hub" size={20} color={Colors.primary} />
+        <Text style={styles.federateLinkText}>Connect your platform to the network</Text>
+        <MaterialIcons name="arrow-forward" size={18} color={Colors.primary} />
+      </TouchableOpacity>
+
       {isAuthenticated && (
         <TouchableOpacity
           style={styles.createButton}
@@ -653,6 +663,22 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+  },
+  federateLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary + '10',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  federateLinkText: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '500',
   },
   modalOverlay: {
     flex: 1,
