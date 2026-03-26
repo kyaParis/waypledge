@@ -112,7 +112,10 @@ export default function HiveScreen() {
     }
   };
 
-  const handleCreateHive = async () => {
+  const [similarHives, setSimilarHives] = useState<any[]>([]);
+  const [showSimilarWarning, setShowSimilarWarning] = useState(false);
+
+  const handleCreateHive = async (force: boolean = false) => {
     if (!newHiveName.trim() || !newHiveDescription.trim() || !newHiveLocation.trim()) {
       alert('Please fill in name, description, and location');
       return;
@@ -120,7 +123,9 @@ export default function HiveScreen() {
 
     try {
       setCreating(true);
-      await api.post('/hives', {
+      
+      const params = force ? '?force=true' : '';
+      await api.post(`/hives${params}`, {
         name: newHiveName.trim(),
         description: newHiveDescription.trim(),
         location: newHiveLocation.trim(),
@@ -133,11 +138,24 @@ export default function HiveScreen() {
       setNewHiveLocation('');
       setNewHiveVision('');
       setShowCreateModal(false);
+      setShowSimilarWarning(false);
+      setSimilarHives([]);
       
-      alert('Hive created! You are the founder.');
+      alert('Hive created! You are the founder. Note: Your hive will need admin verification to appear prominently.');
       await Promise.all([loadHives(), loadMyHives()]);
     } catch (error: any) {
-      alert(error.response?.data?.detail || 'Failed to create hive');
+      // Check if it's a "similar hives exist" warning (409 Conflict)
+      if (error.response?.status === 409) {
+        const detail = error.response?.data?.detail;
+        if (detail?.similar) {
+          setSimilarHives(detail.similar);
+          setShowSimilarWarning(true);
+        } else {
+          alert('Similar hives exist in this area. Please check existing hives first.');
+        }
+      } else {
+        alert(error.response?.data?.detail || 'Failed to create hive');
+      }
     } finally {
       setCreating(false);
     }
@@ -422,20 +440,67 @@ export default function HiveScreen() {
                 </Text>
               </View>
 
-              <TouchableOpacity
-                style={styles.submitButton}
-                onPress={handleCreateHive}
-                disabled={creating}
-              >
-                {creating ? (
-                  <ActivityIndicator color={Colors.surface} />
-                ) : (
-                  <>
-                    <MaterialIcons name="hexagon" size={20} color={Colors.surface} />
-                    <Text style={styles.submitButtonText}>Create Hive</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              {/* Similar Hives Warning */}
+              {showSimilarWarning && similarHives.length > 0 && (
+                <View style={styles.warningBox}>
+                  <View style={styles.warningHeader}>
+                    <MaterialIcons name="warning" size={24} color={Colors.accent} />
+                    <Text style={styles.warningTitle}>Similar Hives Exist</Text>
+                  </View>
+                  <Text style={styles.warningText}>
+                    We found existing hives in this area. Consider joining one instead:
+                  </Text>
+                  {similarHives.map((name, index) => (
+                    <Text key={index} style={styles.similarHiveName}>• {name}</Text>
+                  ))}
+                  <View style={styles.warningButtons}>
+                    <TouchableOpacity
+                      style={styles.cancelWarningButton}
+                      onPress={() => {
+                        setShowSimilarWarning(false);
+                        setShowCreateModal(false);
+                      }}
+                    >
+                      <Text style={styles.cancelWarningText}>Browse Existing</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.forceCreateButton}
+                      onPress={() => handleCreateHive(true)}
+                      disabled={creating}
+                    >
+                      {creating ? (
+                        <ActivityIndicator color={Colors.surface} size="small" />
+                      ) : (
+                        <Text style={styles.forceCreateText}>Create Anyway</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {!showSimilarWarning && (
+                <TouchableOpacity
+                  style={styles.submitButton}
+                  onPress={() => handleCreateHive(false)}
+                  disabled={creating}
+                >
+                  {creating ? (
+                    <ActivityIndicator color={Colors.surface} />
+                  ) : (
+                    <>
+                      <MaterialIcons name="hexagon" size={20} color={Colors.surface} />
+                      <Text style={styles.submitButtonText}>Create Hive</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+
+              <View style={styles.verificationNote}>
+                <MaterialIcons name="info-outline" size={16} color={Colors.textSecondary} />
+                <Text style={styles.verificationNoteText}>
+                  New hives require admin verification to appear prominently in search results.
+                </Text>
+              </View>
             </ScrollView>
           </View>
         </View>
@@ -756,11 +821,87 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     gap: 8,
-    marginBottom: 40,
+    marginBottom: 20,
   },
   submitButtonText: {
     color: Colors.surface,
     fontSize: 16,
     fontWeight: '600',
+  },
+  warningBox: {
+    backgroundColor: Colors.accent + '15',
+    borderWidth: 2,
+    borderColor: Colors.accent,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  warningHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  warningTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  warningText: {
+    fontSize: 14,
+    color: Colors.text,
+    marginBottom: 12,
+  },
+  similarHiveName: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '600',
+    marginLeft: 8,
+    marginBottom: 4,
+  },
+  warningButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  cancelWarningButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+  },
+  cancelWarningText: {
+    fontSize: 14,
+    color: Colors.text,
+    fontWeight: '600',
+  },
+  forceCreateButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: Colors.accent,
+    alignItems: 'center',
+  },
+  forceCreateText: {
+    fontSize: 14,
+    color: Colors.surface,
+    fontWeight: '600',
+  },
+  verificationNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: Colors.surface,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 40,
+  },
+  verificationNoteText: {
+    flex: 1,
+    fontSize: 12,
+    color: Colors.textSecondary,
+    lineHeight: 18,
   },
 });

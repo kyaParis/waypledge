@@ -921,13 +921,77 @@ async def get_hive_stats(hive_id: str):
     wish_count = await db.wishes.count_documents({"hive_id": hive_id, "status": "active"})
     return member_count, pledge_count, wish_count
 
+async def find_similar_hives(name: str, location: str):
+    """Find hives with similar name or in same location"""
+    # Extract key location words (city, region, country)
+    location_words = [w.strip().lower() for w in location.split(',') if len(w.strip()) > 2]
+    
+    similar = []
+    
+    # Check for similar names
+    name_matches = await db.hives.find({
+        "name": {"$regex": name.split()[0] if name.split() else name, "$options": "i"}
+    }).to_list(10)
+    similar.extend(name_matches)
+    
+    # Check for same location
+    for word in location_words:
+        location_matches = await db.hives.find({
+            "location": {"$regex": word, "$options": "i"},
+            "_id": {"$nin": [h["_id"] for h in similar]}  # Avoid duplicates
+        }).to_list(10)
+        similar.extend(location_matches)
+    
+    return similar[:5]  # Return top 5 similar hives
+
+@api_router.post("/hives/check-similar")
+async def check_similar_hives(hive: HiveCreate, current_user = Depends(get_current_user)):
+    """Check if similar hives exist before creating - returns suggestions"""
+    similar = await find_similar_hives(hive.name, hive.location)
+    
+    if not similar:
+        return {"has_similar": False, "similar_hives": [], "can_create": True}
+    
+    # Build response with similar hives info
+    similar_list = []
+    for h in similar:
+        member_count, _, _ = await get_hive_stats(str(h["_id"]))
+        similar_list.append({
+            "id": str(h["_id"]),
+            "name": h["name"],
+            "location": h["location"],
+            "member_count": member_count,
+            "is_verified": h.get("is_verified", False)
+        })
+    
+    return {
+        "has_similar": True,
+        "similar_hives": similar_list,
+        "can_create": True,  # They can still create if they confirm
+        "message": "Similar hives exist in this area. Consider joining one instead of creating a new one."
+    }
+
 @api_router.post("/hives", response_model=HiveResponse)
-async def create_hive(hive: HiveCreate, current_user = Depends(get_current_user)):
+async def create_hive(hive: HiveCreate, force: bool = False, current_user = Depends(get_current_user)):
     """Create a new local hive (chapter)"""
-    # Check if hive name already exists
+    # Check if hive name already exists (exact match)
     existing = await db.hives.find_one({"name": {"$regex": f"^{hive.name}$", "$options": "i"}})
     if existing:
         raise HTTPException(status_code=400, detail="A hive with this name already exists")
+    
+    # If not forcing, check for similar hives and warn
+    if not force:
+        similar = await find_similar_hives(hive.name, hive.location)
+        if similar:
+            similar_names = [h["name"] for h in similar[:3]]
+            raise HTTPException(
+                status_code=409,  # Conflict
+                detail={
+                    "message": "Similar hives exist in this area",
+                    "similar": similar_names,
+                    "action": "Use force=true to create anyway, or join an existing hive"
+                }
+            )
     
     hive_dict = {
         "name": hive.name,
@@ -956,6 +1020,8 @@ async def create_hive(hive: HiveCreate, current_user = Depends(get_current_user)
     }
     await db.hive_members.insert_one(member_dict)
     
+    logger.info(f"NEW HIVE CREATED: {hive.name} in {hive.location} by {current_user['name']}")
+    
     return HiveResponse(
         id=hive_id,
         name=hive_dict["name"],
@@ -975,9 +1041,39 @@ async def create_hive(hive: HiveCreate, current_user = Depends(get_current_user)
         created_at=hive_dict["created_at"]
     )
 
+@api_router.post("/hives/{hive_id}/verify")
+async def verify_hive(hive_id: str, current_user = Depends(get_current_user)):
+    """Admin: Verify a hive as legitimate"""
+    if not is_user_admin(current_user["email"]):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    hive = await db.hives.find_one({"_id": ObjectId(hive_id)})
+    if not hive:
+        raise HTTPException(status_code=404, detail="Hive not found")
+    
+    await db.hives.update_one(
+        {"_id": ObjectId(hive_id)},
+        {"$set": {"is_verified": True}}
+    )
+    
+    logger.info(f"HIVE VERIFIED: {hive['name']} by admin {current_user['email']}")
+    return {"success": True, "message": f"Hive '{hive['name']}' is now verified"}
+
+@api_router.post("/hives/{hive_id}/unverify")
+async def unverify_hive(hive_id: str, current_user = Depends(get_current_user)):
+    """Admin: Remove verification from a hive"""
+    if not is_user_admin(current_user["email"]):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    await db.hives.update_one(
+        {"_id": ObjectId(hive_id)},
+        {"$set": {"is_verified": False}}
+    )
+    return {"success": True, "message": "Hive verification removed"}
+
 @api_router.get("/hives", response_model=List[HiveResponse])
-async def get_hives(location: Optional[str] = None, search: Optional[str] = None):
-    """Get all hives, optionally filtered by location or search"""
+async def get_hives(location: Optional[str] = None, search: Optional[str] = None, verified_only: bool = False):
+    """Get all hives, optionally filtered by location or search. Verified hives shown first."""
     query = {}
     if location:
         query["location"] = {"$regex": location, "$options": "i"}
@@ -986,8 +1082,11 @@ async def get_hives(location: Optional[str] = None, search: Optional[str] = None
             {"name": {"$regex": search, "$options": "i"}},
             {"description": {"$regex": search, "$options": "i"}}
         ]
+    if verified_only:
+        query["is_verified"] = True
     
-    hives = await db.hives.find(query).sort("created_at", -1).to_list(100)
+    # Sort: verified first, then by creation date
+    hives = await db.hives.find(query).sort([("is_verified", -1), ("created_at", -1)]).to_list(100)
     
     result = []
     for h in hives:
