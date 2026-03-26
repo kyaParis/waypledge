@@ -91,6 +91,7 @@ class PledgeCreate(BaseModel):
     description: str
     category: str
     tags: List[str] = []
+    location: Optional[str] = ""
     image: Optional[str] = None
 
 class PledgeResponse(BaseModel):
@@ -101,6 +102,7 @@ class PledgeResponse(BaseModel):
     description: str
     category: str
     tags: List[str]
+    location: str
     status: str
     image: Optional[str] = None
     created_at: datetime
@@ -110,6 +112,7 @@ class WishCreate(BaseModel):
     description: str
     category: str
     tags: List[str] = []
+    location: Optional[str] = ""
 
 class WishResponse(BaseModel):
     id: str
@@ -119,6 +122,7 @@ class WishResponse(BaseModel):
     description: str
     category: str
     tags: List[str]
+    location: str
     status: str
     fulfilled_by: Optional[str] = None
     created_at: datetime
