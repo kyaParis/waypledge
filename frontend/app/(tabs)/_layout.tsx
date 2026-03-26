@@ -49,6 +49,15 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="hive"
+        options={{
+          title: 'Hive',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="hexagon" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="create"
         options={{
           title: 'Create',

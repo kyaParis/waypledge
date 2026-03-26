@@ -101,6 +101,7 @@ class PledgeCreate(BaseModel):
     tags: List[str] = []
     location: Optional[str] = ""
     image: Optional[str] = None
+    hive_id: Optional[str] = None  # Tag pledge to a hive
 
 class PledgeResponse(BaseModel):
     id: str
@@ -113,6 +114,8 @@ class PledgeResponse(BaseModel):
     location: str
     status: str
     image: Optional[str] = None
+    hive_id: Optional[str] = None
+    hive_name: Optional[str] = None
     created_at: datetime
 
 class WishCreate(BaseModel):
@@ -121,6 +124,7 @@ class WishCreate(BaseModel):
     category: str
     tags: List[str] = []
     location: Optional[str] = ""
+    hive_id: Optional[str] = None  # Tag wish to a hive
 
 class WishResponse(BaseModel):
     id: str
@@ -133,6 +137,8 @@ class WishResponse(BaseModel):
     location: str
     status: str
     fulfilled_by: Optional[str] = None
+    hive_id: Optional[str] = None
+    hive_name: Optional[str] = None
     created_at: datetime
 
 class ConnectionCreate(BaseModel):
@@ -202,6 +208,40 @@ class CategoryResponse(BaseModel):
     id: str
     name: str
     icon: str
+
+# Hive Models - Federation-Ready Architecture
+class HiveCreate(BaseModel):
+    name: str
+    description: str
+    location: str
+    vision: Optional[str] = ""  # What this hive stands for
+    image: Optional[str] = None
+
+class HiveResponse(BaseModel):
+    id: str
+    name: str
+    description: str
+    location: str
+    vision: str
+    image: Optional[str] = None
+    hive_type: str  # "local" (within WayPledge) or "federated" (external platform)
+    founder_id: str
+    founder_name: str
+    member_count: int
+    pledge_count: int
+    wish_count: int
+    external_url: Optional[str] = None  # For federated hives
+    api_endpoint: Optional[str] = None  # For future federation
+    is_verified: bool
+    created_at: datetime
+
+class HiveMemberResponse(BaseModel):
+    id: str
+    user_id: str
+    user_name: str
+    hive_id: str
+    role: str  # "founder", "guardian", "member"
+    joined_at: datetime
 
 # Auth endpoints
 @api_router.post("/auth/register", response_model=TokenResponse)
@@ -275,8 +315,26 @@ async def get_me(current_user = Depends(get_current_user)):
     )
 
 # Pledge endpoints
+async def get_hive_name(hive_id: Optional[str]) -> Optional[str]:
+    """Helper to get hive name from ID"""
+    if not hive_id:
+        return None
+    hive = await db.hives.find_one({"_id": ObjectId(hive_id)})
+    return hive["name"] if hive else None
+
 @api_router.post("/pledges", response_model=PledgeResponse)
 async def create_pledge(pledge: PledgeCreate, current_user = Depends(get_current_user)):
+    # Validate hive membership if hive_id provided
+    hive_name = None
+    if pledge.hive_id:
+        member = await db.hive_members.find_one({
+            "user_id": str(current_user["_id"]),
+            "hive_id": pledge.hive_id
+        })
+        if not member:
+            raise HTTPException(status_code=403, detail="You must be a member of this hive to post here")
+        hive_name = await get_hive_name(pledge.hive_id)
+    
     pledge_dict = {
         "user_id": str(current_user["_id"]),
         "user_name": current_user["name"],
@@ -287,6 +345,7 @@ async def create_pledge(pledge: PledgeCreate, current_user = Depends(get_current
         "location": pledge.location or "",
         "status": "active",
         "image": pledge.image,
+        "hive_id": pledge.hive_id,
         "created_at": datetime.utcnow()
     }
     result = await db.pledges.insert_one(pledge_dict)
@@ -303,16 +362,20 @@ async def create_pledge(pledge: PledgeCreate, current_user = Depends(get_current
         location=pledge_dict["location"],
         status=pledge_dict["status"],
         image=pledge_dict["image"],
+        hive_id=pledge_dict["hive_id"],
+        hive_name=hive_name,
         created_at=pledge_dict["created_at"]
     )
 
 @api_router.get("/pledges", response_model=List[PledgeResponse])
-async def get_pledges(category: Optional[str] = None, search: Optional[str] = None, location: Optional[str] = None):
+async def get_pledges(category: Optional[str] = None, search: Optional[str] = None, location: Optional[str] = None, hive_id: Optional[str] = None):
     query = {"status": "active"}
     if category:
         query["category"] = category
     if location:
         query["location"] = {"$regex": location, "$options": "i"}
+    if hive_id:
+        query["hive_id"] = hive_id
     if search:
         query["$or"] = [
             {"title": {"$regex": search, "$options": "i"}},
@@ -321,19 +384,27 @@ async def get_pledges(category: Optional[str] = None, search: Optional[str] = No
         ]
     
     pledges = await db.pledges.find(query).sort("created_at", -1).to_list(100)
-    return [PledgeResponse(
-        id=str(p["_id"]),
-        user_id=p["user_id"],
-        user_name=p["user_name"],
-        title=p["title"],
-        description=p["description"],
-        category=p["category"],
-        tags=p["tags"],
-        location=p.get("location", ""),
-        status=p["status"],
-        image=p.get("image"),
-        created_at=p["created_at"]
-    ) for p in pledges]
+    
+    # Build response with hive names
+    result = []
+    for p in pledges:
+        hive_name = await get_hive_name(p.get("hive_id")) if p.get("hive_id") else None
+        result.append(PledgeResponse(
+            id=str(p["_id"]),
+            user_id=p["user_id"],
+            user_name=p["user_name"],
+            title=p["title"],
+            description=p["description"],
+            category=p["category"],
+            tags=p["tags"],
+            location=p.get("location", ""),
+            status=p["status"],
+            image=p.get("image"),
+            hive_id=p.get("hive_id"),
+            hive_name=hive_name,
+            created_at=p["created_at"]
+        ))
+    return result
 
 @api_router.get("/pledges/mine", response_model=List[PledgeResponse])
 async def get_my_pledges(current_user = Depends(get_current_user)):
@@ -815,6 +886,227 @@ async def get_user_profile(user_id: str):
         avatar=user.get("avatar"),
         created_at=user["created_at"]
     )
+
+# ==========================================
+# HIVE ENDPOINTS - The Honeycomb Network
+# ==========================================
+
+async def get_hive_stats(hive_id: str):
+    """Get member, pledge, and wish counts for a hive"""
+    member_count = await db.hive_members.count_documents({"hive_id": hive_id})
+    pledge_count = await db.pledges.count_documents({"hive_id": hive_id, "status": "active"})
+    wish_count = await db.wishes.count_documents({"hive_id": hive_id, "status": "active"})
+    return member_count, pledge_count, wish_count
+
+@api_router.post("/hives", response_model=HiveResponse)
+async def create_hive(hive: HiveCreate, current_user = Depends(get_current_user)):
+    """Create a new local hive (chapter)"""
+    # Check if hive name already exists
+    existing = await db.hives.find_one({"name": {"$regex": f"^{hive.name}$", "$options": "i"}})
+    if existing:
+        raise HTTPException(status_code=400, detail="A hive with this name already exists")
+    
+    hive_dict = {
+        "name": hive.name,
+        "description": hive.description,
+        "location": hive.location,
+        "vision": hive.vision or "",
+        "image": hive.image,
+        "hive_type": "local",  # Local chapter within WayPledge
+        "founder_id": str(current_user["_id"]),
+        "founder_name": current_user["name"],
+        "external_url": None,
+        "api_endpoint": None,
+        "is_verified": False,  # Admins can verify hives
+        "created_at": datetime.utcnow()
+    }
+    result = await db.hives.insert_one(hive_dict)
+    hive_id = str(result.inserted_id)
+    
+    # Auto-add founder as member with "founder" role
+    member_dict = {
+        "user_id": str(current_user["_id"]),
+        "user_name": current_user["name"],
+        "hive_id": hive_id,
+        "role": "founder",
+        "joined_at": datetime.utcnow()
+    }
+    await db.hive_members.insert_one(member_dict)
+    
+    return HiveResponse(
+        id=hive_id,
+        name=hive_dict["name"],
+        description=hive_dict["description"],
+        location=hive_dict["location"],
+        vision=hive_dict["vision"],
+        image=hive_dict["image"],
+        hive_type=hive_dict["hive_type"],
+        founder_id=hive_dict["founder_id"],
+        founder_name=hive_dict["founder_name"],
+        member_count=1,
+        pledge_count=0,
+        wish_count=0,
+        external_url=hive_dict["external_url"],
+        api_endpoint=hive_dict["api_endpoint"],
+        is_verified=hive_dict["is_verified"],
+        created_at=hive_dict["created_at"]
+    )
+
+@api_router.get("/hives", response_model=List[HiveResponse])
+async def get_hives(location: Optional[str] = None, search: Optional[str] = None):
+    """Get all hives, optionally filtered by location or search"""
+    query = {}
+    if location:
+        query["location"] = {"$regex": location, "$options": "i"}
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"description": {"$regex": search, "$options": "i"}}
+        ]
+    
+    hives = await db.hives.find(query).sort("created_at", -1).to_list(100)
+    
+    result = []
+    for h in hives:
+        member_count, pledge_count, wish_count = await get_hive_stats(str(h["_id"]))
+        result.append(HiveResponse(
+            id=str(h["_id"]),
+            name=h["name"],
+            description=h["description"],
+            location=h["location"],
+            vision=h.get("vision", ""),
+            image=h.get("image"),
+            hive_type=h["hive_type"],
+            founder_id=h["founder_id"],
+            founder_name=h["founder_name"],
+            member_count=member_count,
+            pledge_count=pledge_count,
+            wish_count=wish_count,
+            external_url=h.get("external_url"),
+            api_endpoint=h.get("api_endpoint"),
+            is_verified=h.get("is_verified", False),
+            created_at=h["created_at"]
+        ))
+    return result
+
+@api_router.get("/hives/{hive_id}", response_model=HiveResponse)
+async def get_hive(hive_id: str):
+    """Get a single hive by ID"""
+    hive = await db.hives.find_one({"_id": ObjectId(hive_id)})
+    if not hive:
+        raise HTTPException(status_code=404, detail="Hive not found")
+    
+    member_count, pledge_count, wish_count = await get_hive_stats(hive_id)
+    
+    return HiveResponse(
+        id=str(hive["_id"]),
+        name=hive["name"],
+        description=hive["description"],
+        location=hive["location"],
+        vision=hive.get("vision", ""),
+        image=hive.get("image"),
+        hive_type=hive["hive_type"],
+        founder_id=hive["founder_id"],
+        founder_name=hive["founder_name"],
+        member_count=member_count,
+        pledge_count=pledge_count,
+        wish_count=wish_count,
+        external_url=hive.get("external_url"),
+        api_endpoint=hive.get("api_endpoint"),
+        is_verified=hive.get("is_verified", False),
+        created_at=hive["created_at"]
+    )
+
+@api_router.post("/hives/{hive_id}/join")
+async def join_hive(hive_id: str, current_user = Depends(get_current_user)):
+    """Join a hive as a member"""
+    # Check if hive exists
+    hive = await db.hives.find_one({"_id": ObjectId(hive_id)})
+    if not hive:
+        raise HTTPException(status_code=404, detail="Hive not found")
+    
+    # Check if already a member
+    existing = await db.hive_members.find_one({
+        "user_id": str(current_user["_id"]),
+        "hive_id": hive_id
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="You are already a member of this hive")
+    
+    member_dict = {
+        "user_id": str(current_user["_id"]),
+        "user_name": current_user["name"],
+        "hive_id": hive_id,
+        "role": "member",
+        "joined_at": datetime.utcnow()
+    }
+    await db.hive_members.insert_one(member_dict)
+    
+    return {"success": True, "message": f"Welcome to {hive['name']}!"}
+
+@api_router.post("/hives/{hive_id}/leave")
+async def leave_hive(hive_id: str, current_user = Depends(get_current_user)):
+    """Leave a hive"""
+    # Check membership
+    member = await db.hive_members.find_one({
+        "user_id": str(current_user["_id"]),
+        "hive_id": hive_id
+    })
+    if not member:
+        raise HTTPException(status_code=400, detail="You are not a member of this hive")
+    
+    if member["role"] == "founder":
+        raise HTTPException(status_code=400, detail="Founders cannot leave their hive. Transfer ownership first.")
+    
+    await db.hive_members.delete_one({"_id": member["_id"]})
+    return {"success": True, "message": "You have left the hive"}
+
+@api_router.get("/hives/{hive_id}/members", response_model=List[HiveMemberResponse])
+async def get_hive_members(hive_id: str):
+    """Get all members of a hive"""
+    members = await db.hive_members.find({"hive_id": hive_id}).sort("joined_at", 1).to_list(500)
+    return [HiveMemberResponse(
+        id=str(m["_id"]),
+        user_id=m["user_id"],
+        user_name=m["user_name"],
+        hive_id=m["hive_id"],
+        role=m["role"],
+        joined_at=m["joined_at"]
+    ) for m in members]
+
+@api_router.get("/hives/my/memberships", response_model=List[HiveResponse])
+async def get_my_hives(current_user = Depends(get_current_user)):
+    """Get all hives the current user is a member of"""
+    memberships = await db.hive_members.find({"user_id": str(current_user["_id"])}).to_list(50)
+    hive_ids = [ObjectId(m["hive_id"]) for m in memberships]
+    
+    if not hive_ids:
+        return []
+    
+    hives = await db.hives.find({"_id": {"$in": hive_ids}}).to_list(50)
+    
+    result = []
+    for h in hives:
+        member_count, pledge_count, wish_count = await get_hive_stats(str(h["_id"]))
+        result.append(HiveResponse(
+            id=str(h["_id"]),
+            name=h["name"],
+            description=h["description"],
+            location=h["location"],
+            vision=h.get("vision", ""),
+            image=h.get("image"),
+            hive_type=h["hive_type"],
+            founder_id=h["founder_id"],
+            founder_name=h["founder_name"],
+            member_count=member_count,
+            pledge_count=pledge_count,
+            wish_count=wish_count,
+            external_url=h.get("external_url"),
+            api_endpoint=h.get("api_endpoint"),
+            is_verified=h.get("is_verified", False),
+            created_at=h["created_at"]
+        ))
+    return result
 
 # Include the router
 app.include_router(api_router)
