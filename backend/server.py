@@ -239,6 +239,8 @@ async def register(user_data: UserRegister):
     )
     
     return TokenResponse(access_token=token, token_type="bearer", user=user_response)
+
+@api_router.post("/auth/login", response_model=TokenResponse)
 async def login(user_data: UserLogin):
     user = await db.users.find_one({"email": user_data.email})
     if not user or not verify_password(user_data.password, user["password_hash"]):
