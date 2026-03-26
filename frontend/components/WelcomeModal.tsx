@@ -65,7 +65,7 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
                 <View style={styles.featureText}>
                   <Text style={styles.featureTitle}>1. Create Pledges</Text>
                   <Text style={styles.featureDesc}>
-                    Offer goods, services, skills, or time you can share
+                    Offer goods, services, skills, or time. Add your location to help local community!
                   </Text>
                 </View>
               </View>
@@ -77,7 +77,7 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
                 <View style={styles.featureText}>
                   <Text style={styles.featureTitle}>2. Make Wishes</Text>
                   <Text style={styles.featureDesc}>
-                    Request what you need - no judgment, just community support
+                    Request what you need. Add location to connect with nearby supporters
                   </Text>
                 </View>
               </View>
@@ -87,9 +87,9 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
                   <MaterialIcons name="search" size={28} color={Colors.primary} />
                 </View>
                 <View style={styles.featureText}>
-                  <Text style={styles.featureTitle}>3. Browse & Connect</Text>
+                  <Text style={styles.featureTitle}>3. Browse & Search</Text>
                   <Text style={styles.featureDesc}>
-                    Find pledges and wishes, then click "Connect" to start chatting
+                    Find by category, keywords, or location. Filter by your community, city, or country!
                   </Text>
                 </View>
               </View>

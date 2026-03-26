@@ -44,7 +44,7 @@ export default function AboutScreen() {
             <View style={styles.stepContent}>
               <Text style={styles.stepTitle}>1. Create a Pledge</Text>
               <Text style={styles.stepText}>
-                Offer something you can give - goods, services, skills, or time
+                Offer something you can give - goods, services, skills, or time. Add your location to help local community members find you.
               </Text>
             </View>
           </View>
@@ -56,7 +56,7 @@ export default function AboutScreen() {
             <View style={styles.stepContent}>
               <Text style={styles.stepTitle}>2. Make a Wish</Text>
               <Text style={styles.stepText}>
-                Share what you need without judgment, just community support
+                Share what you need without judgment. Add your location to connect with nearby supporters.
               </Text>
             </View>
           </View>
@@ -66,9 +66,9 @@ export default function AboutScreen() {
               <MaterialIcons name="search" size={24} color={Colors.primary} />
             </View>
             <View style={styles.stepContent}>
-              <Text style={styles.stepTitle}>3. Browse & Connect</Text>
+              <Text style={styles.stepTitle}>3. Browse & Search</Text>
               <Text style={styles.stepText}>
-                Find pledges and wishes, then click "Connect" to start a conversation
+                Find pledges and wishes by category, keywords, or location. Filter by your community, city, region, or country.
               </Text>
             </View>
           </View>
@@ -78,9 +78,9 @@ export default function AboutScreen() {
               <MaterialIcons name="chat" size={24} color={Colors.accent} />
             </View>
             <View style={styles.stepContent}>
-              <Text style={styles.stepTitle}>4. Coordinate</Text>
+              <Text style={styles.stepTitle}>4. Connect & Coordinate</Text>
               <Text style={styles.stepText}>
-                Chat privately to arrange giving and receiving
+                Click "Connect" on any pledge or wish to start a private conversation and coordinate support
               </Text>
             </View>
           </View>
