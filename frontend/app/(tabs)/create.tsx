@@ -25,6 +25,7 @@ export default function CreateScreen() {
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [tags, setTags] = useState('');
+  const [location, setLocation] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -86,6 +87,7 @@ export default function CreateScreen() {
         description: description.trim(),
         category,
         tags: tagsArray,
+        location: location.trim(),
       };
 
       if (type === 'pledge' && image) {
@@ -105,6 +107,7 @@ export default function CreateScreen() {
               setDescription('');
               setCategory('');
               setTags('');
+              setLocation('');
               setImage(null);
             },
           },
@@ -246,6 +249,20 @@ export default function CreateScreen() {
             />
           </View>
 
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Location / Community</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., Frigiliana, Andalusia, Spain"
+              value={location}
+              onChangeText={setLocation}
+              placeholderTextColor={Colors.textSecondary}
+            />
+            <Text style={styles.helpText}>
+              Enter your community, city, region, or country. Be as specific as you like!
+            </Text>
+          </View>
+
           {type === 'pledge' && (
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Image (optional)</Text>
@@ -346,6 +363,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.text,
     marginBottom: 8,
+  },
+  helpText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 6,
+    fontStyle: 'italic',
   },
   input: {
     backgroundColor: Colors.surface,

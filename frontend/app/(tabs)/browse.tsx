@@ -25,6 +25,7 @@ export default function BrowseScreen() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = async () => {
@@ -34,12 +35,14 @@ export default function BrowseScreen() {
           params: {
             category: selectedCategory || undefined,
             search: searchQuery || undefined,
+            location: locationFilter || undefined,
           },
         }),
         api.get('/wishes', {
           params: {
             category: selectedCategory || undefined,
             search: searchQuery || undefined,
+            location: locationFilter || undefined,
           },
         }),
         api.get('/categories'),
@@ -54,7 +57,7 @@ export default function BrowseScreen() {
 
   useEffect(() => {
     loadData();
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, searchQuery, locationFilter]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -110,6 +113,22 @@ export default function BrowseScreen() {
           onChangeText={setSearchQuery}
           placeholderTextColor={Colors.textSecondary}
         />
+      </View>
+
+      <View style={styles.searchContainer}>
+        <MaterialIcons name="location-on" size={20} color={Colors.textSecondary} style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Filter by location (e.g., Spain, Andalusia...)"
+          value={locationFilter}
+          onChangeText={setLocationFilter}
+          placeholderTextColor={Colors.textSecondary}
+        />
+        {locationFilter && (
+          <TouchableOpacity onPress={() => setLocationFilter('')} style={styles.clearButton}>
+            <MaterialIcons name="close" size={20} color={Colors.textSecondary} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.tabs}>
@@ -249,6 +268,13 @@ export default function BrowseScreen() {
 
               <Text style={styles.cardDescription}>{item.description}</Text>
 
+              {item.location && (
+                <View style={styles.locationContainer}>
+                  <MaterialIcons name="location-on" size={14} color={Colors.textSecondary} />
+                  <Text style={styles.locationText}>{item.location}</Text>
+                </View>
+              )}
+
               {item.tags.length > 0 && (
                 <View style={styles.tagsContainer}>
                   {item.tags.map((tag, index) => (
@@ -317,6 +343,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     color: Colors.text,
+  },
+  clearButton: {
+    padding: 8,
   },
   tabs: {
     flexDirection: 'row',
@@ -448,6 +477,17 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
     marginTop: 40,
+    fontStyle: 'italic',
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 4,
+  },
+  locationText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
     fontStyle: 'italic',
   },
 });

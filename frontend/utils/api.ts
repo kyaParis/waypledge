@@ -25,6 +25,7 @@ export interface Pledge {
   description: string;
   category: string;
   tags: string[];
+  location: string;
   status: string;
   image?: string;
   created_at: string;
@@ -38,6 +39,7 @@ export interface Wish {
   description: string;
   category: string;
   tags: string[];
+  location: string;
   status: string;
   fulfilled_by?: string;
   created_at: string;

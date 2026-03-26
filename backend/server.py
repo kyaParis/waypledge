@@ -254,6 +254,7 @@ async def create_pledge(pledge: PledgeCreate, current_user = Depends(get_current
         "description": pledge.description,
         "category": pledge.category,
         "tags": pledge.tags,
+        "location": pledge.location or "",
         "status": "active",
         "image": pledge.image,
         "created_at": datetime.utcnow()
@@ -269,16 +270,19 @@ async def create_pledge(pledge: PledgeCreate, current_user = Depends(get_current
         description=pledge_dict["description"],
         category=pledge_dict["category"],
         tags=pledge_dict["tags"],
+        location=pledge_dict["location"],
         status=pledge_dict["status"],
         image=pledge_dict["image"],
         created_at=pledge_dict["created_at"]
     )
 
 @api_router.get("/pledges", response_model=List[PledgeResponse])
-async def get_pledges(category: Optional[str] = None, search: Optional[str] = None):
+async def get_pledges(category: Optional[str] = None, search: Optional[str] = None, location: Optional[str] = None):
     query = {"status": "active"}
     if category:
         query["category"] = category
+    if location:
+        query["location"] = {"$regex": location, "$options": "i"}
     if search:
         query["$or"] = [
             {"title": {"$regex": search, "$options": "i"}},
@@ -295,6 +299,7 @@ async def get_pledges(category: Optional[str] = None, search: Optional[str] = No
         description=p["description"],
         category=p["category"],
         tags=p["tags"],
+        location=p.get("location", ""),
         status=p["status"],
         image=p.get("image"),
         created_at=p["created_at"]
@@ -311,6 +316,7 @@ async def get_my_pledges(current_user = Depends(get_current_user)):
         description=p["description"],
         category=p["category"],
         tags=p["tags"],
+        location=p.get("location", ""),
         status=p["status"],
         image=p.get("image"),
         created_at=p["created_at"]
@@ -326,6 +332,7 @@ async def create_wish(wish: WishCreate, current_user = Depends(get_current_user)
         "description": wish.description,
         "category": wish.category,
         "tags": wish.tags,
+        "location": wish.location or "",
         "status": "active",
         "fulfilled_by": None,
         "created_at": datetime.utcnow()
@@ -341,16 +348,19 @@ async def create_wish(wish: WishCreate, current_user = Depends(get_current_user)
         description=wish_dict["description"],
         category=wish_dict["category"],
         tags=wish_dict["tags"],
+        location=wish_dict["location"],
         status=wish_dict["status"],
         fulfilled_by=wish_dict["fulfilled_by"],
         created_at=wish_dict["created_at"]
     )
 
 @api_router.get("/wishes", response_model=List[WishResponse])
-async def get_wishes(category: Optional[str] = None, search: Optional[str] = None):
+async def get_wishes(category: Optional[str] = None, search: Optional[str] = None, location: Optional[str] = None):
     query = {"status": "active"}
     if category:
         query["category"] = category
+    if location:
+        query["location"] = {"$regex": location, "$options": "i"}
     if search:
         query["$or"] = [
             {"title": {"$regex": search, "$options": "i"}},
@@ -367,6 +377,7 @@ async def get_wishes(category: Optional[str] = None, search: Optional[str] = Non
         description=w["description"],
         category=w["category"],
         tags=w["tags"],
+        location=w.get("location", ""),
         status=w["status"],
         fulfilled_by=w.get("fulfilled_by"),
         created_at=w["created_at"]
@@ -383,6 +394,7 @@ async def get_my_wishes(current_user = Depends(get_current_user)):
         description=w["description"],
         category=w["category"],
         tags=w["tags"],
+        location=w.get("location", ""),
         status=w["status"],
         fulfilled_by=w.get("fulfilled_by"),
         created_at=w["created_at"]
