@@ -28,6 +28,7 @@ export interface Pledge {
   location: string;
   status: string;
   image?: string;
+  available_until?: string;
   created_at: string;
 }
 
@@ -42,6 +43,8 @@ export interface Wish {
   location: string;
   status: string;
   fulfilled_by?: string;
+  needed_by?: string;
+  urgency?: 'urgent' | 'normal' | 'flexible';
   created_at: string;
 }
 

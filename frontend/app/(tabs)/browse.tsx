@@ -18,6 +18,26 @@ import ReportModal from '../../components/ReportModal';
 
 type TabType = 'pledges' | 'wishes';
 
+// Helper function to format dates
+const formatDate = (dateString: string | null | undefined): string | null => {
+  if (!dateString) return null;
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+// Helper to get urgency display info
+const getUrgencyInfo = (urgency: string | undefined) => {
+  switch (urgency) {
+    case 'urgent':
+      return { label: 'URGENT', color: Colors.error, icon: 'warning' as const };
+    case 'flexible':
+      return { label: 'Flexible', color: Colors.success, icon: 'all-inclusive' as const };
+    default:
+      return null; // Don't show badge for 'normal'
+  }
+};
+
 export default function BrowseScreen() {
   const user = useAuthStore((state) => state.user);
   const [activeTab, setActiveTab] = useState<TabType>('pledges');
@@ -326,6 +346,46 @@ export default function BrowseScreen() {
                 </View>
               )}
 
+              {/* Urgency Badge & Timing Info */}
+              {activeTab === 'wishes' && (
+                <View style={styles.timingContainer}>
+                  {getUrgencyInfo((item as Wish).urgency) && (
+                    <View style={[
+                      styles.urgencyBadge,
+                      { backgroundColor: getUrgencyInfo((item as Wish).urgency)!.color }
+                    ]}>
+                      <MaterialIcons 
+                        name={getUrgencyInfo((item as Wish).urgency)!.icon} 
+                        size={14} 
+                        color={Colors.surface} 
+                      />
+                      <Text style={styles.urgencyBadgeText}>
+                        {getUrgencyInfo((item as Wish).urgency)!.label}
+                      </Text>
+                    </View>
+                  )}
+                  {(item as Wish).needed_by && (
+                    <View style={styles.dateInfo}>
+                      <MaterialIcons name="event" size={14} color={Colors.textSecondary} />
+                      <Text style={styles.dateText}>
+                        Needed by {formatDate((item as Wish).needed_by)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {activeTab === 'pledges' && (item as Pledge).available_until && (
+                <View style={styles.timingContainer}>
+                  <View style={styles.dateInfo}>
+                    <MaterialIcons name="schedule" size={14} color={Colors.textSecondary} />
+                    <Text style={styles.dateText}>
+                      Available until {formatDate((item as Pledge).available_until)}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
               <View style={styles.cardActions}>
                 <TouchableOpacity
                   style={[
@@ -591,5 +651,35 @@ const styles = StyleSheet.create({
   },
   quickFilterTextActive: {
     color: Colors.surface,
+  },
+  timingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 12,
+  },
+  urgencyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    gap: 4,
+  },
+  urgencyBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.surface,
+  },
+  dateInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  dateText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
   },
 });
