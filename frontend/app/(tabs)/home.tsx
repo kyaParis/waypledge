@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   RefreshControl,
   SafeAreaView,
   Image,
+  AppState,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
@@ -24,6 +25,10 @@ export default function HomeScreen() {
   const [recentGratitude, setRecentGratitude] = useState<Gratitude[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  
+  // Auto-refresh state
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isFocusedRef = useRef(true);
 
   const loadData = useCallback(async () => {
     try {
@@ -40,12 +45,37 @@ export default function HomeScreen() {
     }
   }, []);
 
-  // Refetch data when screen comes into focus (e.g., after deleting a pledge)
+  // Auto-refresh every 30 seconds when screen is focused
   useFocusEffect(
     useCallback(() => {
+      isFocusedRef.current = true;
       loadData();
+      
+      // Set up auto-refresh interval
+      refreshIntervalRef.current = setInterval(() => {
+        if (isFocusedRef.current) {
+          loadData();
+        }
+      }, 30000); // 30 seconds
+      
+      return () => {
+        isFocusedRef.current = false;
+        if (refreshIntervalRef.current) {
+          clearInterval(refreshIntervalRef.current);
+        }
+      };
     }, [loadData])
   );
+
+  // Also refresh when app comes back to foreground
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active' && isFocusedRef.current) {
+        loadData();
+      }
+    });
+    return () => subscription.remove();
+  }, [loadData]);
 
   useEffect(() => {
     checkFirstTime();

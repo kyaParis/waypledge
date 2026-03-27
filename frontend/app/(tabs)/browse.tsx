@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Modal,
   ActivityIndicator,
   Pressable,
+  AppState,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Colors } from '../../constants/Colors';
@@ -60,8 +61,14 @@ export default function BrowseScreen() {
   const [connectItem, setConnectItem] = useState<{ item: Pledge | Wish; type: 'pledge' | 'wish' } | null>(null);
   const [connectMessage, setConnectMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
+  
+  // Auto-refresh state
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isFocusedRef = useRef(true);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (showRefreshing = false) => {
+    if (showRefreshing) setRefreshing(true);
     try {
       const [pledgesRes, wishesRes, categoriesRes] = await Promise.all([
         api.get('/pledges', {
@@ -83,26 +90,52 @@ export default function BrowseScreen() {
       setPledges(pledgesRes.data);
       setWishes(wishesRes.data);
       setCategories(categoriesRes.data);
+      setLastUpdated(new Date());
     } catch (error) {
       console.error('Error loading data:', error);
+    } finally {
+      if (showRefreshing) setRefreshing(false);
     }
   }, [selectedCategory, searchQuery, locationFilter]);
 
-  // Refetch data when screen comes into focus (e.g., after deleting a pledge)
+  // Auto-refresh every 30 seconds when screen is focused
   useFocusEffect(
     useCallback(() => {
+      isFocusedRef.current = true;
       loadData();
+      
+      // Set up auto-refresh interval
+      refreshIntervalRef.current = setInterval(() => {
+        if (isFocusedRef.current) {
+          loadData();
+        }
+      }, 30000); // 30 seconds
+      
+      return () => {
+        isFocusedRef.current = false;
+        if (refreshIntervalRef.current) {
+          clearInterval(refreshIntervalRef.current);
+        }
+      };
     }, [loadData])
   );
+
+  // Also refresh when app comes back to foreground
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active' && isFocusedRef.current) {
+        loadData();
+      }
+    });
+    return () => subscription.remove();
+  }, [loadData]);
 
   useEffect(() => {
     loadData();
   }, [selectedCategory, searchQuery, locationFilter]);
 
   const onRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
+    await loadData(true);
   };
 
   const handleConnect = (item: Pledge | Wish, type: 'pledge' | 'wish') => {
@@ -165,6 +198,27 @@ export default function BrowseScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Browse</Text>
+      </View>
+
+      {/* Last Updated indicator with refresh button */}
+      <View style={styles.refreshBar}>
+        <Text style={styles.lastUpdatedText}>
+          Updated {lastUpdated.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+        </Text>
+        <TouchableOpacity 
+          style={styles.refreshButton} 
+          onPress={() => loadData(true)}
+          disabled={refreshing}
+        >
+          {refreshing ? (
+            <ActivityIndicator size="small" color={Colors.primary} />
+          ) : (
+            <>
+              <MaterialIcons name="refresh" size={18} color={Colors.primary} />
+              <Text style={styles.refreshButtonText}>Refresh</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </View>
 
       <View style={styles.searchContainer}>
@@ -913,5 +967,33 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: Colors.surface,
+  },
+  refreshBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  lastUpdatedText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: Colors.background,
+    gap: 4,
+  },
+  refreshButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: Colors.primary,
   },
 });
