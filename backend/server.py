@@ -71,7 +71,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 class UserRegister(BaseModel):
     email: EmailStr
     password: str
-    name: str
+    name: str  # This becomes the real name (private)
+    display_name: Optional[str] = None  # Public pseudonym
     bio: Optional[str] = ""
     location: Optional[str] = ""
 
@@ -82,7 +83,8 @@ class UserLogin(BaseModel):
 class UserResponse(BaseModel):
     id: str
     email: str
-    name: str
+    name: str  # Real name (only shown to user themselves or revealed connections)
+    display_name: str  # Public pseudonym
     bio: str
     location: str
     avatar: Optional[str] = None
@@ -288,11 +290,20 @@ async def register(user_data: UserRegister):
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
+    # Generate display name if not provided
+    display_name = user_data.display_name
+    if not display_name:
+        # Create a default pseudonym from first name + random number
+        import random
+        base_name = user_data.name.split()[0] if user_data.name else "User"
+        display_name = f"{base_name}{random.randint(100, 9999)}"
+    
     # Create user
     user_dict = {
         "email": user_data.email,
         "password_hash": get_password_hash(user_data.password),
-        "name": user_data.name,
+        "name": user_data.name,  # Real name (private)
+        "display_name": display_name,  # Public pseudonym
         "bio": user_data.bio,
         "location": user_data.location,
         "avatar": None,
@@ -308,11 +319,12 @@ async def register(user_data: UserRegister):
         id=str(user_dict["_id"]),
         email=user_dict["email"],
         name=user_dict["name"],
+        display_name=user_dict["display_name"],
         bio=user_dict["bio"],
         location=user_dict["location"],
         avatar=user_dict["avatar"],
         created_at=user_dict["created_at"],
-        is_admin=is_user_admin(user_dict["email"])
+        is_admin=user_dict["email"] in ADMIN_EMAILS
     )
     
     return TokenResponse(access_token=token, token_type="bearer", user=user_response)
@@ -325,10 +337,16 @@ async def login(user_data: UserLogin):
     
     token = create_access_token({"sub": str(user["_id"])})
     
+    # Handle legacy users without display_name
+    display_name = user.get("display_name")
+    if not display_name:
+        display_name = user["name"].split()[0] if user.get("name") else "User"
+    
     user_response = UserResponse(
         id=str(user["_id"]),
         email=user["email"],
         name=user["name"],
+        display_name=display_name,
         bio=user["bio"],
         location=user["location"],
         avatar=user.get("avatar"),
@@ -340,10 +358,16 @@ async def login(user_data: UserLogin):
 
 @api_router.get("/auth/me", response_model=UserResponse)
 async def get_me(current_user = Depends(get_current_user)):
+    # Handle legacy users without display_name
+    display_name = current_user.get("display_name")
+    if not display_name:
+        display_name = current_user["name"].split()[0] if current_user.get("name") else "User"
+    
     return UserResponse(
         id=str(current_user["_id"]),
         email=current_user["email"],
         name=current_user["name"],
+        display_name=display_name,
         bio=current_user["bio"],
         location=current_user["location"],
         avatar=current_user.get("avatar"),
