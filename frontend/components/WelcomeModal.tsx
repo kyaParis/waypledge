@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Colors } from '../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 interface WelcomeModalProps {
   visible: boolean;
@@ -22,6 +23,16 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
 
   const toggleSection = (section: SectionKey) => {
     setExpandedSection(expandedSection === section ? null : section);
+  };
+
+  const handleCreatePledge = () => {
+    onClose();
+    router.push('/(tabs)/create');
+  };
+
+  const handleBrowse = () => {
+    onClose();
+    router.push('/(tabs)/browse');
   };
 
   return (
@@ -49,6 +60,7 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
             <TouchableOpacity 
               style={styles.sectionHeader} 
               onPress={() => toggleSection('philosophy')}
+              activeOpacity={0.7}
             >
               <View style={styles.sectionHeaderLeft}>
                 <MaterialIcons name="auto-awesome" size={24} color={Colors.primary} />
@@ -107,6 +119,7 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
             <TouchableOpacity 
               style={styles.sectionHeader} 
               onPress={() => toggleSection('howItWorks')}
+              activeOpacity={0.7}
             >
               <View style={styles.sectionHeaderLeft}>
                 <MaterialIcons name="play-circle-outline" size={24} color={Colors.primary} />
@@ -174,6 +187,7 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
             <TouchableOpacity 
               style={styles.sectionHeader} 
               onPress={() => toggleSection('pledgesWishes')}
+              activeOpacity={0.7}
             >
               <View style={styles.sectionHeaderLeft}>
                 <MaterialIcons name="card-giftcard" size={24} color={Colors.primary} />
@@ -224,6 +238,7 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
             <TouchableOpacity 
               style={styles.sectionHeader} 
               onPress={() => toggleSection('hives')}
+              activeOpacity={0.7}
             >
               <View style={styles.sectionHeaderLeft}>
                 <MaterialIcons name="hexagon" size={24} color={Colors.accent} />
@@ -282,6 +297,7 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
             <TouchableOpacity 
               style={[styles.sectionHeader, styles.doNoHarmHeader]} 
               onPress={() => toggleSection('doNoHarm')}
+              activeOpacity={0.7}
             >
               <View style={styles.sectionHeaderLeft}>
                 <MaterialIcons name="shield" size={24} color={Colors.error} />
@@ -351,8 +367,52 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
               <Text style={styles.tagline}>Every Pledge Lights the Way ✨</Text>
             </View>
 
-            <TouchableOpacity style={styles.button} onPress={onClose}>
-              <Text style={styles.buttonText}>Get Started</Text>
+            {/* Clear Action Buttons */}
+            <View style={styles.actionSection}>
+              <Text style={styles.actionTitle}>Ready to Begin?</Text>
+              
+              <TouchableOpacity 
+                style={[styles.actionButton, { backgroundColor: Colors.pledgeDark }]} 
+                onPress={handleCreatePledge}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="card-giftcard" size={24} color={Colors.surface} />
+                <View style={styles.actionButtonText}>
+                  <Text style={styles.actionButtonTitle}>Create a Pledge</Text>
+                  <Text style={styles.actionButtonDesc}>Share something you can offer</Text>
+                </View>
+                <MaterialIcons name="arrow-forward" size={20} color={Colors.surface} />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.actionButton, { backgroundColor: Colors.wishDark }]} 
+                onPress={handleCreatePledge}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="star" size={24} color={Colors.surface} />
+                <View style={styles.actionButtonText}>
+                  <Text style={styles.actionButtonTitle}>Make a Wish</Text>
+                  <Text style={styles.actionButtonDesc}>Ask for something you need</Text>
+                </View>
+                <MaterialIcons name="arrow-forward" size={20} color={Colors.surface} />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.actionButton, { backgroundColor: Colors.primary }]} 
+                onPress={handleBrowse}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="search" size={24} color={Colors.surface} />
+                <View style={styles.actionButtonText}>
+                  <Text style={styles.actionButtonTitle}>Browse First</Text>
+                  <Text style={styles.actionButtonDesc}>See what others are offering</Text>
+                </View>
+                <MaterialIcons name="arrow-forward" size={20} color={Colors.surface} />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={styles.skipButton} onPress={onClose} activeOpacity={0.7}>
+              <Text style={styles.skipButtonText}>Just exploring for now</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -627,16 +687,46 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.accent,
   },
-  button: {
-    backgroundColor: Colors.primary,
-    paddingVertical: 16,
-    borderRadius: 12,
+  actionSection: {
+    marginTop: 8,
+  },
+  actionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  actionButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 12,
+    gap: 14,
+  },
+  actionButtonText: {
+    flex: 1,
+  },
+  actionButtonTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.surface,
+  },
+  actionButtonDesc: {
+    fontSize: 13,
+    color: Colors.surface,
+    opacity: 0.85,
+    marginTop: 2,
+  },
+  skipButton: {
+    alignItems: 'center',
+    paddingVertical: 14,
     marginBottom: 8,
   },
-  buttonText: {
-    color: Colors.surface,
-    fontSize: 18,
-    fontWeight: '600',
+  skipButtonText: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
   },
 });
