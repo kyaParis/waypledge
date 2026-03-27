@@ -167,12 +167,6 @@ export default function CreateScreen() {
     
     return null;
   };
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || `Failed to create ${type}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <SafeAreaView style={styles.container}>
