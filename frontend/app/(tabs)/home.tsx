@@ -79,6 +79,22 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
+        {/* Hero Section */}
+        <View style={styles.heroSection}>
+          <Image
+            source={require('../../assets/waypledge-logo.png')}
+            style={styles.heroLogo}
+            resizeMode="contain"
+          />
+          <Text style={styles.heroTitle}>WayPledge</Text>
+          <Text style={styles.heroSubtitle}>A Gift Economy Community</Text>
+        </View>
+
+        <View style={styles.heroQuoteBox}>
+          <Text style={styles.heroQuote}>Give Freely. Receive Gratefully.</Text>
+          <Text style={styles.heroQuoteSub}>Trust Flows in Circles.</Text>
+        </View>
+
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Welcome back,</Text>
@@ -92,21 +108,12 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.welcomeCard}>
-          <Image
-            source={require('../../assets/waypledge-logo.png')}
-            style={styles.welcomeLogo}
-            resizeMode="contain"
-          />
-          <Text style={styles.welcomeText}>
-            Where wishes and pledges move in trust. Not charity, not transaction, but circular exchange in the energy of love and unity.
-          </Text>
-          <Text style={styles.welcomeTagline}>Every Pledge Lights the Way ✨</Text>
+        <View style={styles.quickActions}>
           <TouchableOpacity
             style={styles.howItWorksButton}
             onPress={() => setShowWelcome(true)}
           >
-            <MaterialIcons name="info" size={16} color={Colors.primary} />
+            <MaterialIcons name="info" size={18} color={Colors.primary} />
             <Text style={styles.howItWorksText}>How It Works</Text>
           </TouchableOpacity>
         </View>
@@ -250,6 +257,53 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     marginBottom: 12,
+  },
+  heroSection: {
+    alignItems: 'center',
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+  heroLogo: {
+    width: 100,
+    height: 100,
+    marginBottom: 12,
+  },
+  heroTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: Colors.primary,
+    marginBottom: 4,
+  },
+  heroSubtitle: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  heroQuoteBox: {
+    backgroundColor: Colors.primary,
+    marginHorizontal: 20,
+    padding: 20,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  heroQuote: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: Colors.surface,
+    textAlign: 'center',
+  },
+  heroQuoteSub: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.surface,
+    textAlign: 'center',
+    marginTop: 6,
+    opacity: 0.9,
+  },
+  quickActions: {
+    alignItems: 'center',
+    marginBottom: 20,
   },
   welcomeTitle: {
     fontSize: 20,
