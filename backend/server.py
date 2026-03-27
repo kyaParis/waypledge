@@ -935,6 +935,113 @@ async def get_parent_hive_info(parent_id: Optional[str]):
         return parent_id, parent["name"]
     return None, None
 
+async def batch_get_hive_stats(hive_ids: List[str]) -> dict:
+    """Batch get stats for multiple hives - reduces N+1 queries"""
+    if not hive_ids:
+        return {}
+    
+    # Use aggregation to get counts efficiently
+    stats = {}
+    for hive_id in hive_ids:
+        stats[hive_id] = {"member_count": 0, "pledge_count": 0, "wish_count": 0, "child_count": 0}
+    
+    # Batch count members
+    member_pipeline = [
+        {"$match": {"hive_id": {"$in": hive_ids}}},
+        {"$group": {"_id": "$hive_id", "count": {"$sum": 1}}}
+    ]
+    async for doc in db.hive_members.aggregate(member_pipeline):
+        if doc["_id"] in stats:
+            stats[doc["_id"]]["member_count"] = doc["count"]
+    
+    # Batch count pledges
+    pledge_pipeline = [
+        {"$match": {"hive_id": {"$in": hive_ids}, "status": "active"}},
+        {"$group": {"_id": "$hive_id", "count": {"$sum": 1}}}
+    ]
+    async for doc in db.pledges.aggregate(pledge_pipeline):
+        if doc["_id"] in stats:
+            stats[doc["_id"]]["pledge_count"] = doc["count"]
+    
+    # Batch count wishes
+    wish_pipeline = [
+        {"$match": {"hive_id": {"$in": hive_ids}, "status": "active"}},
+        {"$group": {"_id": "$hive_id", "count": {"$sum": 1}}}
+    ]
+    async for doc in db.wishes.aggregate(wish_pipeline):
+        if doc["_id"] in stats:
+            stats[doc["_id"]]["wish_count"] = doc["count"]
+    
+    # Batch count child hives
+    child_pipeline = [
+        {"$match": {"parent_hive_id": {"$in": hive_ids}}},
+        {"$group": {"_id": "$parent_hive_id", "count": {"$sum": 1}}}
+    ]
+    async for doc in db.hives.aggregate(child_pipeline):
+        if doc["_id"] in stats:
+            stats[doc["_id"]]["child_count"] = doc["count"]
+    
+    return stats
+
+async def batch_get_parent_hive_names(parent_ids: List[str]) -> dict:
+    """Batch get parent hive names - reduces N+1 queries"""
+    if not parent_ids:
+        return {}
+    
+    valid_ids = [ObjectId(pid) for pid in parent_ids if pid]
+    if not valid_ids:
+        return {}
+    
+    parents = await db.hives.find(
+        {"_id": {"$in": valid_ids}},
+        {"_id": 1, "name": 1}
+    ).to_list(100)
+    
+    return {str(p["_id"]): p["name"] for p in parents}
+
+async def batch_build_hive_responses(hives: List[dict]) -> List[HiveResponse]:
+    """Build multiple HiveResponses efficiently with batched queries"""
+    if not hives:
+        return []
+    
+    hive_ids = [str(h["_id"]) for h in hives]
+    parent_ids = [h.get("parent_hive_id") for h in hives if h.get("parent_hive_id")]
+    
+    # Batch fetch all stats and parent names
+    stats = await batch_get_hive_stats(hive_ids)
+    parent_names = await batch_get_parent_hive_names(parent_ids)
+    
+    results = []
+    for h in hives:
+        hive_id = str(h["_id"])
+        hive_stats = stats.get(hive_id, {"member_count": 0, "pledge_count": 0, "wish_count": 0, "child_count": 0})
+        parent_id = h.get("parent_hive_id")
+        parent_name = parent_names.get(parent_id) if parent_id else None
+        
+        results.append(HiveResponse(
+            id=hive_id,
+            name=h["name"],
+            description=h["description"],
+            location=h["location"],
+            vision=h.get("vision", ""),
+            image=h.get("image"),
+            hive_type=h["hive_type"],
+            founder_id=h["founder_id"],
+            founder_name=h["founder_name"],
+            member_count=hive_stats["member_count"],
+            pledge_count=hive_stats["pledge_count"],
+            wish_count=hive_stats["wish_count"],
+            external_url=h.get("external_url"),
+            api_endpoint=h.get("api_endpoint"),
+            is_verified=h.get("is_verified", False),
+            parent_hive_id=parent_id,
+            parent_hive_name=parent_name,
+            child_hive_count=hive_stats["child_count"],
+            created_at=h["created_at"]
+        ))
+    
+    return results
+
 async def build_hive_response(h: dict) -> HiveResponse:
     """Build a HiveResponse from a hive document"""
     hive_id = str(h["_id"])
@@ -1551,6 +1658,11 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Root health check endpoint for deployment
+@app.get("/")
+async def root_health_check():
+    return {"status": "ok", "app": "WayPledge", "message": "The honeycomb is alive"}
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
