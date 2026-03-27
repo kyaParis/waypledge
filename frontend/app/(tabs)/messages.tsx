@@ -152,14 +152,21 @@ export default function MessagesScreen() {
               placeholderTextColor={Colors.textSecondary}
             />
             <TouchableOpacity
-              style={styles.sendButton}
-              onPress={sendMessage}
+              style={[
+                styles.sendButton,
+                newMessage.trim() ? styles.sendButtonActive : styles.sendButtonDisabled
+              ]}
+              onPress={() => {
+                console.log('Send button pressed, message:', newMessage);
+                sendMessage();
+              }}
+              activeOpacity={0.7}
               disabled={!newMessage.trim()}
             >
               <MaterialIcons
                 name="send"
                 size={24}
-                color={newMessage.trim() ? Colors.primary : Colors.textSecondary}
+                color={newMessage.trim() ? Colors.surface : Colors.textSecondary}
               />
             </TouchableOpacity>
           </View>
@@ -425,7 +432,14 @@ const styles = StyleSheet.create({
   sendButton: {
     width: 44,
     height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  sendButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  sendButtonDisabled: {
+    backgroundColor: Colors.border,
   },
 });

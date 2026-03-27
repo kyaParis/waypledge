@@ -108,24 +108,36 @@ export default function BrowseScreen() {
   };
 
   const sendConnection = async () => {
-    if (!connectItem || !connectMessage.trim()) {
+    console.log('sendConnection called, message:', connectMessage, 'connectItem:', connectItem);
+    
+    if (!connectItem) {
+      console.log('No connectItem');
+      Alert.alert('Error', 'No item selected');
+      return;
+    }
+    
+    if (!connectMessage.trim()) {
+      console.log('Empty message');
       Alert.alert('Error', 'Please enter a message');
       return;
     }
 
     setSendingMessage(true);
     try {
+      console.log('Sending connection request...');
       await api.post('/connections', {
         pledge_id: connectItem.type === 'pledge' ? connectItem.item.id : undefined,
         wish_id: connectItem.type === 'wish' ? connectItem.item.id : undefined,
         receiver_id: connectItem.item.user_id,
         message: connectMessage.trim(),
       });
+      console.log('Connection sent successfully');
       setConnectModalVisible(false);
       setConnectItem(null);
       setConnectMessage('');
       Alert.alert('Success', 'Message sent! Check the Messages tab for replies.');
     } catch (error: any) {
+      console.log('Error sending connection:', error);
       Alert.alert('Error', error.response?.data?.detail || 'Failed to send message');
     } finally {
       setSendingMessage(false);
@@ -495,6 +507,7 @@ export default function BrowseScreen() {
               <TouchableOpacity 
                 style={styles.modalCancelButton}
                 onPress={() => setConnectModalVisible(false)}
+                activeOpacity={0.7}
               >
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
@@ -502,10 +515,15 @@ export default function BrowseScreen() {
               <TouchableOpacity 
                 style={[
                   styles.modalSendButton,
-                  { backgroundColor: connectItem?.type === 'pledge' ? Colors.pledgeMedium : Colors.wishMedium }
+                  { backgroundColor: connectItem?.type === 'pledge' ? Colors.pledgeMedium : Colors.wishMedium },
+                  (!connectMessage.trim() || sendingMessage) && { opacity: 0.5 }
                 ]}
-                onPress={sendConnection}
-                disabled={sendingMessage}
+                onPress={() => {
+                  console.log('Send button pressed');
+                  sendConnection();
+                }}
+                activeOpacity={0.7}
+                disabled={sendingMessage || !connectMessage.trim()}
               >
                 {sendingMessage ? (
                   <ActivityIndicator color={Colors.surface} size="small" />
