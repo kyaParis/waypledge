@@ -102,6 +102,7 @@ class PledgeCreate(BaseModel):
     location: Optional[str] = ""
     image: Optional[str] = None
     hive_id: Optional[str] = None  # Tag pledge to a hive
+    available_until: Optional[datetime] = None  # When the pledge expires
 
 class PledgeResponse(BaseModel):
     id: str
@@ -116,6 +117,7 @@ class PledgeResponse(BaseModel):
     image: Optional[str] = None
     hive_id: Optional[str] = None
     hive_name: Optional[str] = None
+    available_until: Optional[datetime] = None
     created_at: datetime
 
 class WishCreate(BaseModel):
@@ -125,6 +127,8 @@ class WishCreate(BaseModel):
     tags: List[str] = []
     location: Optional[str] = ""
     hive_id: Optional[str] = None  # Tag wish to a hive
+    needed_by: Optional[datetime] = None  # When the wish is needed by
+    urgency: Optional[str] = "normal"  # "urgent", "normal", "flexible"
 
 class WishResponse(BaseModel):
     id: str
@@ -139,6 +143,8 @@ class WishResponse(BaseModel):
     fulfilled_by: Optional[str] = None
     hive_id: Optional[str] = None
     hive_name: Optional[str] = None
+    needed_by: Optional[datetime] = None
+    urgency: Optional[str] = "normal"
     created_at: datetime
 
 class ConnectionCreate(BaseModel):
@@ -373,6 +379,7 @@ async def create_pledge(pledge: PledgeCreate, current_user = Depends(get_current
         "status": "active",
         "image": pledge.image,
         "hive_id": pledge.hive_id,
+        "available_until": pledge.available_until,
         "created_at": datetime.utcnow()
     }
     result = await db.pledges.insert_one(pledge_dict)
@@ -391,6 +398,7 @@ async def create_pledge(pledge: PledgeCreate, current_user = Depends(get_current
         image=pledge_dict["image"],
         hive_id=pledge_dict["hive_id"],
         hive_name=hive_name,
+        available_until=pledge_dict["available_until"],
         created_at=pledge_dict["created_at"]
     )
 
@@ -434,6 +442,7 @@ async def get_pledges(category: Optional[str] = None, search: Optional[str] = No
             image=p.get("image"),
             hive_id=hive_id_val,
             hive_name=hive_name,
+            available_until=p.get("available_until"),
             created_at=p["created_at"]
         ))
     return result
@@ -452,6 +461,7 @@ async def get_my_pledges(current_user = Depends(get_current_user)):
         location=p.get("location", ""),
         status=p["status"],
         image=p.get("image"),
+        available_until=p.get("available_until"),
         created_at=p["created_at"]
     ) for p in pledges]
 
@@ -471,6 +481,7 @@ async def get_pledge(pledge_id: str):
         location=pledge.get("location", ""),
         status=pledge["status"],
         image=pledge.get("image"),
+        available_until=pledge.get("available_until"),
         created_at=pledge["created_at"]
     )
 
@@ -490,7 +501,8 @@ async def update_pledge(pledge_id: str, pledge_data: PledgeCreate, current_user 
         "category": pledge_data.category,
         "tags": pledge_data.tags,
         "location": pledge_data.location or "",
-        "image": pledge_data.image
+        "image": pledge_data.image,
+        "available_until": pledge_data.available_until
     }
     await db.pledges.update_one({"_id": ObjectId(pledge_id)}, {"$set": update_data})
     
@@ -507,6 +519,7 @@ async def update_pledge(pledge_id: str, pledge_data: PledgeCreate, current_user 
         location=updated.get("location", ""),
         status=updated["status"],
         image=updated.get("image"),
+        available_until=updated.get("available_until"),
         created_at=updated["created_at"]
     )
 
@@ -533,6 +546,8 @@ async def create_wish(wish: WishCreate, current_user = Depends(get_current_user)
         "location": wish.location or "",
         "status": "active",
         "fulfilled_by": None,
+        "needed_by": wish.needed_by,
+        "urgency": wish.urgency or "normal",
         "created_at": datetime.utcnow()
     }
     result = await db.wishes.insert_one(wish_dict)
@@ -549,16 +564,20 @@ async def create_wish(wish: WishCreate, current_user = Depends(get_current_user)
         location=wish_dict["location"],
         status=wish_dict["status"],
         fulfilled_by=wish_dict["fulfilled_by"],
+        needed_by=wish_dict["needed_by"],
+        urgency=wish_dict["urgency"],
         created_at=wish_dict["created_at"]
     )
 
 @api_router.get("/wishes", response_model=List[WishResponse])
-async def get_wishes(category: Optional[str] = None, search: Optional[str] = None, location: Optional[str] = None):
+async def get_wishes(category: Optional[str] = None, search: Optional[str] = None, location: Optional[str] = None, urgency: Optional[str] = None):
     query = {"status": "active"}
     if category:
         query["category"] = category
     if location:
         query["location"] = {"$regex": location, "$options": "i"}
+    if urgency:
+        query["urgency"] = urgency
     if search:
         query["$or"] = [
             {"title": {"$regex": search, "$options": "i"}},
@@ -566,7 +585,12 @@ async def get_wishes(category: Optional[str] = None, search: Optional[str] = Non
             {"tags": {"$regex": search, "$options": "i"}}
         ]
     
-    wishes = await db.wishes.find(query).sort("created_at", -1).to_list(100)
+    # Sort by urgency (urgent first), then by date
+    wishes = await db.wishes.find(query).to_list(100)
+    # Custom sort: urgent > normal > flexible, then by created_at
+    urgency_order = {"urgent": 0, "normal": 1, "flexible": 2}
+    wishes.sort(key=lambda x: (urgency_order.get(x.get("urgency", "normal"), 1), -x["created_at"].timestamp()))
+    
     return [WishResponse(
         id=str(w["_id"]),
         user_id=w["user_id"],
@@ -578,6 +602,8 @@ async def get_wishes(category: Optional[str] = None, search: Optional[str] = Non
         location=w.get("location", ""),
         status=w["status"],
         fulfilled_by=w.get("fulfilled_by"),
+        needed_by=w.get("needed_by"),
+        urgency=w.get("urgency", "normal"),
         created_at=w["created_at"]
     ) for w in wishes]
 
@@ -595,6 +621,8 @@ async def get_my_wishes(current_user = Depends(get_current_user)):
         location=w.get("location", ""),
         status=w["status"],
         fulfilled_by=w.get("fulfilled_by"),
+        needed_by=w.get("needed_by"),
+        urgency=w.get("urgency", "normal"),
         created_at=w["created_at"]
     ) for w in wishes]
 
@@ -614,6 +642,8 @@ async def get_wish(wish_id: str):
         location=wish.get("location", ""),
         status=wish["status"],
         fulfilled_by=wish.get("fulfilled_by"),
+        needed_by=wish.get("needed_by"),
+        urgency=wish.get("urgency", "normal"),
         created_at=wish["created_at"]
     )
 
@@ -632,7 +662,9 @@ async def update_wish(wish_id: str, wish_data: WishCreate, current_user = Depend
         "description": wish_data.description,
         "category": wish_data.category,
         "tags": wish_data.tags,
-        "location": wish_data.location or ""
+        "location": wish_data.location or "",
+        "needed_by": wish_data.needed_by,
+        "urgency": wish_data.urgency or "normal"
     }
     await db.wishes.update_one({"_id": ObjectId(wish_id)}, {"$set": update_data})
     
@@ -649,6 +681,8 @@ async def update_wish(wish_id: str, wish_data: WishCreate, current_user = Depend
         location=updated.get("location", ""),
         status=updated["status"],
         fulfilled_by=updated.get("fulfilled_by"),
+        needed_by=updated.get("needed_by"),
+        urgency=updated.get("urgency", "normal"),
         created_at=updated["created_at"]
     )
 

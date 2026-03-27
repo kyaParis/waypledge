@@ -18,6 +18,7 @@ import api, { Category } from '../../utils/api';
 import * as ImagePicker from 'expo-image-picker';
 
 type CreateType = 'pledge' | 'wish';
+type Urgency = 'urgent' | 'normal' | 'flexible';
 
 export default function CreateScreen() {
   const [type, setType] = useState<CreateType>('pledge');
@@ -29,6 +30,11 @@ export default function CreateScreen() {
   const [image, setImage] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // New fields for timing
+  const [availableUntil, setAvailableUntil] = useState('');
+  const [neededBy, setNeededBy] = useState('');
+  const [urgency, setUrgency] = useState<Urgency>('normal');
 
   useEffect(() => {
     loadCategories();
@@ -90,8 +96,26 @@ export default function CreateScreen() {
         location: location.trim(),
       };
 
-      if (type === 'pledge' && image) {
-        data.image = image;
+      if (type === 'pledge') {
+        if (image) {
+          data.image = image;
+        }
+        // Parse date string to ISO format for pledge
+        if (availableUntil) {
+          const parsed = parseDate(availableUntil);
+          if (parsed) {
+            data.available_until = parsed.toISOString();
+          }
+        }
+      } else {
+        // Wish fields
+        data.urgency = urgency;
+        if (neededBy) {
+          const parsed = parseDate(neededBy);
+          if (parsed) {
+            data.needed_by = parsed.toISOString();
+          }
+        }
       }
 
       await api.post(endpoint, data);
@@ -109,10 +133,40 @@ export default function CreateScreen() {
               setTags('');
               setLocation('');
               setImage(null);
+              setAvailableUntil('');
+              setNeededBy('');
+              setUrgency('normal');
             },
           },
         ]
       );
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || `Failed to create ${type}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Helper function to parse date string (DD/MM/YYYY or YYYY-MM-DD)
+  const parseDate = (dateStr: string): Date | null => {
+    if (!dateStr) return null;
+    
+    // Try DD/MM/YYYY format
+    const ddmmyyyy = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (ddmmyyyy) {
+      const [, day, month, year] = ddmmyyyy;
+      return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    }
+    
+    // Try YYYY-MM-DD format
+    const yyyymmdd = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (yyyymmdd) {
+      const [, year, month, day] = yyyymmdd;
+      return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    }
+    
+    return null;
+  };
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || `Failed to create ${type}`);
     } finally {
@@ -335,6 +389,102 @@ export default function CreateScreen() {
             </View>
           )}
 
+          {/* Timing fields */}
+          {type === 'pledge' && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Available Until (optional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="DD/MM/YYYY (e.g., 31/12/2025)"
+                value={availableUntil}
+                onChangeText={setAvailableUntil}
+                placeholderTextColor={Colors.textSecondary}
+                keyboardType="numbers-and-punctuation"
+              />
+              <Text style={styles.helpText}>
+                Leave empty if ongoing/no expiry
+              </Text>
+            </View>
+          )}
+
+          {type === 'wish' && (
+            <>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Urgency</Text>
+                <View style={styles.urgencyContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.urgencyButton,
+                      urgency === 'urgent' && styles.urgencyButtonUrgent,
+                    ]}
+                    onPress={() => setUrgency('urgent')}
+                  >
+                    <MaterialIcons 
+                      name="warning" 
+                      size={18} 
+                      color={urgency === 'urgent' ? Colors.surface : Colors.error} 
+                    />
+                    <Text style={[
+                      styles.urgencyButtonText,
+                      urgency === 'urgent' && styles.urgencyButtonTextActive
+                    ]}>Urgent</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[
+                      styles.urgencyButton,
+                      urgency === 'normal' && styles.urgencyButtonNormal,
+                    ]}
+                    onPress={() => setUrgency('normal')}
+                  >
+                    <MaterialIcons 
+                      name="schedule" 
+                      size={18} 
+                      color={urgency === 'normal' ? Colors.surface : Colors.primary} 
+                    />
+                    <Text style={[
+                      styles.urgencyButtonText,
+                      urgency === 'normal' && styles.urgencyButtonTextActive
+                    ]}>Normal</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[
+                      styles.urgencyButton,
+                      urgency === 'flexible' && styles.urgencyButtonFlexible,
+                    ]}
+                    onPress={() => setUrgency('flexible')}
+                  >
+                    <MaterialIcons 
+                      name="all-inclusive" 
+                      size={18} 
+                      color={urgency === 'flexible' ? Colors.surface : Colors.success} 
+                    />
+                    <Text style={[
+                      styles.urgencyButtonText,
+                      urgency === 'flexible' && styles.urgencyButtonTextActive
+                    ]}>Flexible</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Needed By (optional)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="DD/MM/YYYY (e.g., 15/06/2025)"
+                  value={neededBy}
+                  onChangeText={setNeededBy}
+                  placeholderTextColor={Colors.textSecondary}
+                  keyboardType="numbers-and-punctuation"
+                />
+                <Text style={styles.helpText}>
+                  Leave empty if no specific deadline
+                </Text>
+              </View>
+            </>
+          )}
+
           <TouchableOpacity
             style={[
               styles.createButton,
@@ -525,5 +675,42 @@ const styles = StyleSheet.create({
     color: Colors.surface,
     fontSize: 18,
     fontWeight: '600',
+  },
+  urgencyContainer: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  urgencyButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    backgroundColor: Colors.surface,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    gap: 6,
+  },
+  urgencyButtonUrgent: {
+    backgroundColor: Colors.error,
+    borderColor: Colors.error,
+  },
+  urgencyButtonNormal: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  urgencyButtonFlexible: {
+    backgroundColor: Colors.success,
+    borderColor: Colors.success,
+  },
+  urgencyButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  urgencyButtonTextActive: {
+    color: Colors.surface,
   },
 });
