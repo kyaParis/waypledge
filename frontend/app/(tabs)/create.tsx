@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,9 @@ export default function CreateScreen() {
   const [image, setImage] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Ref to prevent double-submission
+  const isSubmittingRef = useRef(false);
   
   // New fields for timing
   const [availableUntil, setAvailableUntil] = useState('');
@@ -75,12 +78,20 @@ export default function CreateScreen() {
   };
 
   const handleCreate = async () => {
+    // Prevent double-submission using ref (synchronous check)
+    if (isSubmittingRef.current || isLoading) {
+      return;
+    }
+    
     if (!title || !description || !category) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
 
+    // Set both ref and state immediately to prevent double-clicks
+    isSubmittingRef.current = true;
     setIsLoading(true);
+    
     try {
       const tagsArray = tags
         .split(',')
@@ -144,6 +155,10 @@ export default function CreateScreen() {
       Alert.alert('Error', error.response?.data?.detail || `Failed to create ${type}`);
     } finally {
       setIsLoading(false);
+      // Reset the ref after a short delay to allow UI to update
+      setTimeout(() => {
+        isSubmittingRef.current = false;
+      }, 500);
     }
   };
 
