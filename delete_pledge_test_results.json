@@ -1,0 +1,73 @@
+[
+  {
+    "test": "User Registration",
+    "success": true,
+    "message": "Test user created successfully",
+    "timestamp": "2026-03-27T14:55:12.803905",
+    "details": {
+      "user_id": "69c69a5062347219ef337e55",
+      "email": "delete_test_user_20260327_145512@example.com"
+    }
+  },
+  {
+    "test": "Create Test Pledge",
+    "success": true,
+    "message": "Test pledge created successfully",
+    "timestamp": "2026-03-27T14:55:12.856084",
+    "details": {
+      "pledge_id": "69c69a5062347219ef337e56",
+      "title": "Test Pledge for Deletion 14:55:12"
+    }
+  },
+  {
+    "test": "Verify Pledge Exists",
+    "success": true,
+    "message": "Created pledge found in pledges list",
+    "timestamp": "2026-03-27T14:55:12.924786",
+    "details": {
+      "pledge_id": "69c69a5062347219ef337e56",
+      "title": "Test Pledge for Deletion 14:55:12"
+    }
+  },
+  {
+    "test": "Delete Pledge",
+    "success": true,
+    "message": "Pledge deleted successfully",
+    "timestamp": "2026-03-27T14:55:12.983004",
+    "details": {
+      "pledge_id": "69c69a5062347219ef337e56",
+      "response": {
+        "success": true,
+        "message": "Pledge deleted"
+      }
+    }
+  },
+  {
+    "test": "Verify Pledge Deleted",
+    "success": true,
+    "message": "Deleted pledge confirmed removed from pledges list",
+    "timestamp": "2026-03-27T14:55:13.034040",
+    "details": {
+      "pledge_id": "69c69a5062347219ef337e56",
+      "total_pledges": 5
+    }
+  },
+  {
+    "test": "Delete Nonexistent Pledge",
+    "success": true,
+    "message": "Correctly returned 404 for non-existent pledge",
+    "timestamp": "2026-03-27T14:55:13.089369",
+    "details": {
+      "fake_id": "507f1f77bcf86cd799439011"
+    }
+  },
+  {
+    "test": "Delete Without Auth",
+    "success": false,
+    "message": "Expected 401, got 403",
+    "timestamp": "2026-03-27T14:55:13.143234",
+    "details": {
+      "response": "{\"detail\":\"Not authenticated\"}"
+    }
+  }
+]

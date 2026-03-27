@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuthStore } from '../../store/authStore';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -24,7 +25,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [pledgesRes, wishesRes, gratitudeRes] = await Promise.all([
         api.get('/pledges'),
@@ -37,10 +38,16 @@ export default function HomeScreen() {
     } catch (error) {
       console.error('Error loading data:', error);
     }
-  };
+  }, []);
+
+  // Refetch data when screen comes into focus (e.g., after deleting a pledge)
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   useEffect(() => {
-    loadData();
     checkFirstTime();
   }, []);
 

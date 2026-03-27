@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuthStore } from '../../store/authStore';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -22,11 +23,7 @@ export default function ProfileScreen() {
   const [myGratitude, setMyGratitude] = useState<Gratitude[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [pledgesRes, wishesRes, gratitudeRes] = await Promise.all([
         api.get('/pledges/mine'),
@@ -39,7 +36,14 @@ export default function ProfileScreen() {
     } catch (error) {
       console.error('Error loading data:', error);
     }
-  };
+  }, []);
+
+  // Refetch data when screen comes into focus (e.g., after deleting a pledge)
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);

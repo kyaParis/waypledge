@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Pressable,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
 import api, { Pledge, Wish, Category } from '../../utils/api';
@@ -60,7 +61,7 @@ export default function BrowseScreen() {
   const [connectMessage, setConnectMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [pledgesRes, wishesRes, categoriesRes] = await Promise.all([
         api.get('/pledges', {
@@ -85,7 +86,14 @@ export default function BrowseScreen() {
     } catch (error) {
       console.error('Error loading data:', error);
     }
-  };
+  }, [selectedCategory, searchQuery, locationFilter]);
+
+  // Refetch data when screen comes into focus (e.g., after deleting a pledge)
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   useEffect(() => {
     loadData();
