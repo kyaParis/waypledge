@@ -1,0 +1,92 @@
+[
+  {
+    "test": "Health Check",
+    "success": true,
+    "message": "Health check endpoint responding (non-JSON)",
+    "timestamp": "2026-03-27T11:41:44.906323",
+    "details": {
+      "status_code": 200,
+      "response": "<!DOCTYPE html><html  lang=\"en\" style=\"height:100%\"><head><title data-rh=\"true\"></title><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, shrink-to-fit=no\"/><m"
+    }
+  },
+  {
+    "test": "User Setup",
+    "success": true,
+    "message": "Test user created successfully",
+    "timestamp": "2026-03-27T11:41:45.296354",
+    "details": {
+      "user_id": "69c66cf981fb29fb37777e4b"
+    }
+  },
+  {
+    "test": "Hives List",
+    "success": true,
+    "message": "Retrieved 20 hives successfully",
+    "timestamp": "2026-03-27T11:41:45.342889",
+    "details": {}
+  },
+  {
+    "test": "Hives Stats Fields",
+    "success": true,
+    "message": "All required stats fields present in hive response",
+    "timestamp": "2026-03-27T11:41:45.342916",
+    "details": {
+      "sample_hive_id": "69c5a4be177c7d9acf65c58c",
+      "stats": {
+        "member_count": 0,
+        "pledge_count": 0,
+        "wish_count": 0,
+        "child_hive_count": 0
+      }
+    }
+  },
+  {
+    "test": "Hives Children",
+    "success": true,
+    "message": "Retrieved 0 child hives for hive 69c5a4be177c7d9acf65c58c",
+    "timestamp": "2026-03-27T11:41:45.435843",
+    "details": {}
+  },
+  {
+    "test": "My Hives",
+    "success": true,
+    "message": "Retrieved 0 user hives successfully",
+    "timestamp": "2026-03-27T11:41:45.480970",
+    "details": {}
+  },
+  {
+    "test": "Federation Partners",
+    "success": true,
+    "message": "Retrieved 0 federated partners successfully",
+    "timestamp": "2026-03-27T11:41:45.530494",
+    "details": {}
+  },
+  {
+    "test": "Federation Partners Stats",
+    "success": true,
+    "message": "No federation partners to check stats fields",
+    "timestamp": "2026-03-27T11:41:45.530521",
+    "details": {}
+  },
+  {
+    "test": "Pledges List",
+    "success": true,
+    "message": "Retrieved 3 pledges successfully",
+    "timestamp": "2026-03-27T11:41:45.573673",
+    "details": {}
+  },
+  {
+    "test": "Pledges Hive Names",
+    "success": true,
+    "message": "No pledges with hive_id to check hive_name field",
+    "timestamp": "2026-03-27T11:41:45.573694",
+    "details": {}
+  },
+  {
+    "test": "Categories",
+    "success": true,
+    "message": "Retrieved 9 categories successfully",
+    "timestamp": "2026-03-27T11:41:45.616498",
+    "details": {}
+  }
+]

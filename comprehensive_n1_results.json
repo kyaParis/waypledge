@@ -1,0 +1,129 @@
+[
+  {
+    "test": "User Setup",
+    "success": true,
+    "message": "Test user created successfully",
+    "timestamp": "2026-03-27T11:42:54.074769",
+    "details": {
+      "user_id": "69c66d3e81fb29fb37777e4c"
+    }
+  },
+  {
+    "test": "Test Hive Creation",
+    "success": true,
+    "message": "Created test hive: 69c66d3e81fb29fb37777e4d",
+    "timestamp": "2026-03-27T11:42:54.130823",
+    "details": {}
+  },
+  {
+    "test": "Test Pledge Creation",
+    "success": true,
+    "message": "Created test pledge with hive association",
+    "timestamp": "2026-03-27T11:42:54.185703",
+    "details": {
+      "pledge_id": "69c66d3e81fb29fb37777e4f",
+      "hive_name": "N+1 Test Hive 114254"
+    }
+  },
+  {
+    "test": "Hives Endpoint",
+    "success": true,
+    "message": "Retrieved 21 hives successfully",
+    "timestamp": "2026-03-27T11:42:54.236529",
+    "details": {}
+  },
+  {
+    "test": "Hive Stats Accuracy",
+    "success": true,
+    "message": "Test hive stats are accurate",
+    "timestamp": "2026-03-27T11:42:54.236592",
+    "details": {
+      "expected": {
+        "member_count": 1,
+        "pledge_count": 1,
+        "wish_count": 0,
+        "child_hive_count": 0
+      },
+      "actual": {
+        "member_count": 1,
+        "pledge_count": 1,
+        "wish_count": 0,
+        "child_hive_count": 0
+      }
+    }
+  },
+  {
+    "test": "Pledges Endpoint",
+    "success": true,
+    "message": "Retrieved 4 pledges successfully",
+    "timestamp": "2026-03-27T11:42:54.284105",
+    "details": {}
+  },
+  {
+    "test": "Pledge Hive Name Population",
+    "success": true,
+    "message": "Test pledge has hive_name populated correctly",
+    "timestamp": "2026-03-27T11:42:54.284131",
+    "details": {
+      "pledge_id": "69c66d3e81fb29fb37777e4f",
+      "hive_id": "69c66d3e81fb29fb37777e4d",
+      "hive_name": "N+1 Test Hive 114254"
+    }
+  },
+  {
+    "test": "All Pledges Hive Names",
+    "success": true,
+    "message": "All 1 pledges with hive_id have hive_name populated",
+    "timestamp": "2026-03-27T11:42:54.284139",
+    "details": {}
+  },
+  {
+    "test": "My Hives Endpoint",
+    "success": true,
+    "message": "Retrieved 1 user hives successfully",
+    "timestamp": "2026-03-27T11:42:54.338943",
+    "details": {}
+  },
+  {
+    "test": "My Hives Content",
+    "success": true,
+    "message": "Test hive found in user's memberships",
+    "timestamp": "2026-03-27T11:42:54.338969",
+    "details": {}
+  },
+  {
+    "test": "My Hives Stats",
+    "success": true,
+    "message": "User hives have all required stats fields",
+    "timestamp": "2026-03-27T11:42:54.338975",
+    "details": {}
+  },
+  {
+    "test": "Hive Children Endpoint",
+    "success": true,
+    "message": "Retrieved 0 child hives successfully",
+    "timestamp": "2026-03-27T11:42:54.387385",
+    "details": {}
+  },
+  {
+    "test": "Child Hives Stats",
+    "success": true,
+    "message": "No child hives to verify (expected for new hive)",
+    "timestamp": "2026-03-27T11:42:54.387410",
+    "details": {}
+  },
+  {
+    "test": "Federation Partners",
+    "success": true,
+    "message": "Retrieved 0 federated partners successfully",
+    "timestamp": "2026-03-27T11:42:54.437025",
+    "details": {}
+  },
+  {
+    "test": "Federation Partners Stats",
+    "success": true,
+    "message": "No federation partners to verify",
+    "timestamp": "2026-03-27T11:42:54.437050",
+    "details": {}
+  }
+]

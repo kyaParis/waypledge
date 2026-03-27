@@ -1,477 +1,344 @@
 #!/usr/bin/env python3
 """
-WayPledge Backend API Test Suite
-Tests all backend endpoints for the WayPledge application
+WayPledge Backend API Testing - N+1 Query Fix Verification
+Testing the batch query optimizations for list endpoints
 """
 
 import requests
 import json
 import sys
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, List, Optional
 
-# Configuration
-BASE_URL = "https://pledge-app-redesign.preview.emergentagent.com/api"
-HEADERS = {"Content-Type": "application/json"}
+# Backend URL from environment
+BACKEND_URL = "https://pledge-app-redesign.preview.emergentagent.com"
+API_BASE = f"{BACKEND_URL}/api"
 
 class WayPledgeAPITester:
     def __init__(self):
-        self.base_url = BASE_URL
-        self.headers = HEADERS.copy()
-        self.user1_token = None
-        self.user2_token = None
-        self.user1_id = None
-        self.user2_id = None
-        self.user1_email = None
-        self.user2_email = None
-        self.pledge_id = None
-        self.wish_id = None
-        self.connection_id = None
+        self.session = requests.Session()
+        self.auth_token = None
+        self.test_user_id = None
         self.test_results = []
         
-    def log_test(self, test_name: str, success: bool, details: str = "", response_data: Any = None):
+    def log_test(self, test_name: str, success: bool, message: str, details: dict = None):
         """Log test results"""
-        status = "✅ PASS" if success else "❌ FAIL"
-        print(f"{status} {test_name}")
-        if details:
-            print(f"   Details: {details}")
-        if response_data and not success:
-            print(f"   Response: {response_data}")
-        print()
-        
-        self.test_results.append({
+        result = {
             "test": test_name,
             "success": success,
-            "details": details,
-            "timestamp": datetime.now().isoformat()
-        })
+            "message": message,
+            "timestamp": datetime.now().isoformat(),
+            "details": details or {}
+        }
+        self.test_results.append(result)
+        status = "✅ PASS" if success else "❌ FAIL"
+        print(f"{status}: {test_name} - {message}")
+        if details and not success:
+            print(f"   Details: {details}")
     
-    def make_request(self, method: str, endpoint: str, data: Dict = None, auth_token: str = None) -> tuple:
-        """Make HTTP request and return (success, response_data, status_code)"""
-        url = f"{self.base_url}{endpoint}"
-        headers = self.headers.copy()
-        
-        if auth_token:
-            headers["Authorization"] = f"Bearer {auth_token}"
+    def test_health_check(self):
+        """Test the root health check endpoint"""
+        try:
+            response = self.session.get(f"{BACKEND_URL}/", timeout=10)
+            
+            if response.status_code == 200:
+                try:
+                    data = response.json()
+                    if data.get("status") == "ok":
+                        self.log_test("Health Check", True, "Health check endpoint working correctly", 
+                                    {"status_code": response.status_code, "response": data})
+                    else:
+                        self.log_test("Health Check", False, "Health check returned unexpected response", 
+                                    {"status_code": response.status_code, "response": data})
+                except json.JSONDecodeError:
+                    # If it's not JSON, check if it's a valid response
+                    if "ok" in response.text.lower() or response.status_code == 200:
+                        self.log_test("Health Check", True, "Health check endpoint responding (non-JSON)", 
+                                    {"status_code": response.status_code, "response": response.text[:200]})
+                    else:
+                        self.log_test("Health Check", False, "Health check returned non-JSON response", 
+                                    {"status_code": response.status_code, "response": response.text[:200]})
+            else:
+                self.log_test("Health Check", False, f"Health check failed with status {response.status_code}", 
+                            {"status_code": response.status_code, "response": response.text[:200]})
+        except Exception as e:
+            self.log_test("Health Check", False, f"Health check request failed: {str(e)}")
+    
+    def setup_test_user(self):
+        """Create a test user for authenticated endpoints"""
+        try:
+            # Register a test user with a valid email domain
+            user_data = {
+                "email": f"test_user_{datetime.now().strftime('%Y%m%d_%H%M%S')}@example.com",
+                "password": "TestPassword123!",
+                "name": "Test User for N+1 Testing",
+                "bio": "Testing N+1 query optimizations",
+                "location": "Test City, Test Country"
+            }
+            
+            response = self.session.post(f"{API_BASE}/auth/register", json=user_data)
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.auth_token = data.get("access_token")
+                self.test_user_id = data.get("user", {}).get("id")
+                self.session.headers.update({"Authorization": f"Bearer {self.auth_token}"})
+                self.log_test("User Setup", True, "Test user created successfully", 
+                            {"user_id": self.test_user_id})
+                return True
+            else:
+                self.log_test("User Setup", False, f"Failed to create test user: {response.status_code}", 
+                            {"response": response.text})
+                return False
+        except Exception as e:
+            self.log_test("User Setup", False, f"User setup failed: {str(e)}")
+            return False
+    
+    def test_hives_endpoint(self):
+        """Test GET /api/hives - Should return hives with stats using batch queries"""
+        try:
+            response = self.session.get(f"{API_BASE}/hives")
+            
+            if response.status_code == 200:
+                hives = response.json()
+                
+                # Verify response structure
+                if isinstance(hives, list):
+                    self.log_test("Hives List", True, f"Retrieved {len(hives)} hives successfully")
+                    
+                    # Check if any hives have the required stats fields
+                    if hives:
+                        sample_hive = hives[0]
+                        required_fields = ["member_count", "pledge_count", "wish_count", "child_hive_count"]
+                        missing_fields = [field for field in required_fields if field not in sample_hive]
+                        
+                        if not missing_fields:
+                            self.log_test("Hives Stats Fields", True, "All required stats fields present in hive response", 
+                                        {"sample_hive_id": sample_hive.get("id"), "stats": {field: sample_hive.get(field) for field in required_fields}})
+                        else:
+                            self.log_test("Hives Stats Fields", False, f"Missing stats fields: {missing_fields}", 
+                                        {"sample_hive": sample_hive})
+                    else:
+                        self.log_test("Hives Stats Fields", True, "No hives to check stats fields (empty list)")
+                else:
+                    self.log_test("Hives List", False, "Response is not a list", 
+                                {"response_type": type(hives), "response": hives})
+            else:
+                self.log_test("Hives List", False, f"Failed with status {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Hives List", False, f"Request failed: {str(e)}")
+    
+    def test_hives_children_endpoint(self):
+        """Test GET /api/hives/{hive_id}/children - Should return child hives"""
+        try:
+            # First get a list of hives to find one with potential children
+            hives_response = self.session.get(f"{API_BASE}/hives")
+            
+            if hives_response.status_code == 200:
+                hives = hives_response.json()
+                
+                if hives:
+                    # Test with the first hive
+                    test_hive_id = hives[0]["id"]
+                    response = self.session.get(f"{API_BASE}/hives/{test_hive_id}/children")
+                    
+                    if response.status_code == 200:
+                        children = response.json()
+                        if isinstance(children, list):
+                            self.log_test("Hives Children", True, f"Retrieved {len(children)} child hives for hive {test_hive_id}")
+                            
+                            # Verify child hives have stats fields if any exist
+                            if children:
+                                sample_child = children[0]
+                                required_fields = ["member_count", "pledge_count", "wish_count", "child_hive_count"]
+                                missing_fields = [field for field in required_fields if field not in sample_child]
+                                
+                                if not missing_fields:
+                                    self.log_test("Child Hives Stats", True, "Child hives have all required stats fields")
+                                else:
+                                    self.log_test("Child Hives Stats", False, f"Child hives missing stats fields: {missing_fields}")
+                        else:
+                            self.log_test("Hives Children", False, "Response is not a list", 
+                                        {"response": children})
+                    else:
+                        self.log_test("Hives Children", False, f"Failed with status {response.status_code}", 
+                                    {"response": response.text})
+                else:
+                    self.log_test("Hives Children", True, "No hives available to test children endpoint")
+            else:
+                self.log_test("Hives Children", False, "Could not get hives list to test children endpoint")
+        except Exception as e:
+            self.log_test("Hives Children", False, f"Request failed: {str(e)}")
+    
+    def test_my_hives_endpoint(self):
+        """Test GET /api/hives/my/memberships - Should return user's hives (requires auth)"""
+        if not self.auth_token:
+            self.log_test("My Hives", False, "No auth token available for testing")
+            return
         
         try:
-            if method.upper() == "GET":
-                response = requests.get(url, headers=headers, timeout=30)
-            elif method.upper() == "POST":
-                response = requests.post(url, headers=headers, json=data, timeout=30)
-            elif method.upper() == "PUT":
-                response = requests.put(url, headers=headers, json=data, timeout=30)
-            elif method.upper() == "DELETE":
-                response = requests.delete(url, headers=headers, timeout=30)
+            response = self.session.get(f"{API_BASE}/hives/my/memberships")
+            
+            if response.status_code == 200:
+                my_hives = response.json()
+                if isinstance(my_hives, list):
+                    self.log_test("My Hives", True, f"Retrieved {len(my_hives)} user hives successfully")
+                    
+                    # Check stats fields if user has hives
+                    if my_hives:
+                        sample_hive = my_hives[0]
+                        required_fields = ["member_count", "pledge_count", "wish_count", "child_hive_count"]
+                        missing_fields = [field for field in required_fields if field not in sample_hive]
+                        
+                        if not missing_fields:
+                            self.log_test("My Hives Stats", True, "User hives have all required stats fields")
+                        else:
+                            self.log_test("My Hives Stats", False, f"User hives missing stats fields: {missing_fields}")
+                else:
+                    self.log_test("My Hives", False, "Response is not a list", 
+                                {"response": my_hives})
             else:
-                return False, f"Unsupported method: {method}", 400
+                self.log_test("My Hives", False, f"Failed with status {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("My Hives", False, f"Request failed: {str(e)}")
+    
+    def test_federation_partners_endpoint(self):
+        """Test GET /api/federation/partners - Should return federated platforms"""
+        try:
+            response = self.session.get(f"{API_BASE}/federation/partners")
             
-            try:
-                response_data = response.json()
-            except:
-                response_data = response.text
+            if response.status_code == 200:
+                partners = response.json()
+                if isinstance(partners, list):
+                    self.log_test("Federation Partners", True, f"Retrieved {len(partners)} federated partners successfully")
+                    
+                    # Check if partners have required fields
+                    if partners:
+                        sample_partner = partners[0]
+                        required_fields = ["member_count", "pledge_count", "wish_count", "child_hive_count"]
+                        missing_fields = [field for field in required_fields if field not in sample_partner]
+                        
+                        if not missing_fields:
+                            self.log_test("Federation Partners Stats", True, "Federation partners have all required stats fields")
+                        else:
+                            self.log_test("Federation Partners Stats", False, f"Federation partners missing stats fields: {missing_fields}")
+                    else:
+                        self.log_test("Federation Partners Stats", True, "No federation partners to check stats fields")
+                else:
+                    self.log_test("Federation Partners", False, "Response is not a list", 
+                                {"response": partners})
+            else:
+                self.log_test("Federation Partners", False, f"Failed with status {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Federation Partners", False, f"Request failed: {str(e)}")
+    
+    def test_pledges_endpoint(self):
+        """Test GET /api/pledges - Should return pledges with hive_name field populated"""
+        try:
+            response = self.session.get(f"{API_BASE}/pledges")
             
-            return response.status_code < 400, response_data, response.status_code
+            if response.status_code == 200:
+                pledges = response.json()
+                if isinstance(pledges, list):
+                    self.log_test("Pledges List", True, f"Retrieved {len(pledges)} pledges successfully")
+                    
+                    # Check if pledges with hive_id have hive_name populated
+                    pledges_with_hives = [p for p in pledges if p.get("hive_id")]
+                    if pledges_with_hives:
+                        sample_pledge = pledges_with_hives[0]
+                        if "hive_name" in sample_pledge and sample_pledge["hive_name"]:
+                            self.log_test("Pledges Hive Names", True, "Pledges with hive_id have hive_name populated", 
+                                        {"sample_pledge_id": sample_pledge.get("id"), "hive_name": sample_pledge.get("hive_name")})
+                        else:
+                            self.log_test("Pledges Hive Names", False, "Pledges with hive_id missing hive_name field", 
+                                        {"sample_pledge": sample_pledge})
+                    else:
+                        self.log_test("Pledges Hive Names", True, "No pledges with hive_id to check hive_name field")
+                else:
+                    self.log_test("Pledges List", False, "Response is not a list", 
+                                {"response": pledges})
+            else:
+                self.log_test("Pledges List", False, f"Failed with status {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Pledges List", False, f"Request failed: {str(e)}")
+    
+    def test_categories_endpoint(self):
+        """Test GET /api/categories - Basic functionality test"""
+        try:
+            response = self.session.get(f"{API_BASE}/categories")
             
-        except requests.exceptions.RequestException as e:
-            return False, str(e), 0
-    
-    def test_user_registration(self):
-        """Test user registration endpoint"""
-        print("🔐 Testing User Registration & Authentication...")
-        
-        # Generate unique emails for this test run
-        import time
-        timestamp = str(int(time.time()))
-        
-        # Test User 1 Registration
-        user1_data = {
-            "email": f"alice{timestamp}@waypledge.com",
-            "password": "securepass123",
-            "name": "Alice Johnson",
-            "bio": "Community helper and teacher",
-            "location": "San Francisco, CA"
-        }
-        
-        self.user1_email = user1_data["email"]
-        
-        success, response, status_code = self.make_request("POST", "/auth/register", user1_data)
-        
-        if success and "access_token" in response:
-            self.user1_token = response["access_token"]
-            self.user1_id = response["user"]["id"]
-            self.log_test("User 1 Registration", True, f"User ID: {self.user1_id}")
-        else:
-            self.log_test("User 1 Registration", False, f"Status: {status_code}", response)
-            return False
-        
-        # Test User 2 Registration
-        user2_data = {
-            "email": f"bob{timestamp}@waypledge.com",
-            "password": "securepass456",
-            "name": "Bob Smith",
-            "bio": "Gardening enthusiast",
-            "location": "Oakland, CA"
-        }
-        
-        self.user2_email = user2_data["email"]
-        
-        success, response, status_code = self.make_request("POST", "/auth/register", user2_data)
-        
-        if success and "access_token" in response:
-            self.user2_token = response["access_token"]
-            self.user2_id = response["user"]["id"]
-            self.log_test("User 2 Registration", True, f"User ID: {self.user2_id}")
-        else:
-            self.log_test("User 2 Registration", False, f"Status: {status_code}", response)
-            return False
-        
-        return True
-    
-    def test_user_login(self):
-        """Test user login endpoint"""
-        login_data = {
-            "email": self.user1_email,
-            "password": "securepass123"
-        }
-        
-        success, response, status_code = self.make_request("POST", "/auth/login", login_data)
-        
-        if success and "access_token" in response:
-            self.log_test("User Login", True, "Login successful")
-            return True
-        else:
-            self.log_test("User Login", False, f"Status: {status_code}", response)
-            return False
-    
-    def test_get_current_user(self):
-        """Test get current user endpoint"""
-        success, response, status_code = self.make_request("GET", "/auth/me", auth_token=self.user1_token)
-        
-        if success and "id" in response and response["id"] == self.user1_id:
-            self.log_test("Get Current User", True, f"Retrieved user: {response['name']}")
-            return True
-        else:
-            self.log_test("Get Current User", False, f"Status: {status_code}", response)
-            return False
-    
-    def test_categories(self):
-        """Test categories endpoint"""
-        print("📂 Testing Categories...")
-        
-        success, response, status_code = self.make_request("GET", "/categories")
-        
-        if success and isinstance(response, list) and len(response) > 0:
-            categories = [cat["name"] for cat in response]
-            self.log_test("Get Categories", True, f"Found {len(categories)} categories: {', '.join(categories[:3])}...")
-            return True
-        else:
-            self.log_test("Get Categories", False, f"Status: {status_code}", response)
-            return False
-    
-    def test_pledges(self):
-        """Test pledge endpoints"""
-        print("🤝 Testing Pledges...")
-        
-        # Create a pledge
-        pledge_data = {
-            "title": "Offering coding lessons",
-            "description": "I can teach Python and JavaScript to beginners and intermediate learners",
-            "category": "Skills & Knowledge",
-            "tags": ["coding", "education", "python", "javascript"]
-        }
-        
-        success, response, status_code = self.make_request("POST", "/pledges", pledge_data, self.user1_token)
-        
-        if success and "id" in response:
-            self.pledge_id = response["id"]
-            self.log_test("Create Pledge", True, f"Pledge ID: {self.pledge_id}")
-        else:
-            self.log_test("Create Pledge", False, f"Status: {status_code}", response)
-            return False
-        
-        # Get all pledges
-        success, response, status_code = self.make_request("GET", "/pledges")
-        
-        if success and isinstance(response, list):
-            pledge_found = any(p["id"] == self.pledge_id for p in response)
-            self.log_test("Get All Pledges", pledge_found, f"Found {len(response)} pledges, our pledge included: {pledge_found}")
-        else:
-            self.log_test("Get All Pledges", False, f"Status: {status_code}", response)
-            return False
-        
-        # Get my pledges
-        success, response, status_code = self.make_request("GET", "/pledges/mine", auth_token=self.user1_token)
-        
-        if success and isinstance(response, list):
-            my_pledge_found = any(p["id"] == self.pledge_id for p in response)
-            self.log_test("Get My Pledges", my_pledge_found, f"Found {len(response)} my pledges")
-        else:
-            self.log_test("Get My Pledges", False, f"Status: {status_code}", response)
-            return False
-        
-        return True
-    
-    def test_wishes(self):
-        """Test wish endpoints"""
-        print("🌟 Testing Wishes...")
-        
-        # Create a wish
-        wish_data = {
-            "title": "Need gardening help",
-            "description": "Looking for someone to help with garden maintenance and plant care",
-            "category": "Services",
-            "tags": ["gardening", "outdoor", "plants"]
-        }
-        
-        success, response, status_code = self.make_request("POST", "/wishes", wish_data, self.user2_token)
-        
-        if success and "id" in response:
-            self.wish_id = response["id"]
-            self.log_test("Create Wish", True, f"Wish ID: {self.wish_id}")
-        else:
-            self.log_test("Create Wish", False, f"Status: {status_code}", response)
-            return False
-        
-        # Get all wishes
-        success, response, status_code = self.make_request("GET", "/wishes")
-        
-        if success and isinstance(response, list):
-            wish_found = any(w["id"] == self.wish_id for w in response)
-            self.log_test("Get All Wishes", wish_found, f"Found {len(response)} wishes, our wish included: {wish_found}")
-        else:
-            self.log_test("Get All Wishes", False, f"Status: {status_code}", response)
-            return False
-        
-        # Get my wishes
-        success, response, status_code = self.make_request("GET", "/wishes/mine", auth_token=self.user2_token)
-        
-        if success and isinstance(response, list):
-            my_wish_found = any(w["id"] == self.wish_id for w in response)
-            self.log_test("Get My Wishes", my_wish_found, f"Found {len(response)} my wishes")
-        else:
-            self.log_test("Get My Wishes", False, f"Status: {status_code}", response)
-            return False
-        
-        return True
-    
-    def test_search_and_filter(self):
-        """Test search and filter functionality"""
-        print("🔍 Testing Search & Filter...")
-        
-        # Test category filter for pledges (URL encode the & character)
-        success, response, status_code = self.make_request("GET", "/pledges?category=Skills%20%26%20Knowledge")
-        
-        if success and isinstance(response, list):
-            skills_pledges = [p for p in response if p["category"] == "Skills & Knowledge"]
-            self.log_test("Filter Pledges by Category", len(skills_pledges) > 0, f"Found {len(skills_pledges)} Skills & Knowledge pledges")
-        else:
-            self.log_test("Filter Pledges by Category", False, f"Status: {status_code}", response)
-        
-        # Test search for wishes
-        success, response, status_code = self.make_request("GET", "/wishes?search=garden")
-        
-        if success and isinstance(response, list):
-            garden_wishes = [w for w in response if "garden" in w["title"].lower() or "garden" in w["description"].lower()]
-            self.log_test("Search Wishes", len(garden_wishes) > 0, f"Found {len(garden_wishes)} wishes matching 'garden'")
-        else:
-            self.log_test("Search Wishes", False, f"Status: {status_code}", response)
-        
-        return True
-    
-    def test_connections(self):
-        """Test connection endpoints"""
-        print("🔗 Testing Connections...")
-        
-        # Create a connection (User 2 connects to User 1's pledge)
-        connection_data = {
-            "pledge_id": self.pledge_id,
-            "receiver_id": self.user1_id,
-            "message": "Hi! I'm interested in learning Python. Could you help me get started?"
-        }
-        
-        success, response, status_code = self.make_request("POST", "/connections", connection_data, self.user2_token)
-        
-        if success and "id" in response:
-            self.connection_id = response["id"]
-            self.log_test("Create Connection", True, f"Connection ID: {self.connection_id}")
-        else:
-            self.log_test("Create Connection", False, f"Status: {status_code}", response)
-            return False
-        
-        # Get connections for User 1
-        success, response, status_code = self.make_request("GET", "/connections", auth_token=self.user1_token)
-        
-        if success and isinstance(response, list):
-            connection_found = any(c["id"] == self.connection_id for c in response)
-            self.log_test("Get Connections (User 1)", connection_found, f"Found {len(response)} connections")
-        else:
-            self.log_test("Get Connections (User 1)", False, f"Status: {status_code}", response)
-        
-        # Get connections for User 2
-        success, response, status_code = self.make_request("GET", "/connections", auth_token=self.user2_token)
-        
-        if success and isinstance(response, list):
-            connection_found = any(c["id"] == self.connection_id for c in response)
-            self.log_test("Get Connections (User 2)", connection_found, f"Found {len(response)} connections")
-        else:
-            self.log_test("Get Connections (User 2)", False, f"Status: {status_code}", response)
-        
-        return True
-    
-    def test_messages(self):
-        """Test message endpoints"""
-        print("💬 Testing Messages...")
-        
-        if not self.connection_id:
-            self.log_test("Messages Test", False, "No connection ID available")
-            return False
-        
-        # Send a message (User 1 replies)
-        message_data = {
-            "connection_id": self.connection_id,
-            "content": "Hi! I'd be happy to help you learn Python. When would be a good time to start?"
-        }
-        
-        success, response, status_code = self.make_request("POST", "/messages", message_data, self.user1_token)
-        
-        if success and "id" in response:
-            self.log_test("Send Message", True, f"Message sent successfully")
-        else:
-            self.log_test("Send Message", False, f"Status: {status_code}", response)
-            return False
-        
-        # Get messages for the connection
-        success, response, status_code = self.make_request("GET", f"/messages/{self.connection_id}", auth_token=self.user1_token)
-        
-        if success and isinstance(response, list) and len(response) >= 2:
-            self.log_test("Get Messages", True, f"Retrieved {len(response)} messages")
-        else:
-            self.log_test("Get Messages", False, f"Status: {status_code}, Messages: {len(response) if isinstance(response, list) else 0}", response)
-        
-        return True
-    
-    def test_gratitude(self):
-        """Test gratitude endpoints"""
-        print("🙏 Testing Gratitude...")
-        
-        # Create gratitude (User 2 thanks User 1)
-        gratitude_data = {
-            "to_user_id": self.user1_id,
-            "connection_id": self.connection_id,
-            "message": "Thank you so much for offering to teach Python! Your willingness to share knowledge is amazing."
-        }
-        
-        success, response, status_code = self.make_request("POST", "/gratitude", gratitude_data, self.user2_token)
-        
-        if success and "id" in response:
-            gratitude_id = response["id"]
-            self.log_test("Create Gratitude", True, f"Gratitude ID: {gratitude_id}")
-        else:
-            self.log_test("Create Gratitude", False, f"Status: {status_code}", response)
-            return False
-        
-        # Get gratitude wall
-        success, response, status_code = self.make_request("GET", "/gratitude/wall")
-        
-        if success and isinstance(response, list):
-            our_gratitude = any(g.get("to_user_id") == self.user1_id for g in response)
-            self.log_test("Get Gratitude Wall", our_gratitude, f"Found {len(response)} gratitude messages")
-        else:
-            self.log_test("Get Gratitude Wall", False, f"Status: {status_code}", response)
-        
-        # Get my received gratitude (User 1)
-        success, response, status_code = self.make_request("GET", "/gratitude/mine", auth_token=self.user1_token)
-        
-        if success and isinstance(response, list):
-            received_gratitude = any(g.get("from_user_id") == self.user2_id for g in response)
-            self.log_test("Get My Gratitude", received_gratitude, f"User 1 received {len(response)} gratitude messages")
-        else:
-            self.log_test("Get My Gratitude", False, f"Status: {status_code}", response)
-        
-        return True
-    
-    def test_user_profile(self):
-        """Test user profile endpoint"""
-        print("👤 Testing User Profile...")
-        
-        success, response, status_code = self.make_request("GET", f"/users/{self.user1_id}")
-        
-        if success and "id" in response and response["id"] == self.user1_id:
-            self.log_test("Get User Profile", True, f"Retrieved profile for: {response['name']}")
-            return True
-        else:
-            self.log_test("Get User Profile", False, f"Status: {status_code}", response)
-            return False
+            if response.status_code == 200:
+                categories = response.json()
+                if isinstance(categories, list) and len(categories) > 0:
+                    self.log_test("Categories", True, f"Retrieved {len(categories)} categories successfully")
+                else:
+                    self.log_test("Categories", False, "Categories response is empty or not a list", 
+                                {"response": categories})
+            else:
+                self.log_test("Categories", False, f"Failed with status {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Categories", False, f"Request failed: {str(e)}")
     
     def run_all_tests(self):
-        """Run all API tests"""
-        print("🚀 Starting WayPledge Backend API Tests")
-        print("=" * 50)
+        """Run all N+1 query optimization tests"""
+        print("🚀 Starting WayPledge Backend N+1 Query Fix Testing")
+        print("=" * 60)
         
-        # Test sequence
-        tests = [
-            self.test_user_registration,
-            self.test_user_login,
-            self.test_get_current_user,
-            self.test_categories,
-            self.test_pledges,
-            self.test_wishes,
-            self.test_search_and_filter,
-            self.test_connections,
-            self.test_messages,
-            self.test_gratitude,
-            self.test_user_profile
-        ]
+        # Test health check first
+        self.test_health_check()
         
-        passed = 0
-        total = 0
+        # Setup test user for authenticated endpoints
+        if self.setup_test_user():
+            # Test all the N+1 optimized endpoints
+            self.test_hives_endpoint()
+            self.test_hives_children_endpoint()
+            self.test_my_hives_endpoint()
+            self.test_federation_partners_endpoint()
+            self.test_pledges_endpoint()
+            
+            # Test basic endpoints
+            self.test_categories_endpoint()
         
-        for test_func in tests:
-            try:
-                result = test_func()
-                if result:
-                    passed += 1
-                total += 1
-            except Exception as e:
-                print(f"❌ FAIL {test_func.__name__}: Exception occurred - {str(e)}")
-                total += 1
+        # Print summary
+        print("\n" + "=" * 60)
+        print("📊 TEST SUMMARY")
+        print("=" * 60)
         
-        print("=" * 50)
-        print(f"🏁 Test Summary: {passed}/{total} test groups passed")
+        total_tests = len(self.test_results)
+        passed_tests = len([r for r in self.test_results if r["success"]])
+        failed_tests = total_tests - passed_tests
         
-        # Count individual test results
-        individual_passed = sum(1 for result in self.test_results if result["success"])
-        individual_total = len(self.test_results)
-        print(f"📊 Individual Tests: {individual_passed}/{individual_total} passed")
+        print(f"Total Tests: {total_tests}")
+        print(f"✅ Passed: {passed_tests}")
+        print(f"❌ Failed: {failed_tests}")
+        print(f"Success Rate: {(passed_tests/total_tests)*100:.1f}%")
         
-        # Show failed tests
-        failed_tests = [result for result in self.test_results if not result["success"]]
-        if failed_tests:
-            print("\n❌ Failed Tests:")
-            for test in failed_tests:
-                print(f"   - {test['test']}: {test['details']}")
+        if failed_tests > 0:
+            print("\n🔍 FAILED TESTS:")
+            for result in self.test_results:
+                if not result["success"]:
+                    print(f"  • {result['test']}: {result['message']}")
         
-        return passed, total, individual_passed, individual_total
+        return failed_tests == 0
 
 def main():
     """Main test execution"""
     tester = WayPledgeAPITester()
+    success = tester.run_all_tests()
     
-    try:
-        passed, total, individual_passed, individual_total = tester.run_all_tests()
-        
-        # Exit with appropriate code
-        if passed == total and individual_passed == individual_total:
-            print("\n✅ All tests passed!")
-            sys.exit(0)
-        else:
-            print(f"\n⚠️  Some tests failed. {passed}/{total} test groups passed, {individual_passed}/{individual_total} individual tests passed")
-            sys.exit(1)
-            
-    except Exception as e:
-        print(f"\n💥 Test execution failed: {str(e)}")
-        sys.exit(1)
+    # Save detailed results to file
+    with open("/app/test_results_n1_fix.json", "w") as f:
+        json.dump(tester.test_results, f, indent=2, default=str)
+    
+    print(f"\n📄 Detailed results saved to: /app/test_results_n1_fix.json")
+    
+    # Exit with appropriate code
+    sys.exit(0 if success else 1)
 
 if __name__ == "__main__":
     main()

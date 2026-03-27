@@ -412,10 +412,15 @@ async def get_pledges(category: Optional[str] = None, search: Optional[str] = No
     
     pledges = await db.pledges.find(query).sort("created_at", -1).to_list(100)
     
+    # Batch get all hive names to avoid N+1 queries
+    hive_ids = list(set([p.get("hive_id") for p in pledges if p.get("hive_id")]))
+    hive_names = await batch_get_parent_hive_names(hive_ids) if hive_ids else {}
+    
     # Build response with hive names
     result = []
     for p in pledges:
-        hive_name = await get_hive_name(p.get("hive_id")) if p.get("hive_id") else None
+        hive_id_val = p.get("hive_id")
+        hive_name = hive_names.get(hive_id_val) if hive_id_val else None
         result.append(PledgeResponse(
             id=str(p["_id"]),
             user_id=p["user_id"],
@@ -427,7 +432,7 @@ async def get_pledges(category: Optional[str] = None, search: Optional[str] = No
             location=p.get("location", ""),
             status=p["status"],
             image=p.get("image"),
-            hive_id=p.get("hive_id"),
+            hive_id=hive_id_val,
             hive_name=hive_name,
             created_at=p["created_at"]
         ))
@@ -1101,15 +1106,20 @@ async def check_similar_hives(hive: HiveCreate, current_user = Depends(get_curre
     if not similar:
         return {"has_similar": False, "similar_hives": [], "can_create": True}
     
+    # Use batch query to get stats for all similar hives at once
+    hive_ids = [str(h["_id"]) for h in similar]
+    stats = await batch_get_hive_stats(hive_ids)
+    
     # Build response with similar hives info
     similar_list = []
     for h in similar:
-        member_count, _, _ = await get_hive_stats(str(h["_id"]))
+        hive_id = str(h["_id"])
+        hive_stats = stats.get(hive_id, {"member_count": 0})
         similar_list.append({
-            "id": str(h["_id"]),
+            "id": hive_id,
             "name": h["name"],
             "location": h["location"],
-            "member_count": member_count,
+            "member_count": hive_stats["member_count"],
             "is_verified": h.get("is_verified", False)
         })
     
@@ -1253,11 +1263,8 @@ async def get_hives(location: Optional[str] = None, search: Optional[str] = None
     # Sort: verified first, then by creation date
     hives = await db.hives.find(query).sort([("is_verified", -1), ("created_at", -1)]).to_list(100)
     
-    result = []
-    for h in hives:
-        hive_response = await build_hive_response(h)
-        result.append(hive_response)
-    return result
+    # Use batch function to avoid N+1 queries
+    return await batch_build_hive_responses(hives)
 
 @api_router.get("/hives/{hive_id}/children", response_model=List[HiveResponse])
 async def get_child_hives(hive_id: str):
@@ -1269,11 +1276,8 @@ async def get_child_hives(hive_id: str):
     
     children = await db.hives.find({"parent_hive_id": hive_id}).sort([("is_verified", -1), ("name", 1)]).to_list(100)
     
-    result = []
-    for h in children:
-        hive_response = await build_hive_response(h)
-        result.append(hive_response)
-    return result
+    # Use batch function to avoid N+1 queries
+    return await batch_build_hive_responses(children)
 
 @api_router.get("/hives/{hive_id}", response_model=HiveResponse)
 async def get_hive(hive_id: str):
@@ -1352,11 +1356,8 @@ async def get_my_hives(current_user = Depends(get_current_user)):
     
     hives = await db.hives.find({"_id": {"$in": hive_ids}}).to_list(50)
     
-    result = []
-    for h in hives:
-        hive_response = await build_hive_response(h)
-        result.append(hive_response)
-    return result
+    # Use batch function to avoid N+1 queries
+    return await batch_build_hive_responses(hives)
 
 # ==========================================
 # FEDERATION ENDPOINTS - Connect The Network
@@ -1507,11 +1508,8 @@ async def get_federated_partners():
     """Public: Get all approved federated platforms"""
     hives = await db.hives.find({"hive_type": "federated"}).to_list(100)
     
-    result = []
-    for h in hives:
-        hive_response = await build_hive_response(h)
-        result.append(hive_response)
-    return result
+    # Use batch function to avoid N+1 queries
+    return await batch_build_hive_responses(hives)
 
 # ==========================================
 # FEDERATION SYNC API - For External Platforms
