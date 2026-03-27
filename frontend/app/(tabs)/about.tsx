@@ -51,6 +51,15 @@ export default function AboutScreen() {
         </TouchableOpacity>
         {expandedSection === 'philosophy' && (
           <View style={styles.sectionContent}>
+            <View style={styles.heroQuoteBox}>
+              <Text style={styles.heroQuote}>
+                Give Freely. Receive Gratefully.
+              </Text>
+              <Text style={styles.heroQuoteSub}>
+                Trust Flows in Circles.
+              </Text>
+            </View>
+
             <Text style={styles.introText}>
               WayPledge is the flagship of The Way - a place where wishes and pledges move in trust.
             </Text>
@@ -60,39 +69,33 @@ export default function AboutScreen() {
               <View style={styles.principleText}>
                 <Text style={styles.principleTitle}>No Money. No Fees. No Selling.</Text>
                 <Text style={styles.principleDesc}>
-                  This is not a marketplace. Nothing is bought or sold here. Everything is given freely from the heart.
+                  This is not a marketplace. Everything is given freely from the heart.
                 </Text>
               </View>
             </View>
 
             <View style={styles.principleBox}>
-              <MaterialIcons name="swap-horiz" size={32} color={Colors.primary} />
+              <MaterialIcons name="favorite" size={32} color={Colors.accent} />
               <View style={styles.principleText}>
-                <Text style={styles.principleTitle}>Not a Direct Transaction</Text>
+                <Text style={styles.principleTitle}>Pure Generosity</Text>
                 <Text style={styles.principleDesc}>
-                  You don't give to get. You give freely. When you need, you simply ask. There are no hidden expectations.
+                  You give because you can. You receive because you need. No hidden expectations or strings attached.
                 </Text>
               </View>
             </View>
 
             <View style={styles.principleBox}>
-              <MaterialIcons name="all-inclusive" size={32} color={Colors.accent} />
+              <MaterialIcons name="all-inclusive" size={32} color={Colors.primary} />
               <View style={styles.principleText}>
-                <Text style={styles.principleTitle}>Circular Exchange</Text>
+                <Text style={styles.principleTitle}>The Circle of Trust</Text>
                 <Text style={styles.principleDesc}>
-                  Trust flows in a circle. What goes around comes around through the community. Over time, giving and receiving move in unity.
+                  What goes around comes around. Communities become self-supporting through simple acts of kindness.
                 </Text>
               </View>
-            </View>
-
-            <View style={styles.quoteBox}>
-              <Text style={styles.quoteText}>
-                "It is not charity, not transaction, but circular exchange in the energy of love and unity."
-              </Text>
             </View>
 
             <Text style={styles.text}>
-              Each act makes the next easier, safer, and clearer. Communities become self-supporting through simple, human gestures of trust.
+              Each act makes the next easier, safer, and clearer. Over time, giving and receiving move in unity.
             </Text>
           </View>
         )}
@@ -517,21 +520,27 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 21,
   },
-  quoteBox: {
-    backgroundColor: Colors.primary + '12',
-    padding: 16,
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.primary,
-    marginBottom: 16,
+  heroQuoteBox: {
+    backgroundColor: Colors.primary,
+    padding: 24,
+    borderRadius: 16,
+    marginBottom: 20,
+    alignItems: 'center',
   },
-  quoteText: {
-    fontSize: 15,
-    color: Colors.primary,
-    fontWeight: '600',
-    fontStyle: 'italic',
-    lineHeight: 23,
+  heroQuote: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: Colors.surface,
     textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+  heroQuoteSub: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.surface,
+    textAlign: 'center',
+    marginTop: 8,
+    opacity: 0.9,
   },
   step: {
     flexDirection: 'row',
