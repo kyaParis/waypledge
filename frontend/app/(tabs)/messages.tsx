@@ -10,6 +10,7 @@ import {
   Platform,
   RefreshControl,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -56,15 +57,19 @@ export default function MessagesScreen() {
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedConnection) return;
 
+    const messageToSend = newMessage.trim();
+    setNewMessage(''); // Clear immediately to prevent double-send
+
     try {
       await api.post('/messages', {
         connection_id: selectedConnection.id,
-        content: newMessage.trim(),
+        content: messageToSend,
       });
-      setNewMessage('');
       await loadMessages(selectedConnection.id);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message:', error);
+      setNewMessage(messageToSend); // Restore message if failed
+      Alert.alert('Error', error.response?.data?.detail || 'Failed to send message. Please try again.');
     }
   };
 
