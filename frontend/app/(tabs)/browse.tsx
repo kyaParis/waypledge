@@ -278,6 +278,14 @@ export default function BrowseScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
+        {/* Helpful tip at top */}
+        <View style={styles.tipBox}>
+          <MaterialIcons name="lightbulb" size={18} color={Colors.accent} />
+          <Text style={styles.tipText}>
+            Tap <Text style={styles.tipBold}>Connect</Text> on any card to send a message. Check the <Text style={styles.tipBold}>Messages</Text> tab to see replies!
+          </Text>
+        </View>
+
         {items.length > 0 ? (
           items.map((item) => (
             <View
@@ -398,7 +406,9 @@ export default function BrowseScreen() {
                   onPress={() => handleConnect(item, activeTab === 'pledges' ? 'pledge' : 'wish')}
                 >
                   <MaterialIcons name="chat" size={18} color={Colors.surface} />
-                  <Text style={styles.connectButtonText}>Connect</Text>
+                  <Text style={styles.connectButtonText}>
+                    {activeTab === 'pledges' ? 'Ask About This' : 'Offer to Help'}
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -681,5 +691,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     fontStyle: 'italic',
+  },
+  tipBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: Colors.accent + '15',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 16,
+    gap: 10,
+  },
+  tipText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.text,
+    lineHeight: 19,
+  },
+  tipBold: {
+    fontWeight: '700',
+    color: Colors.primary,
   },
 });
