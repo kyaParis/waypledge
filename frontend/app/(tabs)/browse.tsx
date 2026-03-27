@@ -9,6 +9,8 @@ import {
   RefreshControl,
   SafeAreaView,
   Alert,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -50,6 +52,12 @@ export default function BrowseScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [reportItem, setReportItem] = useState<{ type: 'pledge' | 'wish'; id: string; title: string } | null>(null);
+  
+  // Connection modal state
+  const [connectModalVisible, setConnectModalVisible] = useState(false);
+  const [connectItem, setConnectItem] = useState<{ item: Pledge | Wish; type: 'pledge' | 'wish' } | null>(null);
+  const [connectMessage, setConnectMessage] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   const loadData = async () => {
     try {
@@ -88,34 +96,40 @@ export default function BrowseScreen() {
     setRefreshing(false);
   };
 
-  const handleConnect = async (item: Pledge | Wish, type: 'pledge' | 'wish') => {
+  const handleConnect = (item: Pledge | Wish, type: 'pledge' | 'wish') => {
     if (item.user_id === user?.id) {
       Alert.alert('Notice', 'You cannot connect with your own ' + type);
       return;
     }
+    // Open the connect modal
+    setConnectItem({ item, type });
+    setConnectMessage('');
+    setConnectModalVisible(true);
+  };
 
-    Alert.prompt(
-      'Connect',
-      `Send a message to ${item.user_name}`,
-      async (message) => {
-        if (message) {
-          try {
-            await api.post('/connections', {
-              pledge_id: type === 'pledge' ? item.id : undefined,
-              wish_id: type === 'wish' ? item.id : undefined,
-              receiver_id: item.user_id,
-              message: message,
-            });
-            Alert.alert('Success', 'Connection request sent!');
-          } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.detail || 'Failed to connect');
-          }
-        }
-      },
-      'plain-text',
-      '',
-      'default'
-    );
+  const sendConnection = async () => {
+    if (!connectItem || !connectMessage.trim()) {
+      Alert.alert('Error', 'Please enter a message');
+      return;
+    }
+
+    setSendingMessage(true);
+    try {
+      await api.post('/connections', {
+        pledge_id: connectItem.type === 'pledge' ? connectItem.item.id : undefined,
+        wish_id: connectItem.type === 'wish' ? connectItem.item.id : undefined,
+        receiver_id: connectItem.item.user_id,
+        message: connectMessage.trim(),
+      });
+      setConnectModalVisible(false);
+      setConnectItem(null);
+      setConnectMessage('');
+      Alert.alert('Success', 'Message sent! Check the Messages tab for replies.');
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Failed to send message');
+    } finally {
+      setSendingMessage(false);
+    }
   };
 
   const handleReport = (item: Pledge | Wish, type: 'pledge' | 'wish') => {
@@ -437,6 +451,75 @@ export default function BrowseScreen() {
         itemId={reportItem?.id}
         itemTitle={reportItem?.title}
       />
+
+      {/* Connect Modal */}
+      <Modal
+        visible={connectModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setConnectModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {connectItem?.type === 'pledge' ? 'Ask About This Pledge' : 'Offer to Help'}
+              </Text>
+              <TouchableOpacity onPress={() => setConnectModalVisible(false)}>
+                <MaterialIcons name="close" size={24} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+            
+            {connectItem && (
+              <View style={styles.modalItemInfo}>
+                <Text style={styles.modalItemTitle}>{connectItem.item.title}</Text>
+                <Text style={styles.modalItemUser}>by {connectItem.item.user_name}</Text>
+              </View>
+            )}
+            
+            <Text style={styles.modalLabel}>Your message:</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder={connectItem?.type === 'pledge' 
+                ? "Hi! I'm interested in your pledge. Could you tell me more about..."
+                : "Hi! I'd like to help with this. I can..."
+              }
+              value={connectMessage}
+              onChangeText={setConnectMessage}
+              multiline
+              numberOfLines={4}
+              placeholderTextColor={Colors.textSecondary}
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={styles.modalCancelButton}
+                onPress={() => setConnectModalVisible(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[
+                  styles.modalSendButton,
+                  { backgroundColor: connectItem?.type === 'pledge' ? Colors.pledgeMedium : Colors.wishMedium }
+                ]}
+                onPress={sendConnection}
+                disabled={sendingMessage}
+              >
+                {sendingMessage ? (
+                  <ActivityIndicator color={Colors.surface} size="small" />
+                ) : (
+                  <>
+                    <MaterialIcons name="send" size={18} color={Colors.surface} />
+                    <Text style={styles.modalSendText}>Send Message</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -710,5 +793,96 @@ const styles = StyleSheet.create({
   tipBold: {
     fontWeight: '700',
     color: Colors.primary,
+  },
+  // Connect Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: Colors.background,
+    borderRadius: 16,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  modalItemInfo: {
+    backgroundColor: Colors.surface,
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  modalItemTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  modalItemUser: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 4,
+  },
+  modalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  modalInput: {
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 15,
+    color: Colors.text,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  modalSendButton: {
+    flex: 2,
+    flexDirection: 'row',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  modalSendText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.surface,
   },
 });
