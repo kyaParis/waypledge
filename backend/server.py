@@ -801,6 +801,19 @@ async def get_messages(connection_id: str, current_user = Depends(get_current_us
         created_at=m["created_at"]
     ) for m in messages]
 
+@api_router.get("/connections/unread-count")
+async def get_unread_count(current_user = Depends(get_current_user)):
+    """Get count of unread messages for the current user"""
+    user_id = str(current_user["_id"])
+    
+    # Count unread messages where user is the receiver
+    unread_count = await db.messages.count_documents({
+        "receiver_id": user_id,
+        "read": False
+    })
+    
+    return {"count": unread_count}
+
 # Gratitude endpoints
 @api_router.post("/gratitude", response_model=GratitudeResponse)
 async def create_gratitude(gratitude: GratitudeCreate, current_user = Depends(get_current_user)):
