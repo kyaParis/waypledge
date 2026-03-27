@@ -159,6 +159,10 @@ class ConnectionResponse(BaseModel):
     wish_id: Optional[str] = None
     pledger_id: str
     wisher_id: str
+    pledger_name: Optional[str] = None
+    wisher_name: Optional[str] = None
+    item_title: Optional[str] = None  # Title of the pledge/wish
+    item_type: Optional[str] = None  # "pledge" or "wish"
     status: str
     created_at: datetime
 
@@ -738,15 +742,41 @@ async def get_connections(current_user = Depends(get_current_user)):
         "$or": [{"pledger_id": user_id}, {"wisher_id": user_id}]
     }).sort("created_at", -1).to_list(100)
     
-    return [ConnectionResponse(
-        id=str(c["_id"]),
-        pledge_id=c.get("pledge_id"),
-        wish_id=c.get("wish_id"),
-        pledger_id=c["pledger_id"],
-        wisher_id=c["wisher_id"],
-        status=c["status"],
-        created_at=c["created_at"]
-    ) for c in connections]
+    result = []
+    for c in connections:
+        # Get user names
+        pledger = await db.users.find_one({"_id": ObjectId(c["pledger_id"])})
+        wisher = await db.users.find_one({"_id": ObjectId(c["wisher_id"])})
+        pledger_name = pledger["name"] if pledger else "Unknown"
+        wisher_name = wisher["name"] if wisher else "Unknown"
+        
+        # Get item title
+        item_title = None
+        item_type = None
+        if c.get("pledge_id"):
+            pledge = await db.pledges.find_one({"_id": ObjectId(c["pledge_id"])})
+            item_title = pledge["title"] if pledge else "Deleted Pledge"
+            item_type = "pledge"
+        elif c.get("wish_id"):
+            wish = await db.wishes.find_one({"_id": ObjectId(c["wish_id"])})
+            item_title = wish["title"] if wish else "Deleted Wish"
+            item_type = "wish"
+        
+        result.append(ConnectionResponse(
+            id=str(c["_id"]),
+            pledge_id=c.get("pledge_id"),
+            wish_id=c.get("wish_id"),
+            pledger_id=c["pledger_id"],
+            wisher_id=c["wisher_id"],
+            pledger_name=pledger_name,
+            wisher_name=wisher_name,
+            item_title=item_title,
+            item_type=item_type,
+            status=c["status"],
+            created_at=c["created_at"]
+        ))
+    
+    return result
 
 # Message endpoints
 @api_router.post("/messages", response_model=MessageResponse)

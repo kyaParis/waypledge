@@ -87,6 +87,11 @@ export default function MessagesScreen() {
       selectedConnection.pledger_id === user?.id
         ? selectedConnection.wisher_id
         : selectedConnection.pledger_id;
+    const otherUserName = 
+      selectedConnection.pledger_id === user?.id
+        ? selectedConnection.wisher_name
+        : selectedConnection.pledger_name;
+    const itemType = selectedConnection.item_type || (selectedConnection.pledge_id ? 'pledge' : 'wish');
 
     return (
       <SafeAreaView style={styles.container}>
@@ -98,8 +103,22 @@ export default function MessagesScreen() {
             <MaterialIcons name="arrow-back" size={24} color={Colors.text} />
           </TouchableOpacity>
           <View style={styles.chatHeaderInfo}>
-            <Text style={styles.chatHeaderTitle}>Conversation</Text>
-            <Text style={styles.chatHeaderSubtitle}>Connection #{selectedConnection.id.slice(0, 8)}</Text>
+            <Text style={styles.chatHeaderTitle} numberOfLines={1}>
+              {selectedConnection.item_title || (itemType === 'pledge' ? 'Pledge' : 'Wish')}
+            </Text>
+            <Text style={styles.chatHeaderSubtitle}>
+              Chatting with {otherUserName || 'Unknown'}
+            </Text>
+          </View>
+          <View style={[
+            styles.chatHeaderBadge,
+            { backgroundColor: itemType === 'pledge' ? Colors.pledgeLight : Colors.wishLight }
+          ]}>
+            <MaterialIcons 
+              name={itemType === 'pledge' ? 'card-giftcard' : 'star'} 
+              size={18} 
+              color={itemType === 'pledge' ? Colors.pledgeDark : Colors.wishDark} 
+            />
           </View>
         </View>
 
@@ -190,6 +209,9 @@ export default function MessagesScreen() {
         {connections.length > 0 ? (
           connections.map((connection) => {
             const isMyPledge = connection.pledger_id === user?.id;
+            const otherPersonName = isMyPledge ? connection.wisher_name : connection.pledger_name;
+            const itemType = connection.item_type || (connection.pledge_id ? 'pledge' : 'wish');
+            
             return (
               <TouchableOpacity
                 key={connection.id}
@@ -200,21 +222,24 @@ export default function MessagesScreen() {
                   style={[
                     styles.connectionIcon,
                     {
-                      backgroundColor: isMyPledge
+                      backgroundColor: itemType === 'pledge'
                         ? Colors.pledgeLight
                         : Colors.wishLight,
                     },
                   ]}
                 >
                   <MaterialIcons
-                    name={isMyPledge ? 'card-giftcard' : 'star'}
+                    name={itemType === 'pledge' ? 'card-giftcard' : 'star'}
                     size={24}
-                    color={isMyPledge ? Colors.pledgeDark : Colors.wishDark}
+                    color={itemType === 'pledge' ? Colors.pledgeDark : Colors.wishDark}
                   />
                 </View>
                 <View style={styles.connectionInfo}>
-                  <Text style={styles.connectionTitle}>
-                    {isMyPledge ? 'Your Pledge' : 'Your Wish'}
+                  <Text style={styles.connectionTitle} numberOfLines={1}>
+                    {connection.item_title || (itemType === 'pledge' ? 'Pledge' : 'Wish')}
+                  </Text>
+                  <Text style={styles.connectionPerson}>
+                    with {otherPersonName || 'Unknown'}
                   </Text>
                   <Text style={styles.connectionSubtitle}>
                     {formatDistanceToNow(new Date(connection.created_at), { addSuffix: true })}
@@ -293,7 +318,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: 4,
+    marginBottom: 2,
+  },
+  connectionPerson: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '500',
+    marginBottom: 2,
   },
   connectionSubtitle: {
     fontSize: 13,
@@ -361,9 +392,17 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   chatHeaderSubtitle: {
-    fontSize: 12,
-    color: Colors.textSecondary,
+    fontSize: 13,
+    color: Colors.primary,
     marginTop: 2,
+  },
+  chatHeaderBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
   },
   chatContainer: {
     flex: 1,

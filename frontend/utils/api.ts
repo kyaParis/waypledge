@@ -54,6 +54,10 @@ export interface Connection {
   wish_id?: string;
   pledger_id: string;
   wisher_id: string;
+  pledger_name?: string;
+  wisher_name?: string;
+  item_title?: string;
+  item_type?: 'pledge' | 'wish';
   status: string;
   created_at: string;
 }
