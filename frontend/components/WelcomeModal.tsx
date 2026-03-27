@@ -33,6 +33,11 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
     >
       <View style={styles.overlay}>
         <View style={styles.modal}>
+          {/* Close button at top */}
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <MaterialIcons name="close" size={28} color={Colors.text} />
+          </TouchableOpacity>
+          
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
               <MaterialIcons name="favorite" size={48} color={Colors.accent} />
@@ -369,8 +374,21 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
+  closeButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   content: {
     padding: 20,
+    paddingTop: 50,
   },
   header: {
     alignItems: 'center',
