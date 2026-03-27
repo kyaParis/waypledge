@@ -83,34 +83,36 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
                   </Text>
                 </View>
 
-                <View style={styles.principleBox}>
-                  <MaterialIcons name="money-off" size={28} color={Colors.error} />
-                  <View style={styles.principleText}>
-                    <Text style={styles.principleTitle}>No Money. No Fees. No Selling.</Text>
-                    <Text style={styles.principleDesc}>
-                      This is not a marketplace. Everything is given freely from the heart.
-                    </Text>
+                <Text style={styles.philosophyIntro}>Our 3 Core Principles:</Text>
+
+                <View style={styles.principleCard}>
+                  <View style={styles.principleIconBox}>
+                    <MaterialIcons name="money-off" size={28} color={Colors.error} />
                   </View>
+                  <Text style={styles.principleTitle}>No Money. No Fees. No Selling.</Text>
+                  <Text style={styles.principleDesc}>
+                    This is not a marketplace. Everything is given freely from the heart.
+                  </Text>
                 </View>
 
-                <View style={styles.principleBox}>
-                  <MaterialIcons name="favorite" size={28} color={Colors.accent} />
-                  <View style={styles.principleText}>
-                    <Text style={styles.principleTitle}>Pure Generosity</Text>
-                    <Text style={styles.principleDesc}>
-                      You give because you can. You receive because you need. No strings attached.
-                    </Text>
+                <View style={styles.principleCard}>
+                  <View style={[styles.principleIconBox, { backgroundColor: Colors.accent + '20' }]}>
+                    <MaterialIcons name="favorite" size={28} color={Colors.accent} />
                   </View>
+                  <Text style={styles.principleTitle}>Pure Generosity</Text>
+                  <Text style={styles.principleDesc}>
+                    You give because you can. You receive because you need. No strings attached.
+                  </Text>
                 </View>
 
-                <View style={styles.principleBox}>
-                  <MaterialIcons name="all-inclusive" size={28} color={Colors.primary} />
-                  <View style={styles.principleText}>
-                    <Text style={styles.principleTitle}>The Circle of Trust</Text>
-                    <Text style={styles.principleDesc}>
-                      What goes around comes around. Communities become self-supporting through simple acts of kindness.
-                    </Text>
+                <View style={styles.principleCard}>
+                  <View style={[styles.principleIconBox, { backgroundColor: Colors.primary + '20' }]}>
+                    <MaterialIcons name="all-inclusive" size={28} color={Colors.primary} />
                   </View>
+                  <Text style={styles.principleTitle}>The Circle of Trust</Text>
+                  <Text style={styles.principleDesc}>
+                    What goes around comes around. Communities support each other through simple acts of kindness.
+                  </Text>
                 </View>
               </View>
             )}
@@ -534,6 +536,29 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     marginBottom: 12,
   },
+  philosophyIntro: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 12,
+    marginTop: 4,
+  },
+  principleCard: {
+    backgroundColor: Colors.background,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  principleIconBox: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: Colors.error + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   principleBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -547,15 +572,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   principleTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 4,
+    marginBottom: 6,
+    textAlign: 'center',
   },
   principleDesc: {
-    fontSize: 13,
+    fontSize: 14,
     color: Colors.textSecondary,
-    lineHeight: 19,
+    lineHeight: 20,
+    textAlign: 'center',
   },
   step: {
     flexDirection: 'row',
