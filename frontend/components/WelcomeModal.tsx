@@ -101,7 +101,7 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
                   </View>
                   <Text style={styles.principleTitle}>Pure Generosity</Text>
                   <Text style={styles.principleDesc}>
-                    You give because you can. You receive because you need. No strings attached.
+                    We help each other. If someone can help, they do. If not, that's okay too. No shame, just community.
                   </Text>
                 </View>
 
@@ -152,9 +152,9 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
                     <Text style={[styles.stepNumberText, { color: Colors.wishDark }]}>2</Text>
                   </View>
                   <View style={styles.stepContent}>
-                    <Text style={styles.stepTitle}>Ask When You Need</Text>
+                    <Text style={styles.stepTitle}>Share What Would Help</Text>
                     <Text style={styles.stepDesc}>
-                      Create a "Wish" - share what you need without shame. The community is here to help.
+                      Create a "Wish" - let the community know how they can support you. No shame, just sharing.
                     </Text>
                   </View>
                 </View>
@@ -394,7 +394,7 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
                 <MaterialIcons name="star" size={24} color={Colors.surface} />
                 <View style={styles.actionButtonText}>
                   <Text style={styles.actionButtonTitle}>Make a Wish</Text>
-                  <Text style={styles.actionButtonDesc}>Ask for something you need</Text>
+                  <Text style={styles.actionButtonDesc}>Share how the community can help</Text>
                 </View>
                 <MaterialIcons name="arrow-forward" size={20} color={Colors.surface} />
               </TouchableOpacity>

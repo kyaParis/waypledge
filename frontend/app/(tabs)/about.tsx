@@ -79,7 +79,7 @@ export default function AboutScreen() {
               <View style={styles.principleText}>
                 <Text style={styles.principleTitle}>Pure Generosity</Text>
                 <Text style={styles.principleDesc}>
-                  You give because you can. You receive because you need. No hidden expectations or strings attached.
+                  We help each other. If someone can help, they do. If not, that's okay too. No shame, just community.
                 </Text>
               </View>
             </View>
@@ -134,9 +134,9 @@ export default function AboutScreen() {
                 <MaterialIcons name="star" size={28} color={Colors.wishDark} />
               </View>
               <View style={styles.stepContent}>
-                <Text style={styles.stepTitle}>2. Ask When You Need</Text>
+                <Text style={styles.stepTitle}>2. Share What Would Help</Text>
                 <Text style={styles.stepText}>
-                  Create a "Wish" - share what you need without shame or judgment. The community is here to help. Add location to connect with nearby supporters.
+                  Create a "Wish" - let the community know how they can support you. No shame, just sharing.
                 </Text>
               </View>
             </View>
