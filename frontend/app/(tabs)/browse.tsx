@@ -11,6 +11,7 @@ import {
   Alert,
   Modal,
   ActivityIndicator,
+  Pressable,
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -504,25 +505,27 @@ export default function BrowseScreen() {
             />
             
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={styles.modalCancelButton}
+              <Pressable 
+                style={({ pressed }) => [
+                  styles.modalCancelButton,
+                  pressed && { opacity: 0.7 }
+                ]}
                 onPress={() => setConnectModalVisible(false)}
-                activeOpacity={0.7}
               >
                 <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
+              </Pressable>
               
-              <TouchableOpacity 
-                style={[
+              <Pressable 
+                style={({ pressed }) => [
                   styles.modalSendButton,
                   { backgroundColor: connectItem?.type === 'pledge' ? Colors.pledgeMedium : Colors.wishMedium },
-                  (!connectMessage.trim() || sendingMessage) && { opacity: 0.5 }
+                  (!connectMessage.trim() || sendingMessage) && { opacity: 0.5 },
+                  pressed && { opacity: 0.8 }
                 ]}
                 onPress={() => {
                   console.log('Send button pressed');
                   sendConnection();
                 }}
-                activeOpacity={0.7}
                 disabled={sendingMessage || !connectMessage.trim()}
               >
                 {sendingMessage ? (
@@ -533,7 +536,7 @@ export default function BrowseScreen() {
                     <Text style={styles.modalSendText}>Send Message</Text>
                   </>
                 )}
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </View>
