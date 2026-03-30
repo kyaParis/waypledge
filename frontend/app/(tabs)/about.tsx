@@ -7,12 +7,13 @@ import {
   SafeAreaView,
   Image,
   TouchableOpacity,
+  Linking,
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
-type SectionKey = 'philosophy' | 'howItWorks' | 'pledgesWishes' | 'hives' | 'doNoHarm';
+type SectionKey = 'philosophy' | 'howItWorks' | 'pledgesWishes' | 'hives' | 'doNoHarm' | 'support';
 
 export default function AboutScreen() {
   const [expandedSection, setExpandedSection] = useState<SectionKey | null>('philosophy');
@@ -404,6 +405,74 @@ export default function AboutScreen() {
           </View>
         )}
 
+        {/* SECTION 6: SUPPORT WAYPLEDGE */}
+        <TouchableOpacity 
+          style={[styles.sectionHeader, styles.supportHeader]} 
+          onPress={() => toggleSection('support')}
+        >
+          <View style={styles.sectionHeaderLeft}>
+            <MaterialIcons name="volunteer-activism" size={24} color={Colors.accent} />
+            <Text style={[styles.sectionTitle, { color: Colors.accent }]}>Support WayPledge</Text>
+          </View>
+          <MaterialIcons 
+            name={expandedSection === 'support' ? "expand-less" : "expand-more"} 
+            size={24} 
+            color={Colors.textSecondary} 
+          />
+        </TouchableOpacity>
+        {expandedSection === 'support' && (
+          <View style={[styles.sectionContent, styles.supportContent]}>
+            <Text style={styles.supportIntro}>
+              WayPledge is built on the same principles it promotes - giving freely, without expectation.
+            </Text>
+
+            <View style={styles.supportQuoteBox}>
+              <MaterialIcons name="format-quote" size={32} color={Colors.accent} />
+              <Text style={styles.supportQuote}>
+                WayPledge is a shared space where people can offer and receive what is needed, freely and directly, without the structures that usually sit around exchange.
+              </Text>
+            </View>
+
+            <View style={styles.supportFeatures}>
+              <View style={styles.supportFeature}>
+                <MaterialIcons name="code" size={20} color={Colors.primary} />
+                <Text style={styles.supportFeatureText}>
+                  100% open and transparent
+                </Text>
+              </View>
+              <View style={styles.supportFeature}>
+                <MaterialIcons name="money-off" size={20} color={Colors.primary} />
+                <Text style={styles.supportFeatureText}>
+                  No profit motive - community owned
+                </Text>
+              </View>
+              <View style={styles.supportFeature}>
+                <MaterialIcons name="favorite" size={20} color={Colors.primary} />
+                <Text style={styles.supportFeatureText}>
+                  Built on love, not commerce
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.supportText}>
+              If WayPledge resonates with you and you'd like to help it grow, you can contribute to our Open Collective. Every contribution helps cover hosting, development, and community support.
+            </Text>
+
+            <TouchableOpacity 
+              style={styles.donateButton}
+              onPress={() => Linking.openURL('https://opencollective.com/waypledgeme')}
+            >
+              <MaterialIcons name="volunteer-activism" size={24} color={Colors.surface} />
+              <Text style={styles.donateButtonText}>Support on Open Collective</Text>
+              <MaterialIcons name="open-in-new" size={18} color={Colors.surface} />
+            </TouchableOpacity>
+
+            <Text style={styles.supportFooter}>
+              All contributions are transparent and publicly visible on Open Collective.
+            </Text>
+          </View>
+        )}
+
         {/* TAGLINE */}
         <View style={styles.taglineContainer}>
           <MaterialIcons name="favorite" size={36} color={Colors.accent} />
@@ -733,5 +802,77 @@ const styles = StyleSheet.create({
     color: Colors.accent,
     marginTop: 12,
     textAlign: 'center',
+  },
+  supportHeader: {
+    borderWidth: 2,
+    borderColor: Colors.accent + '30',
+  },
+  supportContent: {
+    backgroundColor: Colors.accent + '08',
+    borderWidth: 1,
+    borderColor: Colors.accent + '20',
+  },
+  supportIntro: {
+    fontSize: 15,
+    color: Colors.text,
+    lineHeight: 23,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  supportQuoteBox: {
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.accent,
+  },
+  supportQuote: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 22,
+    fontStyle: 'italic',
+    marginTop: 8,
+  },
+  supportFeatures: {
+    marginBottom: 16,
+  },
+  supportFeature: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  supportFeatureText: {
+    fontSize: 14,
+    color: Colors.text,
+    fontWeight: '500',
+  },
+  supportText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  donateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: Colors.accent,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  donateButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.surface,
+  },
+  supportFooter: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });
