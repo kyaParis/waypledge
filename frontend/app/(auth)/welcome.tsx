@@ -13,7 +13,6 @@ import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 
 const { width, height } = Dimensions.get('window');
-const isSmallScreen = height < 700;
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -31,16 +30,16 @@ export default function WelcomeScreen() {
               style={styles.logo}
               resizeMode="contain"
             />
-            <Text style={styles.title}>WayPledge</Text>
-            <Text style={styles.subtitle}>Give and Receive With Love</Text>
+            <Text style={styles.title} maxFontSizeMultiplier={1.1}>WayPledge</Text>
+            <Text style={styles.subtitle} maxFontSizeMultiplier={1.1}>Give and Receive With Love</Text>
           </View>
 
           <View style={styles.descriptionContainer}>
-            <Text style={styles.description}>
+            <Text style={styles.description} maxFontSizeMultiplier={1.1}>
               A community of mutual support where people pledge goods and services,
               and make wishes for what they need.
             </Text>
-            <Text style={styles.descriptionBold}>
+            <Text style={styles.descriptionBold} maxFontSizeMultiplier={1.1}>
               Based on shared intention, not transaction.
             </Text>
           </View>
@@ -50,14 +49,14 @@ export default function WelcomeScreen() {
               style={styles.primaryButton}
               onPress={() => router.push('/(auth)/register')}
             >
-              <Text style={styles.primaryButtonText}>Get Started</Text>
+              <Text style={styles.primaryButtonText} maxFontSizeMultiplier={1.1}>Get Started</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.secondaryButton}
               onPress={() => router.push('/(auth)/login')}
             >
-              <Text style={styles.secondaryButtonText}>I Already Have an Account</Text>
+              <Text style={styles.secondaryButtonText} maxFontSizeMultiplier={1.1}>I Already Have an Account</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -78,79 +77,73 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
     justifyContent: 'space-between',
-    paddingTop: isSmallScreen ? 20 : 40,
+    paddingTop: 20,
     paddingBottom: 30,
-    minHeight: height - 100,
   },
   logoContainer: {
     alignItems: 'center',
-    marginTop: isSmallScreen ? 10 : 20,
+    marginTop: 10,
   },
   logo: {
-    width: isSmallScreen ? 120 : 160,
-    height: isSmallScreen ? 120 : 160,
-    marginBottom: 12,
+    width: 100,
+    height: 100,
+    marginBottom: 8,
   },
   title: {
-    fontSize: isSmallScreen ? 28 : 36,
+    fontSize: 24,
     fontWeight: 'bold',
     color: Colors.primary,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   subtitle: {
-    fontSize: isSmallScreen ? 14 : 16,
+    fontSize: 13,
     color: Colors.textSecondary,
     fontStyle: 'italic',
   },
   descriptionContainer: {
     alignItems: 'center',
-    paddingHorizontal: 12,
-    marginVertical: 20,
+    paddingHorizontal: 8,
+    marginVertical: 16,
   },
   description: {
-    fontSize: isSmallScreen ? 14 : 15,
+    fontSize: 13,
     color: Colors.text,
     textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 12,
+    lineHeight: 20,
+    marginBottom: 8,
   },
   descriptionBold: {
-    fontSize: isSmallScreen ? 14 : 15,
+    fontSize: 13,
     fontWeight: '600',
     color: Colors.primary,
     textAlign: 'center',
   },
   buttonContainer: {
-    gap: 12,
+    gap: 10,
     paddingBottom: 20,
   },
   primaryButton: {
     backgroundColor: Colors.primary,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 12,
+    borderRadius: 10,
     alignItems: 'center',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
   },
   primaryButtonText: {
     color: Colors.surface,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
   secondaryButton: {
     backgroundColor: Colors.surface,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 12,
+    borderRadius: 10,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: Colors.primary,
   },
   secondaryButtonText: {
     color: Colors.primary,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
 });
