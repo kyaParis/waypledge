@@ -8,9 +8,19 @@
     "scheme": "waypledge",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "owner": "waypledge",
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id-here"
+      }
+    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "me.waypledge.app"
+      "bundleIdentifier": "me.waypledge.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Take photos for your pledges",
+        "NSPhotoLibraryUsageDescription": "Share photos from your gallery"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +28,8 @@
         "backgroundColor": "#F8F9FA"
       },
       "edgeToEdgeEnabled": true,
-      "package": "me.waypledge.app"
+      "package": "me.waypledge.app",
+      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE"]
     },
     "web": {
       "bundler": "metro",
