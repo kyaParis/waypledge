@@ -479,6 +479,26 @@ export default function AboutScreen() {
           <Text style={styles.tagline}>Every Pledge Lights the Way</Text>
         </View>
 
+        {/* Legal Links */}
+        <View style={styles.legalLinks}>
+          <TouchableOpacity 
+            style={styles.legalLink}
+            onPress={() => router.push('/privacy')}
+          >
+            <MaterialIcons name="privacy-tip" size={20} color={Colors.textSecondary} />
+            <Text style={styles.legalLinkText}>Privacy Policy</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.legalLink}
+            onPress={() => router.push('/terms')}
+          >
+            <MaterialIcons name="description" size={20} color={Colors.textSecondary} />
+            <Text style={styles.legalLinkText}>Terms of Service</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.versionText}>Version 1.0.0</Text>
+
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
@@ -873,6 +893,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 24,
+    marginTop: 24,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  legalLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legalLinkText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  versionText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 16,
     fontStyle: 'italic',
   },
 });
