@@ -4,7 +4,7 @@
     "slug": "waypledge",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/waypledge-logo.png",
+    "icon": "./assets/app-icon.png",
     "scheme": "waypledge",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,7 +14,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/waypledge-logo.png",
+        "foregroundImage": "./assets/app-icon.png",
         "backgroundColor": "#F8F9FA"
       },
       "edgeToEdgeEnabled": true,
@@ -23,7 +23,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/waypledge-logo.png"
+      "favicon": "./assets/app-icon.png"
     },
     "plugins": [
       "expo-router",
