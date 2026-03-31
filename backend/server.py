@@ -13,6 +13,7 @@ import os
 import logging
 from pathlib import Path
 import uuid
+import math
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -35,6 +36,20 @@ ADMIN_EMAILS = [e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").sp
 def is_user_admin(email: str) -> bool:
     """Check if a user email is in the admin list"""
     return email.lower() in ADMIN_EMAILS
+
+def calculate_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate distance between two GPS coordinates using Haversine formula"""
+    R = 6371  # Earth's radius in km
+    
+    lat1_rad = math.radians(lat1)
+    lat2_rad = math.radians(lat2)
+    delta_lat = math.radians(lat2 - lat1)
+    delta_lon = math.radians(lon2 - lon1)
+    
+    a = math.sin(delta_lat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon/2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    
+    return R * c
 
 # Create the main app
 app = FastAPI()
@@ -75,6 +90,8 @@ class UserRegister(BaseModel):
     display_name: Optional[str] = None  # Public pseudonym
     bio: Optional[str] = ""
     location: Optional[str] = ""
+    latitude: Optional[float] = None  # GPS coordinates
+    longitude: Optional[float] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -87,6 +104,8 @@ class UserResponse(BaseModel):
     display_name: str  # Public pseudonym
     bio: str
     location: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     avatar: Optional[str] = None
     created_at: datetime
     is_admin: bool = False
@@ -102,6 +121,8 @@ class PledgeCreate(BaseModel):
     category: str
     tags: List[str] = []
     location: Optional[str] = ""
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     image: Optional[str] = None
     hive_id: Optional[str] = None  # Tag pledge to a hive
     available_until: Optional[datetime] = None  # When the pledge expires
@@ -115,6 +136,9 @@ class PledgeResponse(BaseModel):
     category: str
     tags: List[str]
     location: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    distance_km: Optional[float] = None  # Distance from searcher
     status: str
     image: Optional[str] = None
     hive_id: Optional[str] = None
@@ -128,6 +152,8 @@ class WishCreate(BaseModel):
     category: str
     tags: List[str] = []
     location: Optional[str] = ""
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     hive_id: Optional[str] = None  # Tag wish to a hive
     needed_by: Optional[datetime] = None  # When the wish is needed by
     urgency: Optional[str] = "normal"  # "urgent", "normal", "flexible"
@@ -141,6 +167,9 @@ class WishResponse(BaseModel):
     category: str
     tags: List[str]
     location: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    distance_km: Optional[float] = None  # Distance from searcher
     status: str
     fulfilled_by: Optional[str] = None
     hive_id: Optional[str] = None
@@ -298,7 +327,7 @@ async def register(user_data: UserRegister):
         base_name = user_data.name.split()[0] if user_data.name else "User"
         display_name = f"{base_name}{random.randint(100, 9999)}"
     
-    # Create user
+    # Create user with GPS coordinates
     user_dict = {
         "email": user_data.email,
         "password_hash": get_password_hash(user_data.password),
@@ -306,6 +335,8 @@ async def register(user_data: UserRegister):
         "display_name": display_name,  # Public pseudonym
         "bio": user_data.bio,
         "location": user_data.location,
+        "latitude": user_data.latitude,
+        "longitude": user_data.longitude,
         "avatar": None,
         "created_at": datetime.utcnow()
     }
@@ -322,6 +353,8 @@ async def register(user_data: UserRegister):
         display_name=user_dict["display_name"],
         bio=user_dict["bio"],
         location=user_dict["location"],
+        latitude=user_dict.get("latitude"),
+        longitude=user_dict.get("longitude"),
         avatar=user_dict["avatar"],
         created_at=user_dict["created_at"],
         is_admin=user_dict["email"] in ADMIN_EMAILS
@@ -431,7 +464,15 @@ async def create_pledge(pledge: PledgeCreate, current_user = Depends(get_current
     )
 
 @api_router.get("/pledges", response_model=List[PledgeResponse])
-async def get_pledges(category: Optional[str] = None, search: Optional[str] = None, location: Optional[str] = None, hive_id: Optional[str] = None):
+async def get_pledges(
+    category: Optional[str] = None, 
+    search: Optional[str] = None, 
+    location: Optional[str] = None, 
+    hive_id: Optional[str] = None,
+    lat: Optional[float] = None,
+    lng: Optional[float] = None,
+    radius_km: Optional[float] = 50  # Default 50km radius
+):
     query = {"status": "active"}
     if category:
         query["category"] = category
@@ -452,9 +493,18 @@ async def get_pledges(category: Optional[str] = None, search: Optional[str] = No
     hive_ids = list(set([p.get("hive_id") for p in pledges if p.get("hive_id")]))
     hive_names = await batch_get_parent_hive_names(hive_ids) if hive_ids else {}
     
-    # Build response with hive names
+    # Build response with hive names and calculate distances
     result = []
     for p in pledges:
+        distance_km = None
+        
+        # Calculate distance if user provided coordinates and pledge has coordinates
+        if lat is not None and lng is not None and p.get("latitude") and p.get("longitude"):
+            distance_km = calculate_distance_km(lat, lng, p["latitude"], p["longitude"])
+            # Skip if outside radius
+            if radius_km and distance_km > radius_km:
+                continue
+        
         hive_id_val = p.get("hive_id")
         hive_name = hive_names.get(hive_id_val) if hive_id_val else None
         result.append(PledgeResponse(
@@ -466,6 +516,9 @@ async def get_pledges(category: Optional[str] = None, search: Optional[str] = No
             category=p["category"],
             tags=p["tags"],
             location=p.get("location", ""),
+            latitude=p.get("latitude"),
+            longitude=p.get("longitude"),
+            distance_km=round(distance_km, 1) if distance_km else None,
             status=p["status"],
             image=p.get("image"),
             hive_id=hive_id_val,
@@ -473,6 +526,11 @@ async def get_pledges(category: Optional[str] = None, search: Optional[str] = No
             available_until=p.get("available_until"),
             created_at=p["created_at"]
         ))
+    
+    # Sort by distance if coordinates provided
+    if lat is not None and lng is not None:
+        result.sort(key=lambda x: x.distance_km if x.distance_km is not None else float('inf'))
+    
     return result
 
 @api_router.get("/pledges/mine", response_model=List[PledgeResponse])

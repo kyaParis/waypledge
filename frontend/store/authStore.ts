@@ -10,6 +10,8 @@ interface User {
   name: string;
   bio: string;
   location: string;
+  latitude?: number | null;
+  longitude?: number | null;
   avatar: string | null;
   created_at: string;
   is_admin: boolean;
@@ -21,7 +23,7 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string, bio: string, location: string) => Promise<void>;
+  register: (email: string, password: string, name: string, bio: string, location: string, latitude?: number | null, longitude?: number | null) => Promise<void>;
   logout: () => Promise<void>;
   loadToken: () => Promise<void>;
   setUser: (user: User) => void;
@@ -44,14 +46,16 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  register: async (email: string, password: string, name: string, bio: string, location: string) => {
+  register: async (email: string, password: string, name: string, bio: string, location: string, latitude?: number | null, longitude?: number | null) => {
     try {
       const response = await axios.post(`${API_URL}/auth/register`, {
         email,
         password,
         name,
         bio,
-        location
+        location,
+        latitude,
+        longitude
       });
       const { access_token, user } = response.data;
       await AsyncStorage.setItem('token', access_token);

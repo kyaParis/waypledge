@@ -15,6 +15,7 @@ import {
   AppState,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import * as Location from 'expo-location';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
 import api, { Pledge, Wish, Category } from '../../utils/api';
@@ -22,6 +23,9 @@ import { useAuthStore } from '../../store/authStore';
 import ReportModal from '../../components/ReportModal';
 
 type TabType = 'pledges' | 'wishes';
+
+// Radius options in km
+const RADIUS_OPTIONS = [10, 25, 50, 100, 250, 0]; // 0 = no limit
 
 // Helper function to format dates
 const formatDate = (dateString: string | null | undefined): string | null => {
@@ -66,25 +70,113 @@ export default function BrowseScreen() {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isFocusedRef = useRef(true);
+  
+  // Location search state
+  const [searchLocationText, setSearchLocationText] = useState('');
+  const [searchLat, setSearchLat] = useState<number | null>(null);
+  const [searchLng, setSearchLng] = useState<number | null>(null);
+  const [searchRadius, setSearchRadius] = useState<number>(50); // Default 50km
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [showRadiusModal, setShowRadiusModal] = useState(false);
+
+  // Get user's current GPS location
+  const useMyLocation = async () => {
+    setIsGettingLocation(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Please enable location permissions to use this feature.');
+        setIsGettingLocation(false);
+        return;
+      }
+
+      const currentLocation = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = currentLocation.coords;
+      
+      // Reverse geocode for display
+      const addresses = await Location.reverseGeocodeAsync({ latitude, longitude });
+      if (addresses && addresses.length > 0) {
+        const addr = addresses[0];
+        const parts = [];
+        if (addr.city) parts.push(addr.city);
+        if (addr.region) parts.push(addr.region);
+        setSearchLocationText(parts.join(', ') || 'My Location');
+      } else {
+        setSearchLocationText('My Location');
+      }
+      
+      setSearchLat(latitude);
+      setSearchLng(longitude);
+    } catch (error) {
+      Alert.alert('Error', 'Could not get your location.');
+    } finally {
+      setIsGettingLocation(false);
+    }
+  };
+
+  // Search in a typed location
+  const searchInLocation = async () => {
+    if (!searchLocationText.trim()) {
+      // Clear location filter
+      setSearchLat(null);
+      setSearchLng(null);
+      return;
+    }
+    
+    setIsGettingLocation(true);
+    try {
+      const results = await Location.geocodeAsync(searchLocationText);
+      if (results && results.length > 0) {
+        setSearchLat(results[0].latitude);
+        setSearchLng(results[0].longitude);
+      } else {
+        Alert.alert('Location Not Found', 'Could not find that location. Try being more specific (e.g., "London, UK").');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Could not search for that location.');
+    } finally {
+      setIsGettingLocation(false);
+    }
+  };
+
+  // Clear location search
+  const clearLocationSearch = () => {
+    setSearchLocationText('');
+    setSearchLat(null);
+    setSearchLng(null);
+  };
 
   const loadData = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) setRefreshing(true);
     try {
+      const pledgeParams: any = {
+        category: selectedCategory || undefined,
+        search: searchQuery || undefined,
+      };
+      
+      const wishParams: any = {
+        category: selectedCategory || undefined,
+        search: searchQuery || undefined,
+      };
+      
+      // Add location-based search if coordinates are set
+      if (searchLat !== null && searchLng !== null) {
+        pledgeParams.lat = searchLat;
+        pledgeParams.lng = searchLng;
+        pledgeParams.radius_km = searchRadius || 10000; // No limit if 0
+        
+        wishParams.lat = searchLat;
+        wishParams.lng = searchLng;
+        wishParams.radius_km = searchRadius || 10000;
+      } else if (locationFilter) {
+        // Fallback to text-based location filter
+        pledgeParams.location = locationFilter;
+        wishParams.location = locationFilter;
+      }
+      
       const [pledgesRes, wishesRes, categoriesRes] = await Promise.all([
-        api.get('/pledges', {
-          params: {
-            category: selectedCategory || undefined,
-            search: searchQuery || undefined,
-            location: locationFilter || undefined,
-          },
-        }),
-        api.get('/wishes', {
-          params: {
-            category: selectedCategory || undefined,
-            search: searchQuery || undefined,
-            location: locationFilter || undefined,
-          },
-        }),
+        api.get('/pledges', { params: pledgeParams }),
+        api.get('/wishes', { params: wishParams }),
         api.get('/categories'),
       ]);
       setPledges(pledgesRes.data);
@@ -96,7 +188,7 @@ export default function BrowseScreen() {
     } finally {
       if (showRefreshing) setRefreshing(false);
     }
-  }, [selectedCategory, searchQuery, locationFilter]);
+  }, [selectedCategory, searchQuery, locationFilter, searchLat, searchLng, searchRadius]);
 
   // Auto-refresh every 30 seconds when screen is focused
   useFocusEffect(
@@ -232,19 +324,79 @@ export default function BrowseScreen() {
         />
       </View>
 
-      <View style={styles.searchContainer}>
-        <MaterialIcons name="location-on" size={20} color={Colors.textSecondary} style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Filter by location (e.g., Spain, Andalusia...)"
-          value={locationFilter}
-          onChangeText={setLocationFilter}
-          placeholderTextColor={Colors.textSecondary}
-        />
-        {locationFilter && (
-          <TouchableOpacity onPress={() => setLocationFilter('')} style={styles.clearButton}>
-            <MaterialIcons name="close" size={20} color={Colors.textSecondary} />
+      {/* Location Search with GPS and Radius */}
+      <View style={styles.locationSearchContainer}>
+        <View style={styles.locationInputRow}>
+          <View style={styles.locationInputWrapper}>
+            <MaterialIcons name="location-on" size={20} color={Colors.textSecondary} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search location (e.g., New York, USA)"
+              value={searchLocationText}
+              onChangeText={setSearchLocationText}
+              onSubmitEditing={searchInLocation}
+              returnKeyType="search"
+              placeholderTextColor={Colors.textSecondary}
+            />
+            {searchLocationText && (
+              <TouchableOpacity onPress={clearLocationSearch} style={styles.clearButton}>
+                <MaterialIcons name="close" size={20} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
+          <TouchableOpacity 
+            style={styles.gpsButton} 
+            onPress={useMyLocation}
+            disabled={isGettingLocation}
+          >
+            {isGettingLocation ? (
+              <ActivityIndicator size="small" color={Colors.surface} />
+            ) : (
+              <MaterialIcons name="my-location" size={20} color={Colors.surface} />
+            )}
           </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.searchLocationButton} 
+            onPress={searchInLocation}
+            disabled={isGettingLocation || !searchLocationText.trim()}
+          >
+            <MaterialIcons name="search" size={20} color={Colors.surface} />
+          </TouchableOpacity>
+        </View>
+        
+        {/* Radius selector */}
+        <View style={styles.radiusRow}>
+          <Text style={styles.radiusLabel}>Search radius:</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.radiusScroll}>
+            {RADIUS_OPTIONS.map((radius) => (
+              <TouchableOpacity
+                key={radius}
+                style={[
+                  styles.radiusChip,
+                  searchRadius === radius && styles.radiusChipActive,
+                ]}
+                onPress={() => setSearchRadius(radius)}
+              >
+                <Text style={[
+                  styles.radiusChipText,
+                  searchRadius === radius && styles.radiusChipTextActive,
+                ]}>
+                  {radius === 0 ? 'No limit' : `${radius} km`}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+        
+        {/* Show active location indicator */}
+        {searchLat !== null && searchLng !== null && (
+          <View style={styles.activeLocationBar}>
+            <MaterialIcons name="place" size={16} color={Colors.primary} />
+            <Text style={styles.activeLocationText}>
+              Searching near: {searchLocationText || 'Selected location'}
+              {searchRadius > 0 ? ` (within ${searchRadius}km)` : ' (no distance limit)'}
+            </Text>
+          </View>
         )}
       </View>
 
@@ -995,5 +1147,88 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: Colors.primary,
+  },
+  locationSearchContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  locationInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  locationInputWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  gpsButton: {
+    backgroundColor: Colors.primary,
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchLocationButton: {
+    backgroundColor: Colors.secondary,
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radiusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 8,
+  },
+  radiusLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  radiusScroll: {
+    flex: 1,
+  },
+  radiusChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: Colors.surface,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  radiusChipActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  radiusChipText: {
+    fontSize: 12,
+    color: Colors.text,
+  },
+  radiusChipTextActive: {
+    color: Colors.surface,
+    fontWeight: '600',
+  },
+  activeLocationBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: Colors.primary + '15',
+    borderRadius: 8,
+  },
+  activeLocationText: {
+    fontSize: 12,
+    color: Colors.primary,
+    flex: 1,
   },
 });

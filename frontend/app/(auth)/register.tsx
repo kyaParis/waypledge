@@ -26,6 +26,8 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [bio, setBio] = useState('');
   const [location, setLocation] = useState('');
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
 
@@ -40,10 +42,14 @@ export default function RegisterScreen() {
       }
 
       const currentLocation = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = currentLocation.coords;
+      const { latitude: lat, longitude: lng } = currentLocation.coords;
+      
+      // Store coordinates
+      setLatitude(lat);
+      setLongitude(lng);
 
       // Reverse geocode to get address
-      const addresses = await Location.reverseGeocodeAsync({ latitude, longitude });
+      const addresses = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
       
       if (addresses && addresses.length > 0) {
         const addr = addresses[0];
@@ -53,10 +59,10 @@ export default function RegisterScreen() {
         if (addr.region) parts.push(addr.region);
         if (addr.country) parts.push(addr.country);
         
-        const locationString = parts.join(', ') || `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
+        const locationString = parts.join(', ') || `${lat.toFixed(2)}, ${lng.toFixed(2)}`;
         setLocation(locationString);
       } else {
-        setLocation(`${latitude.toFixed(2)}, ${longitude.toFixed(2)}`);
+        setLocation(`${lat.toFixed(2)}, ${lng.toFixed(2)}`);
       }
     } catch (error) {
       Alert.alert('Error', 'Could not get your location. Please enter it manually.');
@@ -78,7 +84,7 @@ export default function RegisterScreen() {
 
     setIsLoading(true);
     try {
-      await register(email.toLowerCase().trim(), password, name.trim(), bio.trim(), location.trim());
+      await register(email.toLowerCase().trim(), password, name.trim(), bio.trim(), location.trim(), latitude, longitude);
       router.replace('/(tabs)/home');
     } catch (error: any) {
       Alert.alert('Registration Failed', error.message);
