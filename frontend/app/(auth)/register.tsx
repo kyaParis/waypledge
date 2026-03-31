@@ -13,6 +13,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as Location from 'expo-location';
 import { useAuthStore } from '../../store/authStore';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -26,10 +27,52 @@ export default function RegisterScreen() {
   const [bio, setBio] = useState('');
   const [location, setLocation] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+
+  const getMyLocation = async () => {
+    setIsGettingLocation(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Please enable location permissions to use this feature, or enter your location manually.');
+        setIsGettingLocation(false);
+        return;
+      }
+
+      const currentLocation = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = currentLocation.coords;
+
+      // Reverse geocode to get address
+      const addresses = await Location.reverseGeocodeAsync({ latitude, longitude });
+      
+      if (addresses && addresses.length > 0) {
+        const addr = addresses[0];
+        // Build a readable location string
+        const parts = [];
+        if (addr.city) parts.push(addr.city);
+        if (addr.region) parts.push(addr.region);
+        if (addr.country) parts.push(addr.country);
+        
+        const locationString = parts.join(', ') || `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
+        setLocation(locationString);
+      } else {
+        setLocation(`${latitude.toFixed(2)}, ${longitude.toFixed(2)}`);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Could not get your location. Please enter it manually.');
+    } finally {
+      setIsGettingLocation(false);
+    }
+  };
 
   const handleRegister = async () => {
     if (!name || !email || !password) {
       Alert.alert('Error', 'Please fill in required fields (Name, Email, Password)');
+      return;
+    }
+
+    if (!location.trim()) {
+      Alert.alert('Error', 'Please enter your location. This helps connect you with your local community.');
       return;
     }
 
@@ -100,16 +143,30 @@ export default function RegisterScreen() {
               />
             </View>
 
-            <View style={styles.inputContainer}>
-              <MaterialIcons name="location-on" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Location (optional)"
-                value={location}
-                onChangeText={setLocation}
-                placeholderTextColor={Colors.textSecondary}
-              />
+            <View style={styles.locationContainer}>
+              <View style={[styles.inputContainer, styles.locationInput]}>
+                <MaterialIcons name="location-on" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Location *"
+                  value={location}
+                  onChangeText={setLocation}
+                  placeholderTextColor={Colors.textSecondary}
+                />
+              </View>
+              <TouchableOpacity 
+                style={styles.gpsButton} 
+                onPress={getMyLocation}
+                disabled={isGettingLocation}
+              >
+                {isGettingLocation ? (
+                  <ActivityIndicator size="small" color={Colors.surface} />
+                ) : (
+                  <MaterialIcons name="my-location" size={22} color={Colors.surface} />
+                )}
+              </TouchableOpacity>
             </View>
+            <Text style={styles.locationHint}>Enter your city/area or tap the GPS button</Text>
 
             <View style={styles.inputContainer}>
               <MaterialIcons name="info" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
@@ -210,6 +267,28 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top',
     paddingTop: 16,
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  locationInput: {
+    flex: 1,
+  },
+  gpsButton: {
+    backgroundColor: Colors.primary,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  locationHint: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: -8,
+    marginLeft: 4,
   },
   registerButton: {
     backgroundColor: Colors.primary,
