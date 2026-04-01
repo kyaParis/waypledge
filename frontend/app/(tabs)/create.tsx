@@ -115,12 +115,9 @@ export default function CreateScreen() {
         if (image) {
           data.image = image;
         }
-        // Parse date string to ISO format for pledge
-        if (availableUntil) {
-          const parsed = parseDate(availableUntil);
-          if (parsed) {
-            data.available_until = parsed.toISOString();
-          }
+        // Send availability as plain text (no date parsing)
+        if (availableUntil.trim()) {
+          data.available_until = availableUntil.trim();
         }
       } else {
         // Wish fields
@@ -408,17 +405,18 @@ export default function CreateScreen() {
           {/* Timing fields */}
           {type === 'pledge' && (
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Available Until (optional)</Text>
+              <Text style={styles.label}>Availability (optional)</Text>
               <TextInput
-                style={styles.input}
-                placeholder="DD/MM/YYYY (e.g., 31/12/2025)"
+                style={[styles.input, styles.multilineInput]}
+                placeholder="e.g., 15/4 - 17/4, 19/5 - 22/5, Weekends only"
                 value={availableUntil}
                 onChangeText={setAvailableUntil}
                 placeholderTextColor={Colors.textSecondary}
-                keyboardType="numbers-and-punctuation"
+                multiline
+                numberOfLines={2}
               />
               <Text style={styles.helpText}>
-                Leave empty if ongoing/no expiry
+                Describe when you're available - dates, days, times
               </Text>
             </View>
           )}

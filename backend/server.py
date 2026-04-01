@@ -167,7 +167,7 @@ class PledgeCreate(BaseModel):
     longitude: Optional[float] = None
     image: Optional[str] = None
     hive_id: Optional[str] = None  # Tag pledge to a hive
-    available_until: Optional[datetime] = None  # When the pledge expires
+    available_until: Optional[str] = None  # Free-text availability description
 
 class PledgeResponse(BaseModel):
     id: str
@@ -185,7 +185,7 @@ class PledgeResponse(BaseModel):
     image: Optional[str] = None
     hive_id: Optional[str] = None
     hive_name: Optional[str] = None
-    available_until: Optional[datetime] = None
+    available_until: Optional[str] = None
     created_at: datetime
 
 class WishCreate(BaseModel):
