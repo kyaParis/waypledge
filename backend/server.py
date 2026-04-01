@@ -50,7 +50,7 @@ def send_verification_email(to_email: str, code: str, name: str) -> bool:
     """Send verification email using Resend"""
     try:
         params = {
-            "from": "WayPledge <onboarding@resend.dev>",
+            "from": "WayPledge <noreply@waypledge.me>",
             "to": [to_email],
             "subject": "Verify your WayPledge account",
             "html": f"""
