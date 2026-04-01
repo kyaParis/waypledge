@@ -187,30 +187,8 @@ export default function CreateScreen() {
     return null;
   };
 
-  // Show verification required screen for unverified users
-  if (user && !user.email_verified) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.verificationRequired}>
-          <MaterialIcons name="mark-email-unread" size={80} color={Colors.warning} />
-          <Text style={styles.verificationTitle}>Email Verification Required</Text>
-          <Text style={styles.verificationText}>
-            Please verify your email to create Pledges and Wishes. This helps keep our community safe and trustworthy.
-          </Text>
-          <TouchableOpacity
-            style={styles.verifyButton}
-            onPress={() => router.push('/verify')}
-          >
-            <MaterialIcons name="verified" size={20} color={Colors.surface} />
-            <Text style={styles.verifyButtonText}>Verify My Email</Text>
-          </TouchableOpacity>
-          <Text style={styles.verificationNote}>
-            Check your inbox for a 6-digit code sent to {user.email}
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  // Email verification disabled - using honeypot + time check anti-spam instead
+  // Verification screen removed since email verification is disabled
 
   return (
     <SafeAreaView style={styles.container}>

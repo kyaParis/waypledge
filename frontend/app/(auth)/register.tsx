@@ -141,10 +141,10 @@ export default function RegisterScreen() {
         longitude,
         displayName.trim() || undefined
       );
-      setSuccessMessage('Account created! Please verify your email...');
+      setSuccessMessage('Account created! Taking you to WayPledge...');
       setTimeout(() => {
-        // Navigate to verify screen instead of home
-        router.replace('/verify');
+        // Go directly to home - email verification disabled
+        router.replace('/(tabs)/home');
       }, 500);
     } catch (error: any) {
       setSuccessMessage('');
