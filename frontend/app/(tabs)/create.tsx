@@ -18,9 +18,15 @@ import { MaterialIcons } from '@expo/vector-icons';
 import api, { Category } from '../../utils/api';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../../store/authStore';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 type CreateType = 'pledge' | 'wish';
 type Urgency = 'urgent' | 'normal' | 'flexible';
+
+interface DateRange {
+  from: Date;
+  to: Date;
+}
 
 export default function CreateScreen() {
   const router = useRouter();
@@ -38,10 +44,19 @@ export default function CreateScreen() {
   // Ref to prevent double-submission
   const isSubmittingRef = useRef(false);
   
+  // Date picker state for availability
+  const [dateRanges, setDateRanges] = useState<DateRange[]>([]);
+  const [showFromPicker, setShowFromPicker] = useState(false);
+  const [showToPicker, setShowToPicker] = useState(false);
+  const [tempFromDate, setTempFromDate] = useState<Date | null>(null);
+  
   // New fields for timing
   const [availableUntil, setAvailableUntil] = useState('');
   const [neededBy, setNeededBy] = useState('');
   const [urgency, setUrgency] = useState<Urgency>('normal');
+  
+  // Date picker for wishes
+  const [showNeededByPicker, setShowNeededByPicker] = useState(false);
 
   useEffect(() => {
     loadCategories();
@@ -54,6 +69,52 @@ export default function CreateScreen() {
     } catch (error) {
       console.error('Error loading categories:', error);
     }
+  };
+
+  // Format date for display (locale-aware)
+  const formatDate = (date: Date): string => {
+    return date.toLocaleDateString(undefined, { 
+      day: 'numeric', 
+      month: 'short', 
+      year: 'numeric' 
+    });
+  };
+
+  // Handle "From" date selection
+  const handleFromDateConfirm = (date: Date) => {
+    setShowFromPicker(false);
+    setTempFromDate(date);
+    setShowToPicker(true); // Immediately show "To" picker
+  };
+
+  // Handle "To" date selection
+  const handleToDateConfirm = (date: Date) => {
+    setShowToPicker(false);
+    if (tempFromDate) {
+      // Ensure "to" is after "from"
+      const finalTo = date < tempFromDate ? tempFromDate : date;
+      setDateRanges([...dateRanges, { from: tempFromDate, to: finalTo }]);
+      setTempFromDate(null);
+    }
+  };
+
+  // Remove a date range
+  const removeDateRange = (index: number) => {
+    setDateRanges(dateRanges.filter((_, i) => i !== index));
+  };
+
+  // Handle needed by date for wishes
+  const handleNeededByConfirm = (date: Date) => {
+    setShowNeededByPicker(false);
+    setNeededBy(date.toISOString());
+  };
+
+  // Format date ranges for API
+  const formatDateRangesForApi = (): string => {
+    if (dateRanges.length === 0) return '';
+    return dateRanges.map(range => 
+      `${formatDate(range.from)} - ${formatDate(range.to)}`
+    ).join(', ');
   };
 
   const pickImage = async () => {
@@ -115,9 +176,10 @@ export default function CreateScreen() {
         if (image) {
           data.image = image;
         }
-        // Send availability as plain text (no date parsing)
-        if (availableUntil.trim()) {
-          data.available_until = availableUntil.trim();
+        // Send formatted date ranges
+        const availability = formatDateRangesForApi();
+        if (availability) {
+          data.available_until = availability;
         }
       } else {
         // Wish fields
@@ -146,6 +208,7 @@ export default function CreateScreen() {
               setLocation('');
               setImage(null);
               setAvailableUntil('');
+              setDateRanges([]);
               setNeededBy('');
               setUrgency('normal');
             },
@@ -406,18 +469,57 @@ export default function CreateScreen() {
           {type === 'pledge' && (
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Availability (optional)</Text>
-              <TextInput
-                style={[styles.input, styles.multilineInput]}
-                placeholder="e.g., 15/4 - 17/4, 19/5 - 22/5, Weekends only"
-                value={availableUntil}
-                onChangeText={setAvailableUntil}
-                placeholderTextColor={Colors.textSecondary}
-                multiline
-                numberOfLines={2}
-              />
+              
+              {/* Display added date ranges */}
+              {dateRanges.length > 0 && (
+                <View style={styles.dateRangesList}>
+                  {dateRanges.map((range, index) => (
+                    <View key={index} style={styles.dateRangeItem}>
+                      <MaterialIcons name="date-range" size={16} color={Colors.primary} />
+                      <Text style={styles.dateRangeText}>
+                        {formatDate(range.from)} - {formatDate(range.to)}
+                      </Text>
+                      <TouchableOpacity onPress={() => removeDateRange(index)}>
+                        <MaterialIcons name="close" size={18} color={Colors.error} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+              
+              {/* Add date range button */}
+              <TouchableOpacity 
+                style={styles.addDateButton}
+                onPress={() => setShowFromPicker(true)}
+              >
+                <MaterialIcons name="add" size={20} color={Colors.primary} />
+                <Text style={styles.addDateButtonText}>Add Date Range</Text>
+              </TouchableOpacity>
+              
               <Text style={styles.helpText}>
-                Describe when you're available - dates, days, times
+                Add one or more date ranges when you're available
               </Text>
+              
+              {/* From Date Picker */}
+              <DateTimePickerModal
+                isVisible={showFromPicker}
+                mode="date"
+                onConfirm={handleFromDateConfirm}
+                onCancel={() => setShowFromPicker(false)}
+                minimumDate={new Date()}
+              />
+              
+              {/* To Date Picker */}
+              <DateTimePickerModal
+                isVisible={showToPicker}
+                mode="date"
+                onConfirm={handleToDateConfirm}
+                onCancel={() => {
+                  setShowToPicker(false);
+                  setTempFromDate(null);
+                }}
+                minimumDate={tempFromDate || new Date()}
+              />
             </View>
           )}
 
@@ -769,5 +871,42 @@ const styles = StyleSheet.create({
     marginTop: 20,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  // Date range picker styles
+  dateRangesList: {
+    marginBottom: 12,
+  },
+  dateRangeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.pledgeLight,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    gap: 8,
+  },
+  dateRangeText: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.text,
+  },
+  addDateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surface,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    borderStyle: 'dashed',
+    gap: 8,
+  },
+  addDateButtonText: {
+    fontSize: 15,
+    color: Colors.primary,
+    fontWeight: '500',
   },
 });
