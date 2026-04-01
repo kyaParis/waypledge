@@ -17,9 +17,15 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "me.waypledge.app",
+      "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "Take photos for your pledges",
-        "NSPhotoLibraryUsageDescription": "Share photos from your gallery"
+        "NSPhotoLibraryUsageDescription": "Share photos from your gallery",
+        "NSLocationWhenInUseUsageDescription": "Find pledges and wishes near you",
+        "CFBundleAllowMixedLocalizations": true
+      },
+      "config": {
+        "usesNonExemptEncryption": false
       }
     },
     "android": {
@@ -29,7 +35,13 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "me.waypledge.app",
-      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE"]
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA", 
+        "READ_EXTERNAL_STORAGE",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
