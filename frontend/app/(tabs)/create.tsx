@@ -607,13 +607,18 @@ export default function CreateScreen() {
               {
                 backgroundColor:
                   type === 'pledge' ? Colors.pledgeMedium : Colors.wishMedium,
+                opacity: isLoading ? 0.7 : 1,
               },
             ]}
             onPress={handleCreate}
             disabled={isLoading}
+            activeOpacity={0.8}
           >
             {isLoading ? (
-              <ActivityIndicator color={Colors.surface} />
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator color={Colors.surface} size="small" />
+                <Text style={styles.createButtonText}>Creating...</Text>
+              </View>
             ) : (
               <Text style={styles.createButtonText}>
                 Create {type === 'pledge' ? 'Pledge' : 'Wish'}
@@ -786,6 +791,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   createButtonText: {
     color: Colors.surface,

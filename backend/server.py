@@ -557,6 +557,33 @@ async def create_pledge(pledge: PledgeCreate, current_user = Depends(get_current
     #         detail="Please verify your email before creating pledges. Check your inbox for the verification code."
     #     )
     
+    # Duplicate prevention: Check if same title was created in the last 60 seconds
+    recent_cutoff = datetime.utcnow() - timedelta(seconds=60)
+    existing = await db.pledges.find_one({
+        "user_id": str(current_user["_id"]),
+        "title": pledge.title,
+        "created_at": {"$gte": recent_cutoff}
+    })
+    if existing:
+        # Return the existing pledge instead of creating a duplicate
+        hive_name = await get_hive_name(existing.get("hive_id")) if existing.get("hive_id") else None
+        return PledgeResponse(
+            id=str(existing["_id"]),
+            user_id=existing["user_id"],
+            user_name=existing["user_name"],
+            title=existing["title"],
+            description=existing["description"],
+            category=existing["category"],
+            tags=existing.get("tags", []),
+            location=existing.get("location", ""),
+            status=existing.get("status", "active"),
+            image=existing.get("image"),
+            hive_id=existing.get("hive_id"),
+            hive_name=hive_name,
+            available_until=format_available_until(existing.get("available_until")),
+            created_at=existing["created_at"]
+        )
+    
     # Validate hive membership if hive_id provided
     hive_name = None
     if pledge.hive_id:
@@ -767,6 +794,31 @@ async def create_wish(wish: WishCreate, current_user = Depends(get_current_user)
     #         status_code=403, 
     #         detail="Please verify your email before creating wishes. Check your inbox for the verification code."
     #     )
+    
+    # Duplicate prevention: Check if same title was created in the last 60 seconds
+    recent_cutoff = datetime.utcnow() - timedelta(seconds=60)
+    existing = await db.wishes.find_one({
+        "user_id": str(current_user["_id"]),
+        "title": wish.title,
+        "created_at": {"$gte": recent_cutoff}
+    })
+    if existing:
+        # Return the existing wish instead of creating a duplicate
+        return WishResponse(
+            id=str(existing["_id"]),
+            user_id=existing["user_id"],
+            user_name=existing["user_name"],
+            title=existing["title"],
+            description=existing["description"],
+            category=existing["category"],
+            tags=existing.get("tags", []),
+            location=existing.get("location", ""),
+            status=existing.get("status", "active"),
+            fulfilled_by=existing.get("fulfilled_by"),
+            needed_by=existing.get("needed_by"),
+            urgency=existing.get("urgency", "normal"),
+            created_at=existing["created_at"]
+        )
     
     wish_dict = {
         "user_id": str(current_user["_id"]),
