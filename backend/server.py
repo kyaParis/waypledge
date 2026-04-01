@@ -14,6 +14,8 @@ import logging
 from pathlib import Path
 import uuid
 import math
+import random
+import resend
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -30,12 +32,51 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "your-secret-key-change-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
 
+# Resend email API
+resend.api_key = os.environ.get("RESEND_API_KEY", "")
+
 # Admin emails (comma-separated)
 ADMIN_EMAILS = [e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").split(",") if e.strip()]
 
 def is_user_admin(email: str) -> bool:
     """Check if a user email is in the admin list"""
     return email.lower() in ADMIN_EMAILS
+
+def generate_verification_code() -> str:
+    """Generate a 6-digit verification code"""
+    return str(random.randint(100000, 999999))
+
+def send_verification_email(to_email: str, code: str, name: str) -> bool:
+    """Send verification email using Resend"""
+    try:
+        params = {
+            "from": "WayPledge <noreply@waypledge.me>",
+            "to": [to_email],
+            "subject": "Verify your WayPledge account",
+            "html": f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h1 style="color: #2E7D32; text-align: center;">Welcome to WayPledge!</h1>
+                <p>Hi {name},</p>
+                <p>Thank you for joining WayPledge - a community of mutual support where people pledge goods and services, and make wishes for what they need.</p>
+                <p>Your verification code is:</p>
+                <div style="background-color: #f5f5f5; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #2E7D32; border-radius: 8px;">
+                    {code}
+                </div>
+                <p style="margin-top: 20px;">Enter this code in the app to verify your email and start pledging!</p>
+                <p style="color: #666; font-size: 12px;">This code expires in 24 hours.</p>
+                <hr style="margin-top: 30px; border: none; border-top: 1px solid #eee;">
+                <p style="color: #888; font-size: 12px; text-align: center;">
+                    Give and Receive With Love<br>
+                    <a href="https://waypledge.me" style="color: #2E7D32;">waypledge.me</a>
+                </p>
+            </div>
+            """
+        }
+        resend.Emails.send(params)
+        return True
+    except Exception as e:
+        logging.error(f"Failed to send verification email: {e}")
+        return False
 
 def calculate_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Calculate distance between two GPS coordinates using Haversine formula"""
@@ -109,6 +150,7 @@ class UserResponse(BaseModel):
     avatar: Optional[str] = None
     created_at: datetime
     is_admin: bool = False
+    email_verified: bool = False
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -323,11 +365,14 @@ async def register(user_data: UserRegister):
     display_name = user_data.display_name
     if not display_name:
         # Create a default pseudonym from first name + random number
-        import random
         base_name = user_data.name.split()[0] if user_data.name else "User"
         display_name = f"{base_name}{random.randint(100, 9999)}"
     
-    # Create user with GPS coordinates
+    # Generate verification code
+    verification_code = generate_verification_code()
+    verification_expires = datetime.utcnow() + timedelta(hours=24)
+    
+    # Create user with GPS coordinates and verification info
     user_dict = {
         "email": user_data.email,
         "password_hash": get_password_hash(user_data.password),
@@ -338,10 +383,18 @@ async def register(user_data: UserRegister):
         "latitude": user_data.latitude,
         "longitude": user_data.longitude,
         "avatar": None,
-        "created_at": datetime.utcnow()
+        "created_at": datetime.utcnow(),
+        "email_verified": False,
+        "verification_code": verification_code,
+        "verification_expires": verification_expires
     }
     result = await db.users.insert_one(user_dict)
     user_dict["_id"] = result.inserted_id
+    
+    # Send verification email
+    email_sent = send_verification_email(user_data.email, verification_code, user_data.name)
+    if not email_sent:
+        logging.warning(f"Failed to send verification email to {user_data.email}")
     
     # Create token
     token = create_access_token({"sub": str(result.inserted_id)})
@@ -357,7 +410,8 @@ async def register(user_data: UserRegister):
         longitude=user_dict.get("longitude"),
         avatar=user_dict["avatar"],
         created_at=user_dict["created_at"],
-        is_admin=user_dict["email"] in ADMIN_EMAILS
+        is_admin=user_dict["email"] in ADMIN_EMAILS,
+        email_verified=False
     )
     
     return TokenResponse(access_token=token, token_type="bearer", user=user_response)
@@ -382,12 +436,77 @@ async def login(user_data: UserLogin):
         display_name=display_name,
         bio=user["bio"],
         location=user["location"],
+        latitude=user.get("latitude"),
+        longitude=user.get("longitude"),
         avatar=user.get("avatar"),
         created_at=user["created_at"],
-        is_admin=is_user_admin(user["email"])
+        is_admin=is_user_admin(user["email"]),
+        email_verified=user.get("email_verified", False)
     )
     
     return TokenResponse(access_token=token, token_type="bearer", user=user_response)
+
+class VerifyEmailRequest(BaseModel):
+    code: str
+
+class ResendVerificationRequest(BaseModel):
+    email: str
+
+@api_router.post("/auth/verify-email")
+async def verify_email(request: VerifyEmailRequest, current_user = Depends(get_current_user)):
+    """Verify email with the 6-digit code"""
+    user = current_user
+    
+    if user.get("email_verified"):
+        return {"success": True, "message": "Email already verified"}
+    
+    stored_code = user.get("verification_code")
+    expires = user.get("verification_expires")
+    
+    if not stored_code or not expires:
+        raise HTTPException(status_code=400, detail="No verification code found. Please request a new one.")
+    
+    if datetime.utcnow() > expires:
+        raise HTTPException(status_code=400, detail="Verification code expired. Please request a new one.")
+    
+    if request.code != stored_code:
+        raise HTTPException(status_code=400, detail="Invalid verification code")
+    
+    # Mark email as verified
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {
+            "$set": {"email_verified": True},
+            "$unset": {"verification_code": "", "verification_expires": ""}
+        }
+    )
+    
+    return {"success": True, "message": "Email verified successfully!"}
+
+@api_router.post("/auth/resend-verification")
+async def resend_verification(current_user = Depends(get_current_user)):
+    """Resend verification email"""
+    user = current_user
+    
+    if user.get("email_verified"):
+        return {"success": True, "message": "Email already verified"}
+    
+    # Generate new code
+    new_code = generate_verification_code()
+    new_expires = datetime.utcnow() + timedelta(hours=24)
+    
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"verification_code": new_code, "verification_expires": new_expires}}
+    )
+    
+    # Send email
+    email_sent = send_verification_email(user["email"], new_code, user["name"])
+    
+    if email_sent:
+        return {"success": True, "message": "Verification email sent!"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to send email. Please try again.")
 
 @api_router.get("/auth/me", response_model=UserResponse)
 async def get_me(current_user = Depends(get_current_user)):
@@ -403,9 +522,12 @@ async def get_me(current_user = Depends(get_current_user)):
         display_name=display_name,
         bio=current_user["bio"],
         location=current_user["location"],
+        latitude=current_user.get("latitude"),
+        longitude=current_user.get("longitude"),
         avatar=current_user.get("avatar"),
         created_at=current_user["created_at"],
-        is_admin=is_user_admin(current_user["email"])
+        is_admin=is_user_admin(current_user["email"]),
+        email_verified=current_user.get("email_verified", False)
     )
 
 # Pledge endpoints
