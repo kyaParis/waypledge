@@ -22,6 +22,7 @@ export default function RegisterScreen() {
   const router = useRouter();
   const register = useAuthStore((state) => state.register);
   const [name, setName] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,6 +33,7 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   const getMyLocation = async () => {
     setIsGettingLocation(true);
@@ -76,10 +78,11 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     setErrorMessage('');
+    setSuccessMessage('');
     
     // Validation with specific error messages
     if (!name.trim()) {
-      setErrorMessage('Please enter your full name');
+      setErrorMessage('Please enter your name');
       return;
     }
     if (!email.trim()) {
@@ -104,10 +107,25 @@ export default function RegisterScreen() {
     }
 
     setIsLoading(true);
+    setSuccessMessage('Creating your account...');
+    
     try {
-      await register(email.toLowerCase().trim(), password, name.trim(), bio.trim(), location.trim(), latitude, longitude);
-      router.replace('/(tabs)/home');
+      await register(
+        email.toLowerCase().trim(), 
+        password, 
+        name.trim(), 
+        bio.trim(), 
+        location.trim(), 
+        latitude, 
+        longitude,
+        displayName.trim() || undefined
+      );
+      setSuccessMessage('Account created! Taking you to WayPledge...');
+      setTimeout(() => {
+        router.replace('/(tabs)/home');
+      }, 500);
     } catch (error: any) {
+      setSuccessMessage('');
       setErrorMessage(error.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
@@ -138,12 +156,25 @@ export default function RegisterScreen() {
               <MaterialIcons name="person" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Full Name *"
+                placeholder="Your Name *"
                 value={name}
                 onChangeText={setName}
                 placeholderTextColor={Colors.textSecondary}
               />
             </View>
+            <Text style={styles.fieldHint}>Your real name (kept private, only shared when you choose)</Text>
+
+            <View style={styles.inputContainer}>
+              <MaterialIcons name="badge" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Display Name (optional)"
+                value={displayName}
+                onChangeText={setDisplayName}
+                placeholderTextColor={Colors.textSecondary}
+              />
+            </View>
+            <Text style={styles.fieldHint}>Public nickname shown on pledges & wishes (e.g., "Sarah M" or "HelpfulNeighbour")</Text>
 
             <View style={styles.inputContainer}>
               <MaterialIcons name="email" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
@@ -223,6 +254,14 @@ export default function RegisterScreen() {
               <View style={styles.errorContainer}>
                 <MaterialIcons name="error-outline" size={18} color={Colors.error} />
                 <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            ) : null}
+
+            {/* Success Message Display */}
+            {successMessage ? (
+              <View style={styles.successContainer}>
+                <MaterialIcons name="check-circle" size={18} color={Colors.success} />
+                <Text style={styles.successText}>{successMessage}</Text>
               </View>
             ) : null}
 
@@ -351,6 +390,29 @@ const styles = StyleSheet.create({
     flex: 1,
     color: Colors.error,
     fontSize: 14,
+  },
+  successContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.success + '15',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    gap: 8,
+  },
+  successText: {
+    flex: 1,
+    color: Colors.success,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  fieldHint: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: -4,
+    marginBottom: 8,
+    marginLeft: 4,
+    fontStyle: 'italic',
   },
   registerButton: {
     backgroundColor: Colors.primary,
