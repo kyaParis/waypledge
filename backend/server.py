@@ -188,6 +188,16 @@ class PledgeResponse(BaseModel):
     available_until: Optional[str] = None
     created_at: datetime
 
+# Helper to convert available_until to string (handles both string and datetime)
+def format_available_until(value) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    if isinstance(value, datetime):
+        return value.strftime("%d %b %Y")
+    return str(value)
+
 class WishCreate(BaseModel):
     title: str
     description: str
@@ -588,7 +598,7 @@ async def create_pledge(pledge: PledgeCreate, current_user = Depends(get_current
         image=pledge_dict["image"],
         hive_id=pledge_dict["hive_id"],
         hive_name=hive_name,
-        available_until=pledge_dict["available_until"],
+        available_until=format_available_until(pledge_dict.get("available_until")),
         created_at=pledge_dict["created_at"]
     )
 
@@ -652,7 +662,7 @@ async def get_pledges(
             image=p.get("image"),
             hive_id=hive_id_val,
             hive_name=hive_name,
-            available_until=p.get("available_until"),
+            available_until=format_available_until(p.get("available_until")),
             created_at=p["created_at"]
         ))
     
@@ -676,7 +686,7 @@ async def get_my_pledges(current_user = Depends(get_current_user)):
         location=p.get("location", ""),
         status=p["status"],
         image=p.get("image"),
-        available_until=p.get("available_until"),
+        available_until=format_available_until(p.get("available_until")),
         created_at=p["created_at"]
     ) for p in pledges]
 
@@ -696,7 +706,7 @@ async def get_pledge(pledge_id: str):
         location=pledge.get("location", ""),
         status=pledge["status"],
         image=pledge.get("image"),
-        available_until=pledge.get("available_until"),
+        available_until=format_available_until(pledge.get("available_until")),
         created_at=pledge["created_at"]
     )
 
@@ -734,7 +744,7 @@ async def update_pledge(pledge_id: str, pledge_data: PledgeCreate, current_user 
         location=updated.get("location", ""),
         status=updated["status"],
         image=updated.get("image"),
-        available_until=updated.get("available_until"),
+        available_until=format_available_until(updated.get("available_until")),
         created_at=updated["created_at"]
     )
 
