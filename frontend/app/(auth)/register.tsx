@@ -270,20 +270,6 @@ export default function RegisterScreen() {
             </View>
             <Text style={styles.locationHint}>Enter your city/area or tap the GPS button</Text>
 
-            <View style={styles.inputContainer}>
-              <MaterialIcons name="info" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, styles.bioInput]}
-                placeholder="Tell us about yourself (optional)"
-                value={bio}
-                onChangeText={setBio}
-                multiline
-                numberOfLines={3}
-                placeholderTextColor={Colors.textSecondary}
-              />
-            </View>
-
-            {/* Error Message Display */}
             {errorMessage ? (
               <View style={styles.errorContainer}>
                 <MaterialIcons name="error-outline" size={18} color={Colors.error} />
