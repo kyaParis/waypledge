@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,13 @@ export default function RegisterScreen() {
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  
+  // Anti-spam: Honeypot field (invisible to users, only bots fill it)
+  const [website, setWebsite] = useState('');
+  
+  // Anti-spam: Track form load time to detect instant bot submissions
+  const formLoadTime = useRef<number>(Date.now());
+  const MIN_SUBMIT_TIME_MS = 3000; // 3 seconds minimum
 
   const getMyLocation = async () => {
     setIsGettingLocation(true);
@@ -80,6 +87,20 @@ export default function RegisterScreen() {
     setErrorMessage('');
     setSuccessMessage('');
     
+    // Anti-spam check 1: Honeypot - if filled, it's a bot
+    if (website) {
+      // Silently reject bot submissions (don't tell them why)
+      setErrorMessage('Registration failed. Please try again later.');
+      return;
+    }
+    
+    // Anti-spam check 2: Time-based - reject instant submissions
+    const timeSinceLoad = Date.now() - formLoadTime.current;
+    if (timeSinceLoad < MIN_SUBMIT_TIME_MS) {
+      setErrorMessage('Please take a moment to fill out the form properly.');
+      return;
+    }
+    
     // Validation with specific error messages
     if (!name.trim()) {
       setErrorMessage('Please enter your name');
@@ -120,9 +141,10 @@ export default function RegisterScreen() {
         longitude,
         displayName.trim() || undefined
       );
-      setSuccessMessage('Account created! Taking you to WayPledge...');
+      setSuccessMessage('Account created! Please verify your email...');
       setTimeout(() => {
-        router.replace('/(tabs)/home');
+        // Navigate to verify screen instead of home
+        router.replace('/verify');
       }, 500);
     } catch (error: any) {
       setSuccessMessage('');
@@ -152,6 +174,18 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.form}>
+            {/* Honeypot field - invisible to users, only bots fill this */}
+            <TextInput
+              style={styles.honeypot}
+              placeholder="Website"
+              value={website}
+              onChangeText={setWebsite}
+              autoComplete="off"
+              tabIndex={-1}
+              accessibilityElementsHidden={true}
+              importantForAccessibility="no-hide-descendants"
+            />
+            
             <View style={styles.inputContainer}>
               <MaterialIcons name="person" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
@@ -297,6 +331,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  // Honeypot field - completely hidden from users
+  honeypot: {
+    position: 'absolute',
+    left: -9999,
+    width: 1,
+    height: 1,
+    opacity: 0,
   },
   keyboardView: {
     flex: 1,

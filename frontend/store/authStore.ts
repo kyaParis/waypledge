@@ -8,6 +8,7 @@ interface User {
   id: string;
   email: string;
   name: string;
+  display_name?: string;
   bio: string;
   location: string;
   latitude?: number | null;
@@ -15,6 +16,7 @@ interface User {
   avatar: string | null;
   created_at: string;
   is_admin: boolean;
+  email_verified: boolean;
 }
 
 interface AuthState {
@@ -27,6 +29,8 @@ interface AuthState {
   logout: () => Promise<void>;
   loadToken: () => Promise<void>;
   setUser: (user: User) => void;
+  verifyEmail: (code: string) => Promise<void>;
+  resendVerification: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -88,5 +92,40 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  setUser: (user: User) => set({ user })
+  setUser: (user: User) => set({ user }),
+
+  verifyEmail: async (code: string) => {
+    const token = await AsyncStorage.getItem('token');
+    if (!token) throw new Error('Not authenticated');
+    
+    try {
+      await axios.post(
+        `${API_URL}/auth/verify-email`,
+        { code },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      // Refresh user data to get updated email_verified status
+      const response = await axios.get(`${API_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      set({ user: response.data });
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Verification failed');
+    }
+  },
+
+  resendVerification: async () => {
+    const token = await AsyncStorage.getItem('token');
+    if (!token) throw new Error('Not authenticated');
+    
+    try {
+      await axios.post(
+        `${API_URL}/auth/resend-verification`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch (error: any) {
+      throw new Error(error.response?.data?.detail || 'Failed to resend verification');
+    }
+  }
 }));

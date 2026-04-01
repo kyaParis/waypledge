@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-WayPledge Backend API Testing - N+1 Query Fix Verification
-Testing the batch query optimizations for list endpoints
+WayPledge Backend API Testing - Email Verification System
+Testing the email verification flow for anti-spam functionality
 """
 
 import requests
@@ -20,6 +20,8 @@ class WayPledgeAPITester:
         self.auth_token = None
         self.test_user_id = None
         self.test_results = []
+        self.verification_code = None
+        self.unverified_user_token = None
         
     def log_test(self, test_name: str, success: bool, message: str, details: dict = None):
         """Log test results"""
@@ -36,6 +38,199 @@ class WayPledgeAPITester:
         if details and not success:
             print(f"   Details: {details}")
     
+    def setup_unverified_user(self):
+        """Create an unverified test user for email verification testing"""
+        try:
+            # Register a test user with a valid email domain
+            user_data = {
+                "email": f"unverified_user_{datetime.now().strftime('%Y%m%d_%H%M%S')}@example.com",
+                "password": "TestPassword123!",
+                "name": "Unverified Test User",
+                "bio": "Testing email verification",
+                "location": "Test City, Test Country"
+            }
+            
+            response = self.session.post(f"{API_BASE}/auth/register", json=user_data)
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.unverified_user_token = data.get("access_token")
+                user_info = data.get("user", {})
+                
+                # Verify user is created with email_verified: false
+                if not user_info.get("email_verified", True):
+                    self.log_test("Unverified User Setup", True, "Unverified test user created successfully", 
+                                {"user_id": user_info.get("id"), "email_verified": user_info.get("email_verified")})
+                    return True
+                else:
+                    self.log_test("Unverified User Setup", False, "User was created with email_verified=true", 
+                                {"user_info": user_info})
+                    return False
+            else:
+                self.log_test("Unverified User Setup", False, f"Failed to create unverified user: {response.status_code}", 
+                            {"response": response.text})
+                return False
+        except Exception as e:
+            self.log_test("Unverified User Setup", False, f"Unverified user setup failed: {str(e)}")
+            return False
+
+    def test_registration_sends_verification_email(self):
+        """Test that registration creates user with email_verified: false"""
+        try:
+            # Register a new user
+            user_data = {
+                "email": f"verification_test_{datetime.now().strftime('%Y%m%d_%H%M%S')}@example.com",
+                "password": "TestPassword123!",
+                "name": "Email Verification Test User",
+                "bio": "Testing email verification flow",
+                "location": "Test City, Test Country"
+            }
+            
+            response = self.session.post(f"{API_BASE}/auth/register", json=user_data)
+            
+            if response.status_code == 200:
+                data = response.json()
+                user_info = data.get("user", {})
+                
+                # Check that email_verified is false
+                if user_info.get("email_verified") == False:
+                    self.log_test("Registration Email Verification", True, "User registered with email_verified: false", 
+                                {"user_id": user_info.get("id"), "email_verified": user_info.get("email_verified")})
+                else:
+                    self.log_test("Registration Email Verification", False, "User registered with email_verified: true", 
+                                {"user_info": user_info})
+            else:
+                self.log_test("Registration Email Verification", False, f"Registration failed: {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Registration Email Verification", False, f"Registration test failed: {str(e)}")
+
+    def test_verify_email_with_wrong_code(self):
+        """Test email verification with wrong code returns 400"""
+        if not self.unverified_user_token:
+            self.log_test("Verify Email Wrong Code", False, "No unverified user token available")
+            return
+        
+        try:
+            # Create a session with the unverified user's token
+            headers = {"Authorization": f"Bearer {self.unverified_user_token}"}
+            
+            # Try to verify with wrong code
+            verify_data = {"code": "000000"}  # Wrong code
+            response = self.session.post(f"{API_BASE}/auth/verify-email", json=verify_data, headers=headers)
+            
+            if response.status_code == 400:
+                data = response.json()
+                if "Invalid verification code" in data.get("detail", ""):
+                    self.log_test("Verify Email Wrong Code", True, "Wrong verification code correctly rejected", 
+                                {"status_code": response.status_code, "detail": data.get("detail")})
+                else:
+                    self.log_test("Verify Email Wrong Code", False, "Wrong code rejected but with unexpected message", 
+                                {"response": data})
+            else:
+                self.log_test("Verify Email Wrong Code", False, f"Wrong code not rejected properly: {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Verify Email Wrong Code", False, f"Wrong code test failed: {str(e)}")
+
+    def test_resend_verification(self):
+        """Test resend verification endpoint"""
+        if not self.unverified_user_token:
+            self.log_test("Resend Verification", False, "No unverified user token available")
+            return
+        
+        try:
+            # Create a session with the unverified user's token
+            headers = {"Authorization": f"Bearer {self.unverified_user_token}"}
+            
+            # Test resend verification
+            response = self.session.post(f"{API_BASE}/auth/resend-verification", headers=headers)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success") and "Verification email sent" in data.get("message", ""):
+                    self.log_test("Resend Verification", True, "Verification email resend successful", 
+                                {"response": data})
+                else:
+                    self.log_test("Resend Verification", False, "Resend response unexpected", 
+                                {"response": data})
+            else:
+                self.log_test("Resend Verification", False, f"Resend failed: {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Resend Verification", False, f"Resend test failed: {str(e)}")
+
+    def test_unverified_user_blocked_from_pledges(self):
+        """Test that unverified users cannot create pledges"""
+        if not self.unverified_user_token:
+            self.log_test("Block Unverified Pledges", False, "No unverified user token available")
+            return
+        
+        try:
+            # Create a session with the unverified user's token
+            headers = {"Authorization": f"Bearer {self.unverified_user_token}"}
+            
+            # Try to create a pledge
+            pledge_data = {
+                "title": "Test Pledge from Unverified User",
+                "description": "This should be blocked",
+                "category": "Other",
+                "tags": ["test"],
+                "location": "Test Location"
+            }
+            
+            response = self.session.post(f"{API_BASE}/pledges", json=pledge_data, headers=headers)
+            
+            if response.status_code == 403:
+                data = response.json()
+                if "verify your email" in data.get("detail", "").lower():
+                    self.log_test("Block Unverified Pledges", True, "Unverified user correctly blocked from creating pledges", 
+                                {"status_code": response.status_code, "detail": data.get("detail")})
+                else:
+                    self.log_test("Block Unverified Pledges", False, "User blocked but with unexpected message", 
+                                {"response": data})
+            else:
+                self.log_test("Block Unverified Pledges", False, f"Unverified user not blocked from pledges: {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Block Unverified Pledges", False, f"Pledge blocking test failed: {str(e)}")
+
+    def test_unverified_user_blocked_from_wishes(self):
+        """Test that unverified users cannot create wishes"""
+        if not self.unverified_user_token:
+            self.log_test("Block Unverified Wishes", False, "No unverified user token available")
+            return
+        
+        try:
+            # Create a session with the unverified user's token
+            headers = {"Authorization": f"Bearer {self.unverified_user_token}"}
+            
+            # Try to create a wish
+            wish_data = {
+                "title": "Test Wish from Unverified User",
+                "description": "This should be blocked",
+                "category": "Other",
+                "tags": ["test"],
+                "location": "Test Location",
+                "urgency": "normal"
+            }
+            
+            response = self.session.post(f"{API_BASE}/wishes", json=wish_data, headers=headers)
+            
+            if response.status_code == 403:
+                data = response.json()
+                if "verify your email" in data.get("detail", "").lower():
+                    self.log_test("Block Unverified Wishes", True, "Unverified user correctly blocked from creating wishes", 
+                                {"status_code": response.status_code, "detail": data.get("detail")})
+                else:
+                    self.log_test("Block Unverified Wishes", False, "User blocked but with unexpected message", 
+                                {"response": data})
+            else:
+                self.log_test("Block Unverified Wishes", False, f"Unverified user not blocked from wishes: {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Block Unverified Wishes", False, f"Wish blocking test failed: {str(e)}")
+
     def test_health_check(self):
         """Test the root health check endpoint"""
         try:
@@ -285,14 +480,36 @@ class WayPledgeAPITester:
             self.log_test("Categories", False, f"Request failed: {str(e)}")
     
     def run_all_tests(self):
-        """Run all N+1 query optimization tests"""
-        print("🚀 Starting WayPledge Backend N+1 Query Fix Testing")
+        """Run all email verification and backend tests"""
+        print("🚀 Starting WayPledge Backend Email Verification Testing")
         print("=" * 60)
         
         # Test health check first
         self.test_health_check()
         
-        # Setup test user for authenticated endpoints
+        # Test email verification flow
+        print("\n📧 EMAIL VERIFICATION TESTS")
+        print("-" * 40)
+        
+        # Test registration creates unverified user
+        self.test_registration_sends_verification_email()
+        
+        # Setup unverified user for blocking tests
+        if self.setup_unverified_user():
+            # Test verification with wrong code
+            self.test_verify_email_with_wrong_code()
+            
+            # Test resend verification
+            self.test_resend_verification()
+            
+            # Test that unverified users are blocked from creating content
+            self.test_unverified_user_blocked_from_pledges()
+            self.test_unverified_user_blocked_from_wishes()
+        
+        print("\n🔧 BACKEND API TESTS")
+        print("-" * 40)
+        
+        # Setup verified test user for other endpoints
         if self.setup_test_user():
             # Test all the N+1 optimized endpoints
             self.test_hives_endpoint()
@@ -332,10 +549,10 @@ def main():
     success = tester.run_all_tests()
     
     # Save detailed results to file
-    with open("/app/test_results_n1_fix.json", "w") as f:
+    with open("/app/test_results_email_verification.json", "w") as f:
         json.dump(tester.test_results, f, indent=2, default=str)
     
-    print(f"\n📄 Detailed results saved to: /app/test_results_n1_fix.json")
+    print(f"\n📄 Detailed results saved to: /app/test_results_email_verification.json")
     
     # Exit with appropriate code
     sys.exit(0 if success else 1)

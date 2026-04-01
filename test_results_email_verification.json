@@ -1,0 +1,154 @@
+[
+  {
+    "test": "Health Check",
+    "success": true,
+    "message": "Health check endpoint responding (non-JSON)",
+    "timestamp": "2026-04-01T06:26:58.223972",
+    "details": {
+      "status_code": 200,
+      "response": "<!DOCTYPE html><html  lang=\"en\" style=\"height:100%\"><head><title data-rh=\"true\"></title><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, shrink-to-fit=no\"/><m"
+    }
+  },
+  {
+    "test": "Registration Email Verification",
+    "success": true,
+    "message": "User registered with email_verified: false",
+    "timestamp": "2026-04-01T06:26:58.773435",
+    "details": {
+      "user_id": "69ccbab2b2aefce09257f3ce",
+      "email_verified": false
+    }
+  },
+  {
+    "test": "Unverified User Setup",
+    "success": true,
+    "message": "Unverified test user created successfully",
+    "timestamp": "2026-04-01T06:26:59.223529",
+    "details": {
+      "user_id": "69ccbab3b2aefce09257f3cf",
+      "email_verified": false
+    }
+  },
+  {
+    "test": "Verify Email Wrong Code",
+    "success": true,
+    "message": "Wrong verification code correctly rejected",
+    "timestamp": "2026-04-01T06:26:59.271495",
+    "details": {
+      "status_code": 400,
+      "detail": "Invalid verification code"
+    }
+  },
+  {
+    "test": "Resend Verification",
+    "success": false,
+    "message": "Resend failed: 500",
+    "timestamp": "2026-04-01T06:26:59.492130",
+    "details": {
+      "response": "{\"detail\":\"Failed to send email. Please try again.\"}"
+    }
+  },
+  {
+    "test": "Block Unverified Pledges",
+    "success": true,
+    "message": "Unverified user correctly blocked from creating pledges",
+    "timestamp": "2026-04-01T06:26:59.540701",
+    "details": {
+      "status_code": 403,
+      "detail": "Please verify your email before creating pledges. Check your inbox for the verification code."
+    }
+  },
+  {
+    "test": "Block Unverified Wishes",
+    "success": true,
+    "message": "Unverified user correctly blocked from creating wishes",
+    "timestamp": "2026-04-01T06:26:59.587364",
+    "details": {
+      "status_code": 403,
+      "detail": "Please verify your email before creating wishes. Check your inbox for the verification code."
+    }
+  },
+  {
+    "test": "User Setup",
+    "success": true,
+    "message": "Test user created successfully",
+    "timestamp": "2026-04-01T06:27:00.048491",
+    "details": {
+      "user_id": "69ccbab3b2aefce09257f3d0"
+    }
+  },
+  {
+    "test": "Hives List",
+    "success": true,
+    "message": "Retrieved 21 hives successfully",
+    "timestamp": "2026-04-01T06:27:00.097538",
+    "details": {}
+  },
+  {
+    "test": "Hives Stats Fields",
+    "success": true,
+    "message": "All required stats fields present in hive response",
+    "timestamp": "2026-04-01T06:27:00.097567",
+    "details": {
+      "sample_hive_id": "69c5a4be177c7d9acf65c58c",
+      "stats": {
+        "member_count": 0,
+        "pledge_count": 0,
+        "wish_count": 0,
+        "child_hive_count": 0
+      }
+    }
+  },
+  {
+    "test": "Hives Children",
+    "success": true,
+    "message": "Retrieved 0 child hives for hive 69c5a4be177c7d9acf65c58c",
+    "timestamp": "2026-04-01T06:27:00.194692",
+    "details": {}
+  },
+  {
+    "test": "My Hives",
+    "success": true,
+    "message": "Retrieved 0 user hives successfully",
+    "timestamp": "2026-04-01T06:27:00.243836",
+    "details": {}
+  },
+  {
+    "test": "Federation Partners",
+    "success": true,
+    "message": "Retrieved 0 federated partners successfully",
+    "timestamp": "2026-04-01T06:27:00.291100",
+    "details": {}
+  },
+  {
+    "test": "Federation Partners Stats",
+    "success": true,
+    "message": "No federation partners to check stats fields",
+    "timestamp": "2026-04-01T06:27:00.291125",
+    "details": {}
+  },
+  {
+    "test": "Pledges List",
+    "success": true,
+    "message": "Retrieved 7 pledges successfully",
+    "timestamp": "2026-04-01T06:27:00.394716",
+    "details": {}
+  },
+  {
+    "test": "Pledges Hive Names",
+    "success": true,
+    "message": "Pledges with hive_id have hive_name populated",
+    "timestamp": "2026-04-01T06:27:00.394754",
+    "details": {
+      "sample_pledge_id": "69c66d3e81fb29fb37777e4f",
+      "hive_name": "N+1 Test Hive 114254"
+    }
+  },
+  {
+    "test": "Categories",
+    "success": true,
+    "message": "Retrieved 9 categories successfully",
+    "timestamp": "2026-04-01T06:27:00.440292",
+    "details": {}
+  }
+]

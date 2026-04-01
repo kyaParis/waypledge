@@ -12,15 +12,19 @@ import {
   ActivityIndicator,
   SafeAreaView,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
 import api, { Category } from '../../utils/api';
 import * as ImagePicker from 'expo-image-picker';
+import { useAuthStore } from '../../store/authStore';
 
 type CreateType = 'pledge' | 'wish';
 type Urgency = 'urgent' | 'normal' | 'flexible';
 
 export default function CreateScreen() {
+  const router = useRouter();
+  const { user } = useAuthStore();
   const [type, setType] = useState<CreateType>('pledge');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -182,6 +186,31 @@ export default function CreateScreen() {
     
     return null;
   };
+
+  // Show verification required screen for unverified users
+  if (user && !user.email_verified) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.verificationRequired}>
+          <MaterialIcons name="mark-email-unread" size={80} color={Colors.warning} />
+          <Text style={styles.verificationTitle}>Email Verification Required</Text>
+          <Text style={styles.verificationText}>
+            Please verify your email to create Pledges and Wishes. This helps keep our community safe and trustworthy.
+          </Text>
+          <TouchableOpacity
+            style={styles.verifyButton}
+            onPress={() => router.push('/verify')}
+          >
+            <MaterialIcons name="verified" size={20} color={Colors.surface} />
+            <Text style={styles.verifyButtonText}>Verify My Email</Text>
+          </TouchableOpacity>
+          <Text style={styles.verificationNote}>
+            Check your inbox for a 6-digit code sent to {user.email}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -721,5 +750,48 @@ const styles = StyleSheet.create({
   },
   urgencyButtonTextActive: {
     color: Colors.surface,
+  },
+  // Verification required screen styles
+  verificationRequired: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  verificationTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginTop: 24,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  verificationText: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  verifyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    gap: 8,
+  },
+  verifyButtonText: {
+    color: Colors.surface,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  verificationNote: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 20,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });
