@@ -24,19 +24,22 @@ export default function RegisterScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [bio, setBio] = useState('');
   const [location, setLocation] = useState('');
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const getMyLocation = async () => {
     setIsGettingLocation(true);
+    setErrorMessage('');
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Please enable location permissions to use this feature, or enter your location manually.');
+        setErrorMessage('Location permission denied. Please enter your location manually.');
         setIsGettingLocation(false);
         return;
       }
@@ -65,20 +68,38 @@ export default function RegisterScreen() {
         setLocation(`${lat.toFixed(2)}, ${lng.toFixed(2)}`);
       }
     } catch (error) {
-      Alert.alert('Error', 'Could not get your location. Please enter it manually.');
+      setErrorMessage('Could not get your location. Please enter it manually.');
     } finally {
       setIsGettingLocation(false);
     }
   };
 
   const handleRegister = async () => {
-    if (!name || !email || !password) {
-      Alert.alert('Error', 'Please fill in required fields (Name, Email, Password)');
+    setErrorMessage('');
+    
+    // Validation with specific error messages
+    if (!name.trim()) {
+      setErrorMessage('Please enter your full name');
       return;
     }
-
+    if (!email.trim()) {
+      setErrorMessage('Please enter your email address');
+      return;
+    }
+    if (!email.includes('@')) {
+      setErrorMessage('Please enter a valid email address');
+      return;
+    }
+    if (!password) {
+      setErrorMessage('Please enter a password');
+      return;
+    }
+    if (password.length < 6) {
+      setErrorMessage('Password must be at least 6 characters');
+      return;
+    }
     if (!location.trim()) {
-      Alert.alert('Error', 'Please enter your location. This helps connect you with your local community.');
+      setErrorMessage('Please enter your location or tap the GPS button');
       return;
     }
 
@@ -87,7 +108,7 @@ export default function RegisterScreen() {
       await register(email.toLowerCase().trim(), password, name.trim(), bio.trim(), location.trim(), latitude, longitude);
       router.replace('/(tabs)/home');
     } catch (error: any) {
-      Alert.alert('Registration Failed', error.message);
+      setErrorMessage(error.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -143,10 +164,20 @@ export default function RegisterScreen() {
                 style={styles.input}
                 placeholder="Password *"
                 value={password}
-                onChangeText={setPassword}
-                secureTextEntry
+                onChangeText={(text) => { setPassword(text); setErrorMessage(''); }}
+                secureTextEntry={!showPassword}
                 placeholderTextColor={Colors.textSecondary}
               />
+              <TouchableOpacity 
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeButton}
+              >
+                <MaterialIcons 
+                  name={showPassword ? "visibility-off" : "visibility"} 
+                  size={22} 
+                  color={Colors.textSecondary} 
+                />
+              </TouchableOpacity>
             </View>
 
             <View style={styles.locationContainer}>
@@ -187,8 +218,16 @@ export default function RegisterScreen() {
               />
             </View>
 
+            {/* Error Message Display */}
+            {errorMessage ? (
+              <View style={styles.errorContainer}>
+                <MaterialIcons name="error-outline" size={18} color={Colors.error} />
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            ) : null}
+
             <TouchableOpacity
-              style={styles.registerButton}
+              style={[styles.registerButton, isLoading && styles.registerButtonDisabled]}
               onPress={handleRegister}
               disabled={isLoading}
             >
@@ -296,6 +335,23 @@ const styles = StyleSheet.create({
     marginTop: -8,
     marginLeft: 4,
   },
+  eyeButton: {
+    padding: 8,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.error + '15',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    gap: 8,
+  },
+  errorText: {
+    flex: 1,
+    color: Colors.error,
+    fontSize: 14,
+  },
   registerButton: {
     backgroundColor: Colors.primary,
     paddingVertical: 16,
@@ -307,6 +363,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
+  },
+  registerButtonDisabled: {
+    opacity: 0.7,
   },
   registerButtonText: {
     color: Colors.surface,

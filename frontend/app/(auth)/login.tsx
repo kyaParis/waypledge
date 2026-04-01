@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   ActivityIndicator,
   SafeAreaView,
 } from 'react-native';
@@ -22,11 +21,19 @@ export default function LoginScreen() {
   const login = useAuthStore((state) => state.login);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+    setErrorMessage('');
+    
+    if (!email.trim()) {
+      setErrorMessage('Please enter your email address');
+      return;
+    }
+    if (!password) {
+      setErrorMessage('Please enter your password');
       return;
     }
 
@@ -35,7 +42,7 @@ export default function LoginScreen() {
       await login(email.toLowerCase().trim(), password);
       router.replace('/(tabs)/home');
     } catch (error: any) {
-      Alert.alert('Login Failed', error.message);
+      setErrorMessage(error.message || 'Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }
@@ -67,7 +74,7 @@ export default function LoginScreen() {
                 style={styles.input}
                 placeholder="Email"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => { setEmail(text); setErrorMessage(''); }}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 placeholderTextColor={Colors.textSecondary}
@@ -80,14 +87,32 @@ export default function LoginScreen() {
                 style={styles.input}
                 placeholder="Password"
                 value={password}
-                onChangeText={setPassword}
-                secureTextEntry
+                onChangeText={(text) => { setPassword(text); setErrorMessage(''); }}
+                secureTextEntry={!showPassword}
                 placeholderTextColor={Colors.textSecondary}
               />
+              <TouchableOpacity 
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeButton}
+              >
+                <MaterialIcons 
+                  name={showPassword ? "visibility-off" : "visibility"} 
+                  size={22} 
+                  color={Colors.textSecondary} 
+                />
+              </TouchableOpacity>
             </View>
 
+            {/* Error Message Display */}
+            {errorMessage ? (
+              <View style={styles.errorContainer}>
+                <MaterialIcons name="error-outline" size={18} color={Colors.error} />
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            ) : null}
+
             <TouchableOpacity
-              style={styles.loginButton}
+              style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
               onPress={handleLogin}
               disabled={isLoading}
             >
@@ -167,6 +192,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
   },
+  eyeButton: {
+    padding: 8,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.error + '15',
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  errorText: {
+    flex: 1,
+    color: Colors.error,
+    fontSize: 14,
+  },
   loginButton: {
     backgroundColor: Colors.primary,
     paddingVertical: 16,
@@ -178,6 +219,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
+  },
+  loginButtonDisabled: {
+    opacity: 0.7,
   },
   loginButtonText: {
     color: Colors.surface,
