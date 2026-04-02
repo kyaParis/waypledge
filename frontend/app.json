@@ -37,7 +37,7 @@
       "package": "me.waypledge.app",
       "versionCode": 1,
       "permissions": [
-        "CAMERA", 
+        "CAMERA",
         "READ_EXTERNAL_STORAGE",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
@@ -58,7 +58,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#F8F9FA"
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true
