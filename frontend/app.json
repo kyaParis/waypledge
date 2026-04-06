@@ -8,11 +8,9 @@
     "scheme": "waypledge",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "owner": "waypledge",
+    "owner": "kyap",
     "extra": {
-      "eas": {
-        "projectId": "your-project-id-here"
-      }
+      "eas": {}
     },
     "ios": {
       "supportsTablet": true,
