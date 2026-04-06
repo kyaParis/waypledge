@@ -1,0 +1,68 @@
+{
+  "expo": {
+    "name": "WayPledge",
+    "slug": "waypledge",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/app-icon.png",
+    "scheme": "waypledge",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "owner": "waypledge",
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id-here"
+      }
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "me.waypledge.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Take photos for your pledges",
+        "NSPhotoLibraryUsageDescription": "Share photos from your gallery",
+        "NSLocationWhenInUseUsageDescription": "Find pledges and wishes near you",
+        "CFBundleAllowMixedLocalizations": true
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/app-icon.png",
+        "backgroundColor": "#F8F9FA"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "me.waypledge.app",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/app-icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/waypledge-logo.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#F8F9FA"
+        }
+      ],
+      "@react-native-community/datetimepicker"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
