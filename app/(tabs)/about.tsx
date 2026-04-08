@@ -454,8 +454,19 @@ export default function AboutScreen() {
               </View>
             </View>
 
+            <View style={styles.fundingNotice}>
+              <MaterialIcons name="info-outline" size={24} color={Colors.primary} />
+              <Text style={styles.fundingNoticeText}>
+                WayPledge is a self-funding community project. We have no investors, no corporate backing, and no personal funds to draw from. The app exists entirely through the generosity of those who believe in its mission.
+              </Text>
+            </View>
+
             <Text style={styles.supportText}>
-              If WayPledge resonates with you and you'd like to help it grow, you can contribute to our Open Collective. Every contribution helps cover hosting, development, and community support.
+              If you'd like to help WayPledge grow and thrive, you can contribute to our Open Collective. Every contribution - no matter how small - helps cover hosting, development, and community support.
+            </Text>
+
+            <Text style={styles.supportTextSpirit}>
+              In the true spirit of WayPledge, you could also create a Wish explaining what support is needed. Perhaps a benefactor will see it and help make it happen!
             </Text>
 
             <TouchableOpacity 
@@ -872,7 +883,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 22,
+    marginBottom: 16,
+  },
+  supportTextSpirit: {
+    fontSize: 14,
+    color: Colors.primary,
+    lineHeight: 22,
     marginBottom: 20,
+    fontStyle: 'italic',
+  },
+  fundingNotice: {
+    flexDirection: 'row',
+    backgroundColor: Colors.primaryLight + '30',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  fundingNoticeText: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.text,
+    lineHeight: 22,
   },
   donateButton: {
     flexDirection: 'row',

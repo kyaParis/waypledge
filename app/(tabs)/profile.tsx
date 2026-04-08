@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   SafeAreaView,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
@@ -14,14 +15,30 @@ import { useAuthStore } from '../../store/authStore';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
 import api, { Pledge, Wish, Gratitude } from '../../utils/api';
+import { useTranslation } from 'react-i18next';
+import { languages, setLanguage, getCurrentLanguage } from '../../i18n';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const { t, i18n } = useTranslation();
   const [myPledges, setMyPledges] = useState<Pledge[]>([]);
   const [myWishes, setMyWishes] = useState<Wish[]>([]);
   const [myGratitude, setMyGratitude] = useState<Gratitude[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [currentLang, setCurrentLang] = useState(getCurrentLanguage());
+
+  const handleLanguageChange = async (langCode: string) => {
+    await setLanguage(langCode);
+    setCurrentLang(langCode);
+    setShowLanguageModal(false);
+  };
+
+  const getCurrentLanguageDisplay = () => {
+    const lang = languages.find(l => l.code === currentLang);
+    return lang ? `${lang.flag} ${lang.name}` : '🇬🇧 English';
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -202,10 +219,65 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        {/* Language Selector */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{t('profile.language')}</Text>
+            <MaterialIcons name="language" size={24} color={Colors.primary} />
+          </View>
+          <TouchableOpacity 
+            style={styles.languageButton}
+            onPress={() => setShowLanguageModal(true)}
+          >
+            <Text style={styles.languageButtonText}>{getCurrentLanguageDisplay()}</Text>
+            <MaterialIcons name="chevron-right" size={24} color={Colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Language Modal */}
+        <Modal
+          visible={showLanguageModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowLanguageModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{t('profile.language')}</Text>
+                <TouchableOpacity onPress={() => setShowLanguageModal(false)}>
+                  <MaterialIcons name="close" size={24} color={Colors.text} />
+                </TouchableOpacity>
+              </View>
+              {languages.map((lang) => (
+                <TouchableOpacity
+                  key={lang.code}
+                  style={[
+                    styles.languageOption,
+                    currentLang === lang.code && styles.languageOptionActive
+                  ]}
+                  onPress={() => handleLanguageChange(lang.code)}
+                >
+                  <Text style={styles.languageFlag}>{lang.flag}</Text>
+                  <Text style={[
+                    styles.languageName,
+                    currentLang === lang.code && styles.languageNameActive
+                  ]}>
+                    {lang.name}
+                  </Text>
+                  {currentLang === lang.code && (
+                    <MaterialIcons name="check" size={24} color={Colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </Modal>
+
         <View style={styles.section}>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <MaterialIcons name="logout" size={20} color={Colors.error} />
-            <Text style={styles.logoutButtonText}>Logout</Text>
+            <Text style={styles.logoutButtonText}>{t('auth.logout')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -403,5 +475,66 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.error,
     fontWeight: '600',
+  },
+  languageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderRadius: 12,
+  },
+  languageButtonText: {
+    fontSize: 16,
+    color: Colors.text,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: Colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  languageOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: Colors.surface,
+  },
+  languageOptionActive: {
+    backgroundColor: Colors.primaryLight + '30',
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  languageFlag: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  languageName: {
+    fontSize: 16,
+    color: Colors.text,
+    flex: 1,
+  },
+  languageNameActive: {
+    fontWeight: '600',
+    color: Colors.primary,
   },
 });

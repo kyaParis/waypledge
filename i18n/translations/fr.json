@@ -1,0 +1,119 @@
+{
+  "common": {
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "back": "Retour",
+    "next": "Suivant",
+    "done": "Terminé",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "all": "Tous",
+    "none": "Aucun",
+    "yes": "Oui",
+    "no": "Non"
+  },
+  "auth": {
+    "login": "Se Connecter",
+    "logout": "Se Déconnecter",
+    "register": "S'inscrire",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "forgotPassword": "Mot de passe oublié ?",
+    "name": "Nom",
+    "welcomeBack": "Bon retour !",
+    "createAccount": "Créez votre compte",
+    "alreadyHaveAccount": "Vous avez déjà un compte ?",
+    "dontHaveAccount": "Vous n'avez pas de compte ?"
+  },
+  "tabs": {
+    "home": "Accueil",
+    "browse": "Explorer",
+    "create": "Créer",
+    "messages": "Messages",
+    "profile": "Profil",
+    "about": "À propos"
+  },
+  "home": {
+    "welcome": "Bienvenue",
+    "recentPledges": "Engagements Récents",
+    "recentWishes": "Souhaits Récents",
+    "gratitudeWall": "Mur de Gratitude",
+    "tagline": "Donnez Librement. Recevez avec Gratitude.",
+    "subtitle": "La Confiance Circule"
+  },
+  "pledges": {
+    "title": "Engagements",
+    "createPledge": "Créer un Engagement",
+    "myPledges": "Mes Engagements",
+    "noPledges": "Pas encore d'engagements",
+    "whatCanYouOffer": "Qu'avez-vous à offrir ?",
+    "description": "Description",
+    "category": "Catégorie",
+    "location": "Lieu",
+    "availableUntil": "Disponible Jusqu'au"
+  },
+  "wishes": {
+    "title": "Souhaits",
+    "createWish": "Créer un Souhait",
+    "myWishes": "Mes Souhaits",
+    "noWishes": "Pas encore de souhaits",
+    "whatDoYouNeed": "De quoi avez-vous besoin ?",
+    "description": "Description",
+    "category": "Catégorie",
+    "urgency": "Urgence",
+    "neededBy": "Nécessaire Pour"
+  },
+  "messages": {
+    "title": "Messages",
+    "noMessages": "Pas encore de messages",
+    "typeMessage": "Écrivez un message...",
+    "send": "Envoyer"
+  },
+  "profile": {
+    "title": "Profil",
+    "editProfile": "Modifier le Profil",
+    "settings": "Paramètres",
+    "language": "Langue",
+    "notifications": "Notifications",
+    "privacy": "Confidentialité",
+    "help": "Aide",
+    "about": "À propos"
+  },
+  "about": {
+    "title": "À propos de WayPledge",
+    "philosophy": "Notre Philosophie",
+    "howItWorks": "Comment ça Marche",
+    "doNoHarm": "Engagement de Ne Pas Nuire",
+    "support": "Soutenir WayPledge",
+    "fundingNotice": "WayPledge est un projet communautaire autofinancé. Nous n'avons pas d'investisseurs, pas de soutien d'entreprise, et pas de fonds personnels. L'application existe entièrement grâce à la générosité de ceux qui croient en sa mission.",
+    "supportText": "Si vous souhaitez aider WayPledge à grandir et prospérer, vous pouvez contribuer sur notre Open Collective.",
+    "spiritText": "Dans le véritable esprit de WayPledge, vous pourriez aussi créer un Souhait expliquant quel soutien est nécessaire. Peut-être qu'un bienfaiteur le verra et aidera à le réaliser !",
+    "supportButton": "Soutenir sur Open Collective"
+  },
+  "categories": {
+    "all": "Tous",
+    "skills": "Compétences",
+    "items": "Objets",
+    "time": "Temps",
+    "food": "Nourriture",
+    "transport": "Transport",
+    "housing": "Logement",
+    "education": "Éducation",
+    "health": "Santé",
+    "other": "Autre"
+  },
+  "hives": {
+    "title": "Ruches",
+    "joinHive": "Rejoindre une Ruche",
+    "createHive": "Créer une Ruche",
+    "myHives": "Mes Ruches",
+    "members": "Membres",
+    "noHives": "Pas encore de ruches"
+  }
+}
