@@ -1,0 +1,119 @@
+{
+  "common": {
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "done": "Hecho",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "all": "Todos",
+    "none": "Ninguno",
+    "yes": "Sí",
+    "no": "No"
+  },
+  "auth": {
+    "login": "Iniciar Sesión",
+    "logout": "Cerrar Sesión",
+    "register": "Registrarse",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "confirmPassword": "Confirmar contraseña",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "name": "Nombre",
+    "welcomeBack": "¡Bienvenido de nuevo!",
+    "createAccount": "Crea tu cuenta",
+    "alreadyHaveAccount": "¿Ya tienes una cuenta?",
+    "dontHaveAccount": "¿No tienes una cuenta?"
+  },
+  "tabs": {
+    "home": "Inicio",
+    "browse": "Explorar",
+    "create": "Crear",
+    "messages": "Mensajes",
+    "profile": "Perfil",
+    "about": "Acerca de"
+  },
+  "home": {
+    "welcome": "Bienvenido",
+    "recentPledges": "Compromisos Recientes",
+    "recentWishes": "Deseos Recientes",
+    "gratitudeWall": "Muro de Gratitud",
+    "tagline": "Da Libremente. Recibe con Gratitud.",
+    "subtitle": "La Confianza Fluye en Círculos"
+  },
+  "pledges": {
+    "title": "Compromisos",
+    "createPledge": "Crear Compromiso",
+    "myPledges": "Mis Compromisos",
+    "noPledges": "Sin compromisos aún",
+    "whatCanYouOffer": "¿Qué puedes ofrecer?",
+    "description": "Descripción",
+    "category": "Categoría",
+    "location": "Ubicación",
+    "availableUntil": "Disponible Hasta"
+  },
+  "wishes": {
+    "title": "Deseos",
+    "createWish": "Crear Deseo",
+    "myWishes": "Mis Deseos",
+    "noWishes": "Sin deseos aún",
+    "whatDoYouNeed": "¿Qué necesitas?",
+    "description": "Descripción",
+    "category": "Categoría",
+    "urgency": "Urgencia",
+    "neededBy": "Necesario Para"
+  },
+  "messages": {
+    "title": "Mensajes",
+    "noMessages": "Sin mensajes aún",
+    "typeMessage": "Escribe un mensaje...",
+    "send": "Enviar"
+  },
+  "profile": {
+    "title": "Perfil",
+    "editProfile": "Editar Perfil",
+    "settings": "Configuración",
+    "language": "Idioma",
+    "notifications": "Notificaciones",
+    "privacy": "Privacidad",
+    "help": "Ayuda",
+    "about": "Acerca de"
+  },
+  "about": {
+    "title": "Acerca de WayPledge",
+    "philosophy": "Nuestra Filosofía",
+    "howItWorks": "Cómo Funciona",
+    "doNoHarm": "Compromiso de No Hacer Daño",
+    "support": "Apoyar a WayPledge",
+    "fundingNotice": "WayPledge es un proyecto comunitario autofinanciado. No tenemos inversores, ni respaldo corporativo, ni fondos personales. La aplicación existe únicamente gracias a la generosidad de quienes creen en su misión.",
+    "supportText": "Si deseas ayudar a que WayPledge crezca y prospere, puedes contribuir en nuestro Open Collective.",
+    "spiritText": "En el verdadero espíritu de WayPledge, también podrías crear un Deseo explicando qué apoyo se necesita. ¡Quizás un benefactor lo vea y ayude a hacerlo realidad!",
+    "supportButton": "Apoyar en Open Collective"
+  },
+  "categories": {
+    "all": "Todos",
+    "skills": "Habilidades",
+    "items": "Artículos",
+    "time": "Tiempo",
+    "food": "Comida",
+    "transport": "Transporte",
+    "housing": "Vivienda",
+    "education": "Educación",
+    "health": "Salud",
+    "other": "Otros"
+  },
+  "hives": {
+    "title": "Colmenas",
+    "joinHive": "Unirse a Colmena",
+    "createHive": "Crear Colmena",
+    "myHives": "Mis Colmenas",
+    "members": "Miembros",
+    "noHives": "Sin colmenas aún"
+  }
+}

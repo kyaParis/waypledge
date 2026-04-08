@@ -1,0 +1,119 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "search": "Search",
+    "filter": "Filter",
+    "all": "All",
+    "none": "None",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "auth": {
+    "login": "Log In",
+    "logout": "Log Out",
+    "register": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "forgotPassword": "Forgot Password?",
+    "name": "Name",
+    "welcomeBack": "Welcome back!",
+    "createAccount": "Create your account",
+    "alreadyHaveAccount": "Already have an account?",
+    "dontHaveAccount": "Don't have an account?"
+  },
+  "tabs": {
+    "home": "Home",
+    "browse": "Browse",
+    "create": "Create",
+    "messages": "Messages",
+    "profile": "Profile",
+    "about": "About"
+  },
+  "home": {
+    "welcome": "Welcome",
+    "recentPledges": "Recent Pledges",
+    "recentWishes": "Recent Wishes",
+    "gratitudeWall": "Gratitude Wall",
+    "tagline": "Give Freely. Receive Gratefully.",
+    "subtitle": "Trust Flows in Circles"
+  },
+  "pledges": {
+    "title": "Pledges",
+    "createPledge": "Create Pledge",
+    "myPledges": "My Pledges",
+    "noPledges": "No pledges yet",
+    "whatCanYouOffer": "What can you offer?",
+    "description": "Description",
+    "category": "Category",
+    "location": "Location",
+    "availableUntil": "Available Until"
+  },
+  "wishes": {
+    "title": "Wishes",
+    "createWish": "Create Wish",
+    "myWishes": "My Wishes",
+    "noWishes": "No wishes yet",
+    "whatDoYouNeed": "What do you need?",
+    "description": "Description",
+    "category": "Category",
+    "urgency": "Urgency",
+    "neededBy": "Needed By"
+  },
+  "messages": {
+    "title": "Messages",
+    "noMessages": "No messages yet",
+    "typeMessage": "Type a message...",
+    "send": "Send"
+  },
+  "profile": {
+    "title": "Profile",
+    "editProfile": "Edit Profile",
+    "settings": "Settings",
+    "language": "Language",
+    "notifications": "Notifications",
+    "privacy": "Privacy",
+    "help": "Help",
+    "about": "About"
+  },
+  "about": {
+    "title": "About WayPledge",
+    "philosophy": "Our Philosophy",
+    "howItWorks": "How It Works",
+    "doNoHarm": "Do No Harm Pledge",
+    "support": "Support WayPledge",
+    "fundingNotice": "WayPledge is a self-funding community project. We have no investors, no corporate backing, and no personal funds to draw from. The app exists entirely through the generosity of those who believe in its mission.",
+    "supportText": "If you'd like to help WayPledge grow and thrive, you can contribute to our Open Collective.",
+    "spiritText": "In the true spirit of WayPledge, you could also create a Wish explaining what support is needed. Perhaps a benefactor will see it and help make it happen!",
+    "supportButton": "Support on Open Collective"
+  },
+  "categories": {
+    "all": "All",
+    "skills": "Skills",
+    "items": "Items",
+    "time": "Time",
+    "food": "Food",
+    "transport": "Transport",
+    "housing": "Housing",
+    "education": "Education",
+    "health": "Health",
+    "other": "Other"
+  },
+  "hives": {
+    "title": "Hives",
+    "joinHive": "Join Hive",
+    "createHive": "Create Hive",
+    "myHives": "My Hives",
+    "members": "Members",
+    "noHives": "No hives yet"
+  }
+}

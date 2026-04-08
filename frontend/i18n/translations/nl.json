@@ -1,0 +1,119 @@
+{
+  "common": {
+    "loading": "Laden...",
+    "error": "Fout",
+    "success": "Succes",
+    "cancel": "Annuleren",
+    "save": "Opslaan",
+    "delete": "Verwijderen",
+    "edit": "Bewerken",
+    "back": "Terug",
+    "next": "Volgende",
+    "done": "Klaar",
+    "search": "Zoeken",
+    "filter": "Filter",
+    "all": "Alles",
+    "none": "Geen",
+    "yes": "Ja",
+    "no": "Nee"
+  },
+  "auth": {
+    "login": "Inloggen",
+    "logout": "Uitloggen",
+    "register": "Registreren",
+    "email": "E-mail",
+    "password": "Wachtwoord",
+    "confirmPassword": "Bevestig wachtwoord",
+    "forgotPassword": "Wachtwoord vergeten?",
+    "name": "Naam",
+    "welcomeBack": "Welkom terug!",
+    "createAccount": "Maak je account aan",
+    "alreadyHaveAccount": "Heb je al een account?",
+    "dontHaveAccount": "Heb je geen account?"
+  },
+  "tabs": {
+    "home": "Home",
+    "browse": "Bladeren",
+    "create": "Aanmaken",
+    "messages": "Berichten",
+    "profile": "Profiel",
+    "about": "Over"
+  },
+  "home": {
+    "welcome": "Welkom",
+    "recentPledges": "Recente Beloftes",
+    "recentWishes": "Recente Wensen",
+    "gratitudeWall": "Dankbaarheidsmuur",
+    "tagline": "Geef Vrijelijk. Ontvang met Dankbaarheid.",
+    "subtitle": "Vertrouwen Stroomt in Cirkels"
+  },
+  "pledges": {
+    "title": "Beloftes",
+    "createPledge": "Belofte Aanmaken",
+    "myPledges": "Mijn Beloftes",
+    "noPledges": "Nog geen beloftes",
+    "whatCanYouOffer": "Wat kun je aanbieden?",
+    "description": "Beschrijving",
+    "category": "Categorie",
+    "location": "Locatie",
+    "availableUntil": "Beschikbaar Tot"
+  },
+  "wishes": {
+    "title": "Wensen",
+    "createWish": "Wens Aanmaken",
+    "myWishes": "Mijn Wensen",
+    "noWishes": "Nog geen wensen",
+    "whatDoYouNeed": "Wat heb je nodig?",
+    "description": "Beschrijving",
+    "category": "Categorie",
+    "urgency": "Urgentie",
+    "neededBy": "Nodig Tegen"
+  },
+  "messages": {
+    "title": "Berichten",
+    "noMessages": "Nog geen berichten",
+    "typeMessage": "Typ een bericht...",
+    "send": "Versturen"
+  },
+  "profile": {
+    "title": "Profiel",
+    "editProfile": "Profiel Bewerken",
+    "settings": "Instellingen",
+    "language": "Taal",
+    "notifications": "Meldingen",
+    "privacy": "Privacy",
+    "help": "Help",
+    "about": "Over"
+  },
+  "about": {
+    "title": "Over WayPledge",
+    "philosophy": "Onze Filosofie",
+    "howItWorks": "Hoe Het Werkt",
+    "doNoHarm": "Doe Geen Kwaad Belofte",
+    "support": "Steun WayPledge",
+    "fundingNotice": "WayPledge is een zelffinancierend gemeenschapsproject. We hebben geen investeerders, geen bedrijfssteun en geen persoonlijke fondsen. De app bestaat volledig dankzij de vrijgevigheid van mensen die in onze missie geloven.",
+    "supportText": "Als je WayPledge wilt helpen groeien en bloeien, kun je bijdragen via onze Open Collective.",
+    "spiritText": "In de ware geest van WayPledge kun je ook een Wens aanmaken waarin je uitlegt welke steun nodig is. Misschien ziet een weldoener het en helpt het werkelijkheid te maken!",
+    "supportButton": "Steun via Open Collective"
+  },
+  "categories": {
+    "all": "Alles",
+    "skills": "Vaardigheden",
+    "items": "Spullen",
+    "time": "Tijd",
+    "food": "Eten",
+    "transport": "Vervoer",
+    "housing": "Huisvesting",
+    "education": "Onderwijs",
+    "health": "Gezondheid",
+    "other": "Overig"
+  },
+  "hives": {
+    "title": "Bijenkorven",
+    "joinHive": "Bijenkorf Toetreden",
+    "createHive": "Bijenkorf Aanmaken",
+    "myHives": "Mijn Bijenkorven",
+    "members": "Leden",
+    "noHives": "Nog geen bijenkorven"
+  }
+}
