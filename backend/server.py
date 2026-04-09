@@ -1,5 +1,6 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import HTMLResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -2022,3 +2023,164 @@ async def root_health_check():
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+# Data Deletion Page for Google Play Store compliance
+@app.get("/api/data-deletion", response_class=HTMLResponse)
+async def data_deletion_page():
+    """Public page explaining how users can request data deletion"""
+    return """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WayPledge - Data Deletion Request</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f7f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 2px solid #2E7D32;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2E7D32;
+            margin: 0;
+        }
+        .header p {
+            color: #666;
+            margin: 5px 0 0 0;
+        }
+        h2 {
+            color: #2E7D32;
+            margin-top: 30px;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .steps {
+            list-style: none;
+            padding: 0;
+        }
+        .steps li {
+            padding: 15px;
+            margin: 10px 0;
+            background: #f0f7f0;
+            border-left: 4px solid #2E7D32;
+            border-radius: 0 8px 8px 0;
+        }
+        .steps li strong {
+            color: #2E7D32;
+        }
+        .data-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .data-item {
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        .deleted {
+            border-left: 3px solid #4CAF50;
+        }
+        .email-link {
+            display: inline-block;
+            background: #2E7D32;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .email-link:hover {
+            background: #1B5E20;
+        }
+        .timeframe {
+            background: #FFF8E1;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #FFC107;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #888;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>WayPledge</h1>
+        <p>Data Deletion Request</p>
+    </div>
+
+    <div class="section">
+        <h2>How to Delete Your Data</h2>
+        <p>WayPledge respects your privacy. You can request complete deletion of your account and all associated data by following these steps:</p>
+        
+        <ol class="steps">
+            <li><strong>Step 1:</strong> Send an email to <strong>privacy@waypledge.me</strong></li>
+            <li><strong>Step 2:</strong> Use the subject line: <strong>"Delete My Account"</strong></li>
+            <li><strong>Step 3:</strong> Include the email address you used to register your WayPledge account</li>
+            <li><strong>Step 4:</strong> We will confirm your request within 48 hours</li>
+        </ol>
+        
+        <p style="text-align: center;">
+            <a href="mailto:privacy@waypledge.me?subject=Delete%20My%20Account" class="email-link">
+                Request Data Deletion
+            </a>
+        </p>
+    </div>
+
+    <div class="section">
+        <h2>What Data Gets Deleted</h2>
+        <p>When you request account deletion, the following data will be <strong>permanently removed</strong>:</p>
+        
+        <div class="data-list">
+            <div class="data-item deleted">Your account profile</div>
+            <div class="data-item deleted">Your name and email</div>
+            <div class="data-item deleted">All pledges you created</div>
+            <div class="data-item deleted">All wishes you created</div>
+            <div class="data-item deleted">All messages sent/received</div>
+            <div class="data-item deleted">Your hive memberships</div>
+            <div class="data-item deleted">Your connections</div>
+            <div class="data-item deleted">Gratitude posts</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Data Retention</h2>
+        <p><strong>No personal data is retained</strong> after account deletion.</p>
+        <p>We may retain anonymized, aggregated statistics (e.g., total number of pledges made) that cannot be linked back to you.</p>
+    </div>
+
+    <div class="section">
+        <h2>Timeframe</h2>
+        <div class="timeframe">
+            <strong>Your data will be permanently deleted within 30 days</strong> of receiving your verified deletion request.
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>WayPledge - Give and Receive With Love</p>
+        <p><a href="https://waypledge.me" style="color: #2E7D32;">waypledge.me</a></p>
+    </div>
+</body>
+</html>
+"""
