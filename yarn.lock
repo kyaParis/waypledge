@@ -3939,10 +3939,10 @@ expo-linking@~8.0.11:
     expo-constants "~18.0.12"
     invariant "^2.2.4"
 
-expo-localization@^55.0.12:
-  version "55.0.12"
-  resolved "https://registry.yarnpkg.com/expo-localization/-/expo-localization-55.0.12.tgz#54dd2c2472c1244f3dc1cc4d89b90db2e0a13602"
-  integrity sha512-HggkFgTeiIIXpus9CMSO5d/YPxT2vhQXOO34bAQp1vNdByKgIU1k8ILsAlkPwJN4qnvGums+zdMakLO26aH+vA==
+expo-localization@~17.0.8:
+  version "17.0.8"
+  resolved "https://registry.yarnpkg.com/expo-localization/-/expo-localization-17.0.8.tgz#eb74ae0f9b5b49596322d68d2005662346211100"
+  integrity sha512-UrdwklZBDJ+t+ZszMMiE0SXZ2eJxcquCuQcl6EvGHM9K+e6YqKVRQ+w8qE+iIB3H75v2RJy6MHAaLK+Mqeo04g==
   dependencies:
     rtl-detect "^1.0.2"
 

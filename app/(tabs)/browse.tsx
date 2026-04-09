@@ -13,6 +13,10 @@ import {
   ActivityIndicator,
   Pressable,
   AppState,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Location from 'expo-location';
@@ -686,74 +690,80 @@ export default function BrowseScreen() {
         transparent={true}
         onRequestClose={() => setConnectModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {connectItem?.type === 'pledge' ? 'Ask About This Pledge' : 'Offer to Help'}
-              </Text>
-              <TouchableOpacity onPress={() => setConnectModalVisible(false)}>
-                <MaterialIcons name="close" size={24} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
-            
-            {connectItem && (
-              <View style={styles.modalItemInfo}>
-                <Text style={styles.modalItemTitle}>{connectItem.item.title}</Text>
-                <Text style={styles.modalItemUser}>by {connectItem.item.user_name}</Text>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalOverlay}
+          >
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {connectItem?.type === 'pledge' ? 'Ask About This Pledge' : 'Offer to Help'}
+                </Text>
+                <TouchableOpacity onPress={() => setConnectModalVisible(false)}>
+                  <MaterialIcons name="close" size={24} color={Colors.text} />
+                </TouchableOpacity>
               </View>
-            )}
-            
-            <Text style={styles.modalLabel}>Your message:</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder={connectItem?.type === 'pledge' 
-                ? "Hi! I'm interested in your pledge. Could you tell me more about..."
-                : "Hi! I'd like to help with this. I can..."
-              }
-              value={connectMessage}
-              onChangeText={setConnectMessage}
-              multiline
-              numberOfLines={4}
-              placeholderTextColor={Colors.textSecondary}
-            />
-            
-            <View style={styles.modalButtons}>
-              <Pressable 
-                style={({ pressed }) => [
-                  styles.modalCancelButton,
-                  pressed && { opacity: 0.7 }
-                ]}
-                onPress={() => setConnectModalVisible(false)}
-              >
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </Pressable>
               
-              <Pressable 
-                style={({ pressed }) => [
-                  styles.modalSendButton,
-                  { backgroundColor: connectItem?.type === 'pledge' ? Colors.pledgeMedium : Colors.wishMedium },
-                  (!connectMessage.trim() || sendingMessage) && { opacity: 0.5 },
-                  pressed && { opacity: 0.8 }
-                ]}
-                onPress={() => {
-                  console.log('Send button pressed');
-                  sendConnection();
-                }}
-                disabled={sendingMessage || !connectMessage.trim()}
-              >
-                {sendingMessage ? (
-                  <ActivityIndicator color={Colors.surface} size="small" />
-                ) : (
-                  <>
-                    <MaterialIcons name="send" size={18} color={Colors.surface} />
-                    <Text style={styles.modalSendText}>Send Message</Text>
-                  </>
-                )}
-              </Pressable>
+              {connectItem && (
+                <View style={styles.modalItemInfo}>
+                  <Text style={styles.modalItemTitle}>{connectItem.item.title}</Text>
+                  <Text style={styles.modalItemUser}>by {connectItem.item.user_name}</Text>
+                </View>
+              )}
+              
+              <Text style={styles.modalLabel}>Your message:</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder={connectItem?.type === 'pledge' 
+                  ? "Hi! I'm interested in your pledge. Could you tell me more about..."
+                  : "Hi! I'd like to help with this. I can..."
+                }
+                value={connectMessage}
+                onChangeText={setConnectMessage}
+                multiline
+                numberOfLines={4}
+                placeholderTextColor={Colors.textSecondary}
+              />
+              
+              <View style={styles.modalButtons}>
+                <Pressable 
+                  style={({ pressed }) => [
+                    styles.modalCancelButton,
+                    pressed && { opacity: 0.7 }
+                  ]}
+                  onPress={() => setConnectModalVisible(false)}
+                >
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </Pressable>
+                
+                <Pressable 
+                  style={({ pressed }) => [
+                    styles.modalSendButton,
+                    { backgroundColor: connectItem?.type === 'pledge' ? Colors.pledgeMedium : Colors.wishMedium },
+                    (!connectMessage.trim() || sendingMessage) && { opacity: 0.5 },
+                    pressed && { opacity: 0.8 }
+                  ]}
+                  onPress={() => {
+                    console.log('Send button pressed');
+                    Keyboard.dismiss();
+                    sendConnection();
+                  }}
+                  disabled={sendingMessage || !connectMessage.trim()}
+                >
+                  {sendingMessage ? (
+                    <ActivityIndicator color={Colors.surface} size="small" />
+                  ) : (
+                    <>
+                      <MaterialIcons name="send" size={18} color={Colors.surface} />
+                      <Text style={styles.modalSendText}>Send Message</Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
             </View>
-          </View>
-        </View>
+          </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
       </Modal>
     </SafeAreaView>
   );
