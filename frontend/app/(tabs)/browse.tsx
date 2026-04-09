@@ -690,12 +690,21 @@ export default function BrowseScreen() {
         transparent={true}
         onRequestClose={() => setConnectModalVisible(false)}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.modalOverlay}
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <Pressable 
+            style={styles.modalOverlayTouchable} 
+            onPress={() => {
+              Keyboard.dismiss();
+              setConnectModalVisible(false);
+            }}
           >
-            <View style={styles.modalContent}>
+            <Pressable 
+              style={styles.modalContent}
+              onPress={(e) => e.stopPropagation()}
+            >
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>
                   {connectItem?.type === 'pledge' ? 'Ask About This Pledge' : 'Offer to Help'}
@@ -761,9 +770,9 @@ export default function BrowseScreen() {
                   )}
                 </Pressable>
               </View>
-            </View>
-          </KeyboardAvoidingView>
-        </TouchableWithoutFeedback>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
