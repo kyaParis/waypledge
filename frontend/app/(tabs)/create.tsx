@@ -84,7 +84,10 @@ export default function CreateScreen() {
   const handleFromDateConfirm = (date: Date) => {
     setShowFromPicker(false);
     setTempFromDate(date);
-    setShowToPicker(true); // Immediately show "To" picker
+    // Add a small delay before showing "To" picker to prevent flickering
+    setTimeout(() => {
+      setShowToPicker(true);
+    }, 300);
   };
 
   // Handle "To" date selection
@@ -487,6 +490,15 @@ export default function CreateScreen() {
                 Add one or more date ranges when you're available
               </Text>
               
+              {/* Show temp "From" date while selecting "To" */}
+              {tempFromDate && (
+                <View style={styles.tempDateDisplay}>
+                  <Text style={styles.tempDateText}>
+                    From: {formatDate(tempFromDate)} — Now select end date...
+                  </Text>
+                </View>
+              )}
+              
               {/* From Date Picker */}
               <DateTimePickerModal
                 isVisible={showFromPicker}
@@ -494,6 +506,8 @@ export default function CreateScreen() {
                 onConfirm={handleFromDateConfirm}
                 onCancel={() => setShowFromPicker(false)}
                 minimumDate={new Date()}
+                headerTextIOS="Select START date"
+                confirmTextIOS="Select Start Date"
               />
               
               {/* To Date Picker */}
@@ -506,6 +520,8 @@ export default function CreateScreen() {
                   setTempFromDate(null);
                 }}
                 minimumDate={tempFromDate || new Date()}
+                headerTextIOS="Select END date"
+                confirmTextIOS="Select End Date"
               />
             </View>
           )}
@@ -904,6 +920,19 @@ const styles = StyleSheet.create({
   addDateButtonText: {
     fontSize: 15,
     color: Colors.primary,
+    fontWeight: '500',
+  },
+  tempDateDisplay: {
+    backgroundColor: Colors.accent + '20',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.accent,
+  },
+  tempDateText: {
+    fontSize: 14,
+    color: Colors.accent,
     fontWeight: '500',
   },
 });
