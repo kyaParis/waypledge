@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Header
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Header, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import HTMLResponse
 from dotenv import load_dotenv
@@ -17,9 +17,20 @@ import uuid
 import math
 import random
 import resend
+import cloudinary
+import cloudinary.utils
+import time
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+# Cloudinary configuration
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+    secure=True
+)
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -1377,6 +1388,44 @@ async def delete_account(deletion_request: AccountDeletionRequest, current_user 
     logger.warning(f"ACCOUNT DELETED: {user_email}")
     
     return {"success": True, "message": "Account and all associated data deleted successfully"}
+
+# ==========================================
+# CLOUDINARY IMAGE UPLOAD ENDPOINTS
+# ==========================================
+
+@api_router.get("/cloudinary/signature")
+async def get_cloudinary_signature(
+    resource_type: str = Query("image", enum=["image", "video"]),
+    folder: str = Query("waypledge"),
+    current_user = Depends(get_current_user)
+):
+    """Generate a signed upload URL for Cloudinary (images/videos)"""
+    ALLOWED_FOLDERS = ("waypledge", "pledges", "wishes", "users")
+    if folder not in ALLOWED_FOLDERS:
+        raise HTTPException(status_code=400, detail="Invalid folder path")
+    
+    timestamp = int(time.time())
+    
+    # Include transformation for auto-optimization
+    params = {
+        "timestamp": timestamp,
+        "folder": folder,
+        "resource_type": resource_type,
+    }
+    
+    signature = cloudinary.utils.api_sign_request(
+        params,
+        os.getenv("CLOUDINARY_API_SECRET")
+    )
+    
+    return {
+        "signature": signature,
+        "timestamp": timestamp,
+        "cloud_name": os.getenv("CLOUDINARY_CLOUD_NAME"),
+        "api_key": os.getenv("CLOUDINARY_API_KEY"),
+        "folder": folder,
+        "resource_type": resource_type
+    }
 
 # Categories endpoint
 @api_router.get("/categories", response_model=List[CategoryResponse])

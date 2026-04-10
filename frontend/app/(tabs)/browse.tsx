@@ -17,6 +17,7 @@ import {
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
+  Image,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Location from 'expo-location';
@@ -573,6 +574,15 @@ export default function BrowseScreen() {
 
               <Text style={styles.cardDescription}>{item.description}</Text>
 
+              {/* Display image if available */}
+              {item.image && item.image.startsWith('http') && (
+                <Image
+                  source={{ uri: item.image }}
+                  style={styles.cardImage}
+                  resizeMode="cover"
+                />
+              )}
+
               {item.location && (
                 <View style={styles.locationContainer}>
                   <MaterialIcons
@@ -880,6 +890,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  cardImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 8,
+    marginTop: 12,
+    marginBottom: 8,
+    backgroundColor: Colors.border,
   },
   cardHeader: {
     flexDirection: 'row',

@@ -125,3 +125,62 @@ export const deleteAccount = async (confirmPassword: string, reason?: string): P
     } 
   });
 };
+
+// Cloudinary image upload
+export interface CloudinarySignature {
+  signature: string;
+  timestamp: number;
+  cloud_name: string;
+  api_key: string;
+  folder: string;
+  resource_type: string;
+}
+
+export const getCloudinarySignature = async (folder: string = 'waypledge'): Promise<CloudinarySignature> => {
+  const response = await api.get(`/cloudinary/signature?folder=${folder}`);
+  return response.data;
+};
+
+export const uploadImageToCloudinary = async (
+  imageUri: string, 
+  folder: string = 'waypledge'
+): Promise<string> => {
+  // Get signature from backend
+  const sig = await getCloudinarySignature(folder);
+  
+  // Create form data
+  const formData = new FormData();
+  
+  // Handle different URI formats (file:// for mobile, blob for web)
+  const filename = imageUri.split('/').pop() || 'image.jpg';
+  const match = /\.(\w+)$/.exec(filename);
+  const type = match ? `image/${match[1]}` : 'image/jpeg';
+  
+  formData.append('file', {
+    uri: imageUri,
+    name: filename,
+    type: type,
+  } as any);
+  formData.append('api_key', sig.api_key);
+  formData.append('timestamp', sig.timestamp.toString());
+  formData.append('signature', sig.signature);
+  formData.append('folder', sig.folder);
+  
+  // Upload to Cloudinary
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${sig.cloud_name}/image/upload`,
+    {
+      method: 'POST',
+      body: formData,
+    }
+  );
+  
+  const result = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(result.error?.message || 'Failed to upload image');
+  }
+  
+  // Return the secure URL with auto-optimization
+  return result.secure_url;
+};

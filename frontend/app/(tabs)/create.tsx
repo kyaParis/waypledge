@@ -16,9 +16,9 @@ import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
 import api, { Category } from '../../utils/api';
-import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../../store/authStore';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
+import ImagePickerButton from '../../components/ImagePickerButton';
 
 type CreateType = 'pledge' | 'wish';
 type Urgency = 'urgent' | 'normal' | 'flexible';
@@ -117,29 +117,8 @@ export default function CreateScreen() {
     ).join(', ');
   };
 
-  const pickImage = async () => {
-    if (type === 'wish') {
-      Alert.alert('Notice', 'Images are only available for pledges');
-      return;
-    }
-
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
-      Alert.alert('Permission Required', 'Please allow access to your photo library');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.5,
-      base64: true,
-    });
-
-    if (!result.canceled && result.assets[0].base64) {
-      setImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
-    }
+  const handleImageUploaded = (imageUrl: string) => {
+    setImage(imageUrl);
   };
 
   const handleCreate = async () => {
@@ -448,20 +427,28 @@ export default function CreateScreen() {
 
           {type === 'pledge' && (
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Image (optional)</Text>
-              <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
-                {image ? (
-                  <View style={styles.imagePreviewContainer}>
-                    <MaterialIcons name="check-circle" size={24} color={Colors.success} />
-                    <Text style={styles.imageButtonText}>Image Added</Text>
-                  </View>
-                ) : (
-                  <>
-                    <MaterialIcons name="add-photo-alternate" size={24} color={Colors.primary} />
-                    <Text style={styles.imageButtonText}>Add Image</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              <Text style={styles.label}>Photo (optional)</Text>
+              <ImagePickerButton
+                onImageUploaded={handleImageUploaded}
+                existingImage={image || undefined}
+                folder="pledges"
+                label="Add Photo"
+              />
+            </View>
+          )}
+
+          {type === 'wish' && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Photo (optional)</Text>
+              <ImagePickerButton
+                onImageUploaded={handleImageUploaded}
+                existingImage={image || undefined}
+                folder="wishes"
+                label="Add Photo"
+              />
+              <Text style={styles.helpText}>
+                Add a photo to help explain what you need
+              </Text>
             </View>
           )}
 
