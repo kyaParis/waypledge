@@ -573,12 +573,12 @@ async def get_hive_name(hive_id: Optional[str]) -> Optional[str]:
 
 @api_router.post("/pledges", response_model=PledgeResponse)
 async def create_pledge(pledge: PledgeCreate, current_user = Depends(get_current_user)):
-    # Email verification disabled - using honeypot + time check anti-spam instead
-    # if not current_user.get("email_verified", False):
-    #     raise HTTPException(
-    #         status_code=403, 
-    #         detail="Please verify your email before creating pledges. Check your inbox for the verification code."
-    #     )
+    # Block unverified users from creating pledges
+    if not current_user.get("email_verified", False):
+        raise HTTPException(
+            status_code=403, 
+            detail="Please verify your email before creating pledges. Check your inbox for the verification code."
+        )
     
     # Duplicate prevention: Check if same title was created in the last 60 seconds
     recent_cutoff = datetime.utcnow() - timedelta(seconds=60)
@@ -811,12 +811,12 @@ async def delete_pledge(pledge_id: str, current_user = Depends(get_current_user)
 # Wish endpoints
 @api_router.post("/wishes", response_model=WishResponse)
 async def create_wish(wish: WishCreate, current_user = Depends(get_current_user)):
-    # Email verification disabled - using honeypot + time check anti-spam instead
-    # if not current_user.get("email_verified", False):
-    #     raise HTTPException(
-    #         status_code=403, 
-    #         detail="Please verify your email before creating wishes. Check your inbox for the verification code."
-    #     )
+    # Block unverified users from creating wishes
+    if not current_user.get("email_verified", False):
+        raise HTTPException(
+            status_code=403, 
+            detail="Please verify your email before creating wishes. Check your inbox for the verification code."
+        )
     
     # Duplicate prevention: Check if same title was created in the last 60 seconds
     recent_cutoff = datetime.utcnow() - timedelta(seconds=60)
