@@ -20,7 +20,7 @@ import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
 
 // BETA MODE - Set to true to disable registration
-const BETA_MODE = true;
+const BETA_MODE = false;  // Registration open with approval required
 
 export default function RegisterScreen() {
   const router = useRouter();

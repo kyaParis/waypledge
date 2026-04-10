@@ -17,7 +17,7 @@ import { useFocusEffect } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
-import api, { Pledge, Wish, Gratitude, deleteAccount, getBlockedUsers, unblockUser, BlockedUser } from '../../utils/api';
+import api, { Pledge, Wish, Gratitude, deleteAccount, getBlockedUsers, unblockUser, BlockedUser, getPendingUsers, approveUser, rejectUser, PendingUser } from '../../utils/api';
 import { useTranslation } from 'react-i18next';
 import { languages, setLanguage, getCurrentLanguage } from '../../i18n';
 
@@ -42,6 +42,18 @@ export default function ProfileScreen() {
   const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [loadingBlocked, setLoadingBlocked] = useState(false);
+  
+  // Admin: Pending Users state
+  const [showPendingModal, setShowPendingModal] = useState(false);
+  const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
+  const [loadingPending, setLoadingPending] = useState(false);
+  
+  // Check if current user is admin
+  const isAdmin = user?.email && (
+    user.email === 'kathy@waldrom.com' || 
+    user.email === 'admin@waypledge.me' ||
+    user.email === 'kathryn@waypledge.me'
+  );
 
   const handleLanguageChange = async (langCode: string) => {
     await setLanguage(langCode);
@@ -81,6 +93,51 @@ export default function ProfileScreen() {
               Alert.alert('Success', `${userName} has been unblocked.`);
             } catch (error: any) {
               Alert.alert('Error', error.response?.data?.detail || 'Failed to unblock user');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const loadPendingUsers = async () => {
+    setLoadingPending(true);
+    try {
+      const users = await getPendingUsers();
+      setPendingUsers(users);
+    } catch (error) {
+      console.error('Error loading pending users:', error);
+    } finally {
+      setLoadingPending(false);
+    }
+  };
+
+  const handleApproveUser = async (userId: string, userName: string) => {
+    try {
+      await approveUser(userId);
+      setPendingUsers(pendingUsers.filter(u => u.id !== userId));
+      Alert.alert('Approved!', `${userName} can now use WayPledge.`);
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Failed to approve user');
+    }
+  };
+
+  const handleRejectUser = async (userId: string, userName: string) => {
+    Alert.alert(
+      'Reject User',
+      `Are you sure you want to reject ${userName}? Their account will be deleted.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reject',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await rejectUser(userId);
+              setPendingUsers(pendingUsers.filter(u => u.id !== userId));
+              Alert.alert('Rejected', `${userName} has been removed.`);
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.detail || 'Failed to reject user');
             }
           },
         },
@@ -354,6 +411,75 @@ export default function ProfileScreen() {
                   )}
                 </TouchableOpacity>
               ))}
+            </View>
+          </View>
+        </Modal>
+
+        {/* Admin Panel Section - Only visible to admins */}
+        {isAdmin && (
+          <View style={styles.section}>
+            <Text style={styles.adminSectionTitle}>Admin Panel</Text>
+            <TouchableOpacity 
+              style={styles.adminButton}
+              onPress={() => {
+                loadPendingUsers();
+                setShowPendingModal(true);
+              }}
+            >
+              <MaterialIcons name="person-add" size={20} color={Colors.surface} />
+              <Text style={styles.adminButtonText}>Pending Users</Text>
+              {pendingUsers.length > 0 && (
+                <View style={styles.badgeContainer}>
+                  <Text style={styles.badgeText}>{pendingUsers.length}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Pending Users Modal */}
+        <Modal
+          visible={showPendingModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowPendingModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Pending Users</Text>
+                <TouchableOpacity onPress={() => setShowPendingModal(false)}>
+                  <MaterialIcons name="close" size={24} color={Colors.text} />
+                </TouchableOpacity>
+              </View>
+              {loadingPending ? (
+                <ActivityIndicator size="large" color={Colors.primary} style={{ padding: 20 }} />
+              ) : pendingUsers.length === 0 ? (
+                <Text style={styles.emptyBlockedText}>No pending users</Text>
+              ) : (
+                pendingUsers.map((pendingUser) => (
+                  <View key={pendingUser.id} style={styles.pendingUserItem}>
+                    <View style={styles.pendingUserInfo}>
+                      <Text style={styles.pendingUserName}>{pendingUser.name}</Text>
+                      <Text style={styles.pendingUserEmail}>{pendingUser.email}</Text>
+                    </View>
+                    <View style={styles.pendingActions}>
+                      <TouchableOpacity
+                        style={styles.approveButton}
+                        onPress={() => handleApproveUser(pendingUser.id, pendingUser.name)}
+                      >
+                        <MaterialIcons name="check" size={24} color={Colors.surface} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.rejectButton}
+                        onPress={() => handleRejectUser(pendingUser.id, pendingUser.name)}
+                      >
+                        <MaterialIcons name="close" size={24} color={Colors.surface} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+              )}
             </View>
           </View>
         </Modal>
@@ -891,5 +1017,83 @@ const styles = StyleSheet.create({
     color: Colors.surface,
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Admin Panel styles
+  adminSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.accent,
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  adminButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.accent,
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+  },
+  adminButtonText: {
+    flex: 1,
+    fontSize: 16,
+    color: Colors.surface,
+    fontWeight: '600',
+  },
+  badgeContainer: {
+    backgroundColor: Colors.error,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    minWidth: 24,
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: Colors.surface,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  pendingUserItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  pendingUserInfo: {
+    flex: 1,
+  },
+  pendingUserName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  pendingUserEmail: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  pendingActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  approveButton: {
+    backgroundColor: Colors.success,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rejectButton: {
+    backgroundColor: Colors.error,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

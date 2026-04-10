@@ -126,6 +126,28 @@ export const deleteAccount = async (confirmPassword: string, reason?: string): P
   });
 };
 
+// Admin functions
+export interface PendingUser {
+  id: string;
+  name: string;
+  email: string;
+  created_at: string;
+  email_verified: boolean;
+}
+
+export const getPendingUsers = async (): Promise<PendingUser[]> => {
+  const response = await api.get('/admin/pending-users');
+  return response.data;
+};
+
+export const approveUser = async (userId: string): Promise<void> => {
+  await api.post(`/admin/approve-user/${userId}`);
+};
+
+export const rejectUser = async (userId: string): Promise<void> => {
+  await api.post(`/admin/reject-user/${userId}`);
+};
+
 // Cloudinary image upload
 export interface CloudinarySignature {
   signature: string;
