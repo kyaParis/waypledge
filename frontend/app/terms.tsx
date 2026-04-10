@@ -127,6 +127,21 @@ export default function TermsScreen() {
           • Personal attacks or harassment
         </Text>
 
+        <View style={styles.warningBox}>
+          <MaterialIcons name="warning" size={24} color={Colors.warning} />
+          <View style={styles.warningTextContainer}>
+            <Text style={styles.warningTitle}>Age-Restricted Items Prohibited</Text>
+            <Text style={styles.warningText}>
+              The following items may NOT be pledged or requested:{'\n'}
+              • Alcohol or tobacco products{'\n'}
+              • Cannabis or controlled substances{'\n'}
+              • Weapons, ammunition, or explosives{'\n'}
+              • Adult/explicit content or services{'\n'}
+              • Gambling services or equipment
+            </Text>
+          </View>
+        </View>
+
         <Text style={styles.sectionTitle}>6. Safety & Meetings</Text>
         <Text style={styles.text}>
           When meeting other WayPledge members:{'\n'}
@@ -333,5 +348,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     fontStyle: 'italic',
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: '#FFF8E1',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#FFB300',
+  },
+  warningTextContainer: {
+    flex: 1,
+  },
+  warningTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#E65100',
+    marginBottom: 8,
+  },
+  warningText: {
+    fontSize: 14,
+    color: '#5D4037',
+    lineHeight: 22,
   },
 });

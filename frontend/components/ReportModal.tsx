@@ -8,10 +8,11 @@ import {
   TextInput,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Colors } from '../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
-import api from '../utils/api';
+import api, { blockUser } from '../utils/api';
 
 interface ReportModalProps {
   visible: boolean;
@@ -19,6 +20,8 @@ interface ReportModalProps {
   reportType: 'pledge' | 'wish' | 'user' | 'other';
   itemId?: string;
   itemTitle?: string;
+  userId?: string; // The user who created the content (for blocking)
+  userName?: string;
 }
 
 export default function ReportModal({
@@ -27,10 +30,13 @@ export default function ReportModal({
   reportType,
   itemId,
   itemTitle,
+  userId,
+  userName,
 }: ReportModalProps) {
   const [selectedReason, setSelectedReason] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isBlocking, setIsBlocking] = useState(false);
 
   const reasons = [
     { id: 'inappropriate', label: 'Inappropriate Content', icon: 'warning' },
@@ -39,6 +45,37 @@ export default function ReportModal({
     { id: 'scam', label: 'Scam/Fraud', icon: 'gavel' },
     { id: 'other', label: 'Other', icon: 'more-horiz' },
   ];
+
+  const handleBlockUser = async () => {
+    if (!userId) {
+      Alert.alert('Error', 'Cannot block this user');
+      return;
+    }
+
+    Alert.alert(
+      'Block User',
+      `Are you sure you want to block ${userName || 'this user'}? You will no longer see their pledges, wishes, or receive messages from them.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            setIsBlocking(true);
+            try {
+              await blockUser(userId);
+              Alert.alert('Blocked', `${userName || 'User'} has been blocked.`);
+              onClose();
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.detail || 'Failed to block user');
+            } finally {
+              setIsBlocking(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleSubmit = async () => {
     if (!selectedReason || !description.trim()) {
@@ -140,6 +177,23 @@ export default function ReportModal({
                 </>
               )}
             </TouchableOpacity>
+
+            {userId && (
+              <TouchableOpacity
+                style={[styles.blockButton, isBlocking && styles.submitButtonDisabled]}
+                onPress={handleBlockUser}
+                disabled={isBlocking}
+              >
+                {isBlocking ? (
+                  <ActivityIndicator color={Colors.surface} />
+                ) : (
+                  <>
+                    <MaterialIcons name="block" size={20} color={Colors.surface} />
+                    <Text style={styles.submitButtonText}>Block This User</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
 
             <Text style={styles.disclaimer}>
               Reports are reviewed by administrators. False reports may result in account action.
@@ -245,6 +299,16 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     backgroundColor: Colors.error,
+    paddingVertical: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  blockButton: {
+    backgroundColor: '#666',
     paddingVertical: 16,
     borderRadius: 12,
     flexDirection: 'row',

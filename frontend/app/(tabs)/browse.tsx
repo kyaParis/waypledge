@@ -62,7 +62,7 @@ export default function BrowseScreen() {
   const [locationFilter, setLocationFilter] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [reportModalVisible, setReportModalVisible] = useState(false);
-  const [reportItem, setReportItem] = useState<{ type: 'pledge' | 'wish'; id: string; title: string } | null>(null);
+  const [reportItem, setReportItem] = useState<{ type: 'pledge' | 'wish'; id: string; title: string; userId: string; userName: string } | null>(null);
   
   // Connection modal state
   const [connectModalVisible, setConnectModalVisible] = useState(false);
@@ -283,7 +283,7 @@ export default function BrowseScreen() {
   };
 
   const handleReport = (item: Pledge | Wish, type: 'pledge' | 'wish') => {
-    setReportItem({ type, id: item.id, title: item.title });
+    setReportItem({ type, id: item.id, title: item.title, userId: item.user_id, userName: item.user_name });
     setReportModalVisible(true);
   };
 
@@ -681,6 +681,8 @@ export default function BrowseScreen() {
         reportType={reportItem?.type || 'pledge'}
         itemId={reportItem?.id}
         itemTitle={reportItem?.title}
+        userId={reportItem?.userId}
+        userName={reportItem?.userName}
       />
 
       {/* Connect Modal */}

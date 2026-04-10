@@ -303,6 +303,17 @@ class CategoryResponse(BaseModel):
     name: str
     icon: str
 
+# Block User Models
+class BlockedUserResponse(BaseModel):
+    id: str
+    user_id: str
+    user_name: str
+    blocked_at: datetime
+
+class AccountDeletionRequest(BaseModel):
+    confirm_password: str
+    reason: Optional[str] = None
+
 # Hive Models - Federation-Ready Architecture
 class HiveCreate(BaseModel):
     name: str
@@ -1243,6 +1254,129 @@ async def update_report_status(report_id: str, status: str, current_user = Depen
         {"$set": {"status": status}}
     )
     return {"success": True, "message": f"Report marked as {status}"}
+
+# ==========================================
+# BLOCK USER ENDPOINTS
+# ==========================================
+
+@api_router.post("/users/{user_id}/block")
+async def block_user(user_id: str, current_user = Depends(get_current_user)):
+    """Block a user - their content will be hidden from you"""
+    # Check if target user exists
+    target_user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Can't block yourself
+    if str(current_user["_id"]) == user_id:
+        raise HTTPException(status_code=400, detail="Cannot block yourself")
+    
+    # Check if already blocked
+    existing_block = await db.blocked_users.find_one({
+        "blocker_id": str(current_user["_id"]),
+        "blocked_id": user_id
+    })
+    if existing_block:
+        raise HTTPException(status_code=400, detail="User already blocked")
+    
+    # Create block record
+    block_record = {
+        "blocker_id": str(current_user["_id"]),
+        "blocked_id": user_id,
+        "blocked_name": target_user.get("display_name") or target_user["name"],
+        "blocked_at": datetime.utcnow()
+    }
+    await db.blocked_users.insert_one(block_record)
+    
+    logger.info(f"User {current_user['name']} blocked user {target_user['name']}")
+    
+    return {"success": True, "message": "User blocked successfully"}
+
+@api_router.delete("/users/{user_id}/block")
+async def unblock_user(user_id: str, current_user = Depends(get_current_user)):
+    """Unblock a previously blocked user"""
+    result = await db.blocked_users.delete_one({
+        "blocker_id": str(current_user["_id"]),
+        "blocked_id": user_id
+    })
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="User not found in blocked list")
+    
+    return {"success": True, "message": "User unblocked successfully"}
+
+@api_router.get("/blocked-users", response_model=List[BlockedUserResponse])
+async def get_blocked_users(current_user = Depends(get_current_user)):
+    """Get list of users you've blocked"""
+    blocked = await db.blocked_users.find({
+        "blocker_id": str(current_user["_id"])
+    }).sort("blocked_at", -1).to_list(100)
+    
+    return [BlockedUserResponse(
+        id=str(b["_id"]),
+        user_id=b["blocked_id"],
+        user_name=b["blocked_name"],
+        blocked_at=b["blocked_at"]
+    ) for b in blocked]
+
+@api_router.get("/users/{user_id}/is-blocked")
+async def check_if_blocked(user_id: str, current_user = Depends(get_current_user)):
+    """Check if a specific user is blocked"""
+    blocked = await db.blocked_users.find_one({
+        "blocker_id": str(current_user["_id"]),
+        "blocked_id": user_id
+    })
+    return {"is_blocked": blocked is not None}
+
+# ==========================================
+# ACCOUNT DELETION ENDPOINTS
+# ==========================================
+
+@api_router.delete("/account")
+async def delete_account(deletion_request: AccountDeletionRequest, current_user = Depends(get_current_user)):
+    """Delete your account and all associated data"""
+    # Verify password
+    if not verify_password(deletion_request.confirm_password, current_user["password_hash"]):
+        raise HTTPException(status_code=400, detail="Incorrect password")
+    
+    user_id = str(current_user["_id"])
+    user_email = current_user["email"]
+    
+    # Log deletion reason if provided
+    if deletion_request.reason:
+        logger.info(f"Account deletion requested by {user_email}: {deletion_request.reason}")
+    
+    # Delete all user data
+    # 1. Delete user's pledges
+    await db.pledges.delete_many({"user_id": user_id})
+    
+    # 2. Delete user's wishes
+    await db.wishes.delete_many({"user_id": user_id})
+    
+    # 3. Delete user's messages (both sent and received)
+    await db.messages.delete_many({"$or": [{"sender_id": user_id}, {"receiver_id": user_id}]})
+    
+    # 4. Delete connections involving user
+    await db.connections.delete_many({"$or": [{"pledger_id": user_id}, {"wisher_id": user_id}]})
+    
+    # 5. Delete gratitude posts (given and received)
+    await db.gratitude.delete_many({"$or": [{"from_user_id": user_id}, {"to_user_id": user_id}]})
+    
+    # 6. Delete hive memberships
+    await db.hive_members.delete_many({"user_id": user_id})
+    
+    # 7. Delete blocked users records (both directions)
+    await db.blocked_users.delete_many({"$or": [{"blocker_id": user_id}, {"blocked_id": user_id}]})
+    
+    # 8. Delete reports made by user (keep reports against user for admin review)
+    await db.reports.delete_many({"reporter_id": user_id})
+    
+    # 9. Finally, delete the user account
+    await db.users.delete_one({"_id": ObjectId(user_id)})
+    
+    logger.warning(f"ACCOUNT DELETED: {user_email}")
+    
+    return {"success": True, "message": "Account and all associated data deleted successfully"}
 
 # Categories endpoint
 @api_router.get("/categories", response_model=List[CategoryResponse])

@@ -89,3 +89,39 @@ export interface Category {
   name: string;
   icon: string;
 }
+
+export interface BlockedUser {
+  id: string;
+  user_id: string;
+  user_name: string;
+  blocked_at: string;
+}
+
+// Block/Unblock user functions
+export const blockUser = async (userId: string): Promise<void> => {
+  await api.post(`/users/${userId}/block`);
+};
+
+export const unblockUser = async (userId: string): Promise<void> => {
+  await api.delete(`/users/${userId}/block`);
+};
+
+export const getBlockedUsers = async (): Promise<BlockedUser[]> => {
+  const response = await api.get('/blocked-users');
+  return response.data;
+};
+
+export const isUserBlocked = async (userId: string): Promise<boolean> => {
+  const response = await api.get(`/users/${userId}/is-blocked`);
+  return response.data.is_blocked;
+};
+
+// Account deletion
+export const deleteAccount = async (confirmPassword: string, reason?: string): Promise<void> => {
+  await api.delete('/account', { 
+    data: { 
+      confirm_password: confirmPassword,
+      reason: reason 
+    } 
+  });
+};
