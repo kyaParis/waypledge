@@ -90,6 +90,37 @@ def send_verification_email(to_email: str, code: str, name: str) -> bool:
         logging.error(f"Failed to send verification email: {e}")
         return False
 
+def send_password_reset_email(to_email: str, code: str, name: str) -> bool:
+    """Send password reset email using Resend"""
+    try:
+        params = {
+            "from": "WayPledge <noreply@waypledge.me>",
+            "to": [to_email],
+            "subject": "Reset your WayPledge password",
+            "html": f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h1 style="color: #2E7D32; text-align: center;">Password Reset</h1>
+                <p>Hi {name},</p>
+                <p>We received a request to reset your WayPledge password. Use the code below to set a new password:</p>
+                <div style="background-color: #f5f5f5; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #2E7D32; border-radius: 8px;">
+                    {code}
+                </div>
+                <p style="margin-top: 20px;">Enter this code in the app to reset your password.</p>
+                <p style="color: #666; font-size: 12px;">This code expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+                <hr style="margin-top: 30px; border: none; border-top: 1px solid #eee;">
+                <p style="color: #888; font-size: 12px; text-align: center;">
+                    Give and Receive With Love<br>
+                    <a href="https://waypledge.me" style="color: #2E7D32;">waypledge.me</a>
+                </p>
+            </div>
+            """
+        }
+        resend.Emails.send(params)
+        return True
+    except Exception as e:
+        logging.error(f"Failed to send password reset email: {e}")
+        return False
+
 def calculate_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Calculate distance between two GPS coordinates using Haversine formula"""
     R = 6371  # Earth's radius in km
@@ -541,6 +572,81 @@ async def resend_verification(current_user = Depends(get_current_user)):
         return {"success": True, "message": "Verification email sent!"}
     else:
         raise HTTPException(status_code=500, detail="Failed to send email. Please try again.")
+
+# Forgot Password Models
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    code: str
+    new_password: str
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest):
+    """Send password reset code to user's email"""
+    user = await db.users.find_one({"email": request.email.lower()})
+    
+    # Always return success to prevent email enumeration
+    if not user:
+        return {"success": True, "message": "If an account exists with this email, you will receive a reset code."}
+    
+    # Generate reset code (6 digits)
+    reset_code = generate_verification_code()
+    reset_expires = datetime.utcnow() + timedelta(hours=1)  # 1 hour expiry
+    
+    # Store reset code in user document
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"password_reset_code": reset_code, "password_reset_expires": reset_expires}}
+    )
+    
+    # Send email
+    email_sent = send_password_reset_email(user["email"], reset_code, user.get("name", "User"))
+    
+    if email_sent:
+        logging.info(f"Password reset email sent to {request.email}")
+    else:
+        logging.error(f"Failed to send password reset email to {request.email}")
+    
+    return {"success": True, "message": "If an account exists with this email, you will receive a reset code."}
+
+@api_router.post("/auth/reset-password")
+async def reset_password(request: ResetPasswordRequest):
+    """Reset password using the code sent to email"""
+    user = await db.users.find_one({"email": request.email.lower()})
+    
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid email or code")
+    
+    stored_code = user.get("password_reset_code")
+    expires = user.get("password_reset_expires")
+    
+    if not stored_code or not expires:
+        raise HTTPException(status_code=400, detail="No reset code found. Please request a new one.")
+    
+    if datetime.utcnow() > expires:
+        raise HTTPException(status_code=400, detail="Reset code expired. Please request a new one.")
+    
+    if request.code != stored_code:
+        raise HTTPException(status_code=400, detail="Invalid reset code")
+    
+    # Validate new password
+    if len(request.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    
+    # Update password and clear reset code
+    new_password_hash = get_password_hash(request.new_password)
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {
+            "$set": {"password_hash": new_password_hash},
+            "$unset": {"password_reset_code": "", "password_reset_expires": ""}
+        }
+    )
+    
+    logging.info(f"Password reset successful for {request.email}")
+    return {"success": True, "message": "Password reset successfully! You can now login with your new password."}
 
 @api_router.get("/auth/me", response_model=UserResponse)
 async def get_me(current_user = Depends(get_current_user)):
