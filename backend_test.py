@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-WayPledge Backend API Testing - Email Verification System
-Testing the email verification flow for anti-spam functionality
+WayPledge Backend API Testing - New Features Testing
+Testing Block User System, Account Deletion, and Cloudinary Signature endpoints
 """
 
 import requests
@@ -478,10 +478,399 @@ class WayPledgeAPITester:
                             {"response": response.text})
         except Exception as e:
             self.log_test("Categories", False, f"Request failed: {str(e)}")
+
+    # ==========================================
+    # NEW FEATURE TESTS - BLOCK USER SYSTEM
+    # ==========================================
+    
+    def setup_second_test_user(self):
+        """Create a second test user for block/unblock testing"""
+        try:
+            user_data = {
+                "email": f"test_user_2_{datetime.now().strftime('%Y%m%d_%H%M%S')}@example.com",
+                "password": "TestPassword123!",
+                "name": "Test User 2 for Blocking",
+                "bio": "Second test user for block functionality",
+                "location": "Test City 2, Test Country"
+            }
+            
+            response = self.session.post(f"{API_BASE}/auth/register", json=user_data)
+            
+            if response.status_code == 200:
+                data = response.json()
+                second_user_id = data.get("user", {}).get("id")
+                self.log_test("Second User Setup", True, "Second test user created successfully", 
+                            {"user_id": second_user_id})
+                return second_user_id
+            else:
+                self.log_test("Second User Setup", False, f"Failed to create second test user: {response.status_code}", 
+                            {"response": response.text})
+                return None
+        except Exception as e:
+            self.log_test("Second User Setup", False, f"Second user setup failed: {str(e)}")
+            return None
+
+    def test_block_user_endpoint(self):
+        """Test POST /api/users/{user_id}/block - Block a user"""
+        if not self.auth_token:
+            self.log_test("Block User", False, "No auth token available for testing")
+            return None
+        
+        # Create second user to block
+        second_user_id = self.setup_second_test_user()
+        if not second_user_id:
+            self.log_test("Block User", False, "Could not create second user for blocking test")
+            return None
+        
+        try:
+            response = self.session.post(f"{API_BASE}/users/{second_user_id}/block")
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success") and "blocked successfully" in data.get("message", ""):
+                    self.log_test("Block User", True, "User blocked successfully", 
+                                {"blocked_user_id": second_user_id, "response": data})
+                    return second_user_id
+                else:
+                    self.log_test("Block User", False, "Block response unexpected", 
+                                {"response": data})
+                    return None
+            else:
+                self.log_test("Block User", False, f"Block failed with status {response.status_code}", 
+                            {"response": response.text})
+                return None
+        except Exception as e:
+            self.log_test("Block User", False, f"Block request failed: {str(e)}")
+            return None
+
+    def test_get_blocked_users_endpoint(self):
+        """Test GET /api/blocked-users - Get list of blocked users"""
+        if not self.auth_token:
+            self.log_test("Get Blocked Users", False, "No auth token available for testing")
+            return
+        
+        try:
+            response = self.session.get(f"{API_BASE}/blocked-users")
+            
+            if response.status_code == 200:
+                blocked_users = response.json()
+                if isinstance(blocked_users, list):
+                    self.log_test("Get Blocked Users", True, f"Retrieved {len(blocked_users)} blocked users successfully")
+                    
+                    # Verify structure if any blocked users exist
+                    if blocked_users:
+                        sample_blocked = blocked_users[0]
+                        required_fields = ["id", "user_id", "user_name", "blocked_at"]
+                        missing_fields = [field for field in required_fields if field not in sample_blocked]
+                        
+                        if not missing_fields:
+                            self.log_test("Blocked Users Structure", True, "Blocked users have all required fields", 
+                                        {"sample_blocked": sample_blocked})
+                        else:
+                            self.log_test("Blocked Users Structure", False, f"Missing fields: {missing_fields}", 
+                                        {"sample_blocked": sample_blocked})
+                else:
+                    self.log_test("Get Blocked Users", False, "Response is not a list", 
+                                {"response": blocked_users})
+            else:
+                self.log_test("Get Blocked Users", False, f"Failed with status {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Get Blocked Users", False, f"Request failed: {str(e)}")
+
+    def test_is_blocked_endpoint(self, blocked_user_id):
+        """Test GET /api/users/{user_id}/is-blocked - Check if specific user is blocked"""
+        if not self.auth_token or not blocked_user_id:
+            self.log_test("Is User Blocked", False, "No auth token or blocked user ID available for testing")
+            return
+        
+        try:
+            response = self.session.get(f"{API_BASE}/users/{blocked_user_id}/is-blocked")
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "is_blocked" in data and data["is_blocked"] == True:
+                    self.log_test("Is User Blocked", True, "User correctly identified as blocked", 
+                                {"blocked_user_id": blocked_user_id, "is_blocked": data["is_blocked"]})
+                else:
+                    self.log_test("Is User Blocked", False, "User not identified as blocked", 
+                                {"response": data})
+            else:
+                self.log_test("Is User Blocked", False, f"Failed with status {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Is User Blocked", False, f"Request failed: {str(e)}")
+
+    def test_unblock_user_endpoint(self, blocked_user_id):
+        """Test DELETE /api/users/{user_id}/block - Unblock a user"""
+        if not self.auth_token or not blocked_user_id:
+            self.log_test("Unblock User", False, "No auth token or blocked user ID available for testing")
+            return
+        
+        try:
+            response = self.session.delete(f"{API_BASE}/users/{blocked_user_id}/block")
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success") and "unblocked successfully" in data.get("message", ""):
+                    self.log_test("Unblock User", True, "User unblocked successfully", 
+                                {"unblocked_user_id": blocked_user_id, "response": data})
+                else:
+                    self.log_test("Unblock User", False, "Unblock response unexpected", 
+                                {"response": data})
+            else:
+                self.log_test("Unblock User", False, f"Unblock failed with status {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Unblock User", False, f"Unblock request failed: {str(e)}")
+
+    def test_block_self_fails(self):
+        """Test that blocking yourself fails"""
+        if not self.auth_token or not self.test_user_id:
+            self.log_test("Block Self Fails", False, "No auth token or user ID available for testing")
+            return
+        
+        try:
+            response = self.session.post(f"{API_BASE}/users/{self.test_user_id}/block")
+            
+            if response.status_code == 400:
+                data = response.json()
+                if "Cannot block yourself" in data.get("detail", ""):
+                    self.log_test("Block Self Fails", True, "Correctly prevented self-blocking", 
+                                {"status_code": response.status_code, "detail": data.get("detail")})
+                else:
+                    self.log_test("Block Self Fails", False, "Self-block prevented but with unexpected message", 
+                                {"response": data})
+            else:
+                self.log_test("Block Self Fails", False, f"Self-block not prevented: {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Block Self Fails", False, f"Request failed: {str(e)}")
+
+    def test_block_nonexistent_user_fails(self):
+        """Test that blocking non-existent user fails"""
+        if not self.auth_token:
+            self.log_test("Block Nonexistent User", False, "No auth token available for testing")
+            return
+        
+        try:
+            fake_user_id = "507f1f77bcf86cd799439011"  # Valid ObjectId format but non-existent
+            response = self.session.post(f"{API_BASE}/users/{fake_user_id}/block")
+            
+            if response.status_code == 404:
+                data = response.json()
+                if "User not found" in data.get("detail", ""):
+                    self.log_test("Block Nonexistent User", True, "Correctly rejected blocking non-existent user", 
+                                {"status_code": response.status_code, "detail": data.get("detail")})
+                else:
+                    self.log_test("Block Nonexistent User", False, "Non-existent user rejected but with unexpected message", 
+                                {"response": data})
+            else:
+                self.log_test("Block Nonexistent User", False, f"Non-existent user not rejected: {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Block Nonexistent User", False, f"Request failed: {str(e)}")
+
+    # ==========================================
+    # ACCOUNT DELETION TESTS
+    # ==========================================
+
+    def setup_deletion_test_user(self):
+        """Create a test user specifically for account deletion testing"""
+        try:
+            user_data = {
+                "email": f"deletion_test_{datetime.now().strftime('%Y%m%d_%H%M%S')}@example.com",
+                "password": "DeletionTest123!",
+                "name": "Deletion Test User",
+                "bio": "User created for account deletion testing",
+                "location": "Deletion Test City"
+            }
+            
+            response = self.session.post(f"{API_BASE}/auth/register", json=user_data)
+            
+            if response.status_code == 200:
+                data = response.json()
+                deletion_token = data.get("access_token")
+                deletion_user_id = data.get("user", {}).get("id")
+                self.log_test("Deletion User Setup", True, "Deletion test user created successfully", 
+                            {"user_id": deletion_user_id})
+                return deletion_token, deletion_user_id, user_data["password"]
+            else:
+                self.log_test("Deletion User Setup", False, f"Failed to create deletion test user: {response.status_code}", 
+                            {"response": response.text})
+                return None, None, None
+        except Exception as e:
+            self.log_test("Deletion User Setup", False, f"Deletion user setup failed: {str(e)}")
+            return None, None, None
+
+    def test_account_deletion_wrong_password(self):
+        """Test account deletion with wrong password fails"""
+        deletion_token, deletion_user_id, correct_password = self.setup_deletion_test_user()
+        if not deletion_token:
+            self.log_test("Account Deletion Wrong Password", False, "Could not create deletion test user")
+            return
+        
+        try:
+            # Create session with deletion user's token
+            deletion_session = requests.Session()
+            deletion_session.headers.update({"Authorization": f"Bearer {deletion_token}"})
+            
+            # Try to delete with wrong password
+            deletion_data = {
+                "confirm_password": "WrongPassword123!",
+                "reason": "Testing wrong password"
+            }
+            
+            response = deletion_session.delete(f"{API_BASE}/account", json=deletion_data)
+            
+            if response.status_code == 400:
+                data = response.json()
+                if "Incorrect password" in data.get("detail", ""):
+                    self.log_test("Account Deletion Wrong Password", True, "Correctly rejected wrong password", 
+                                {"status_code": response.status_code, "detail": data.get("detail")})
+                else:
+                    self.log_test("Account Deletion Wrong Password", False, "Wrong password rejected but with unexpected message", 
+                                {"response": data})
+            else:
+                self.log_test("Account Deletion Wrong Password", False, f"Wrong password not rejected: {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Account Deletion Wrong Password", False, f"Request failed: {str(e)}")
+
+    def test_account_deletion_success(self):
+        """Test successful account deletion with correct password"""
+        deletion_token, deletion_user_id, correct_password = self.setup_deletion_test_user()
+        if not deletion_token:
+            self.log_test("Account Deletion Success", False, "Could not create deletion test user")
+            return
+        
+        try:
+            # Create session with deletion user's token
+            deletion_session = requests.Session()
+            deletion_session.headers.update({"Authorization": f"Bearer {deletion_token}"})
+            
+            # First, create a pledge to verify it gets deleted
+            pledge_data = {
+                "title": "Test Pledge for Deletion",
+                "description": "This pledge should be deleted with the account",
+                "category": "Other",
+                "tags": ["deletion-test"],
+                "location": "Test Location"
+            }
+            
+            pledge_response = deletion_session.post(f"{API_BASE}/pledges", json=pledge_data)
+            pledge_created = pledge_response.status_code == 200
+            
+            # Now delete the account with correct password
+            deletion_data = {
+                "confirm_password": correct_password,
+                "reason": "Testing successful account deletion"
+            }
+            
+            response = deletion_session.delete(f"{API_BASE}/account", json=deletion_data)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success") and "deleted successfully" in data.get("message", ""):
+                    self.log_test("Account Deletion Success", True, "Account deleted successfully", 
+                                {"deleted_user_id": deletion_user_id, "pledge_created": pledge_created, "response": data})
+                    
+                    # Verify user no longer exists by trying to get user info
+                    try:
+                        verify_response = deletion_session.get(f"{API_BASE}/auth/me")
+                        if verify_response.status_code == 401:
+                            self.log_test("Account Deletion Verification", True, "User no longer exists after deletion")
+                        else:
+                            self.log_test("Account Deletion Verification", False, "User still exists after deletion", 
+                                        {"verify_response": verify_response.text})
+                    except:
+                        self.log_test("Account Deletion Verification", True, "User no longer exists after deletion (connection failed)")
+                else:
+                    self.log_test("Account Deletion Success", False, "Deletion response unexpected", 
+                                {"response": data})
+            else:
+                self.log_test("Account Deletion Success", False, f"Deletion failed with status {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Account Deletion Success", False, f"Request failed: {str(e)}")
+
+    # ==========================================
+    # CLOUDINARY SIGNATURE TESTS
+    # ==========================================
+
+    def test_cloudinary_signature_authenticated(self):
+        """Test GET /api/cloudinary/signature with authentication"""
+        if not self.auth_token:
+            self.log_test("Cloudinary Signature Auth", False, "No auth token available for testing")
+            return
+        
+        try:
+            response = self.session.get(f"{API_BASE}/cloudinary/signature?folder=waypledge")
+            
+            if response.status_code == 200:
+                data = response.json()
+                required_fields = ["signature", "timestamp", "cloud_name", "api_key", "folder"]
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if not missing_fields:
+                    # Verify folder is correct
+                    if data.get("folder") == "waypledge":
+                        self.log_test("Cloudinary Signature Auth", True, "Cloudinary signature generated successfully", 
+                                    {"fields_present": required_fields, "folder": data.get("folder")})
+                    else:
+                        self.log_test("Cloudinary Signature Auth", False, "Incorrect folder in response", 
+                                    {"expected_folder": "waypledge", "actual_folder": data.get("folder")})
+                else:
+                    self.log_test("Cloudinary Signature Auth", False, f"Missing required fields: {missing_fields}", 
+                                {"response": data})
+            else:
+                self.log_test("Cloudinary Signature Auth", False, f"Failed with status {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Cloudinary Signature Auth", False, f"Request failed: {str(e)}")
+
+    def test_cloudinary_signature_unauthenticated(self):
+        """Test GET /api/cloudinary/signature without authentication should fail"""
+        try:
+            # Create session without auth token
+            unauth_session = requests.Session()
+            response = unauth_session.get(f"{API_BASE}/cloudinary/signature?folder=waypledge")
+            
+            if response.status_code == 401 or response.status_code == 403:
+                self.log_test("Cloudinary Signature Unauth", True, "Correctly rejected unauthenticated request", 
+                            {"status_code": response.status_code})
+            else:
+                self.log_test("Cloudinary Signature Unauth", False, f"Unauthenticated request not rejected: {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Cloudinary Signature Unauth", False, f"Request failed: {str(e)}")
+
+    def test_cloudinary_signature_invalid_folder(self):
+        """Test GET /api/cloudinary/signature with invalid folder"""
+        if not self.auth_token:
+            self.log_test("Cloudinary Invalid Folder", False, "No auth token available for testing")
+            return
+        
+        try:
+            response = self.session.get(f"{API_BASE}/cloudinary/signature?folder=invalid_folder")
+            
+            if response.status_code == 400:
+                data = response.json()
+                if "Invalid folder path" in data.get("detail", ""):
+                    self.log_test("Cloudinary Invalid Folder", True, "Correctly rejected invalid folder", 
+                                {"status_code": response.status_code, "detail": data.get("detail")})
+                else:
+                    self.log_test("Cloudinary Invalid Folder", False, "Invalid folder rejected but with unexpected message", 
+                                {"response": data})
+            else:
+                self.log_test("Cloudinary Invalid Folder", False, f"Invalid folder not rejected: {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("Cloudinary Invalid Folder", False, f"Request failed: {str(e)}")
     
     def run_all_tests(self):
-        """Run all email verification and backend tests"""
-        print("🚀 Starting WayPledge Backend Email Verification Testing")
+        """Run all backend tests including new features"""
+        print("🚀 Starting WayPledge Backend New Features Testing")
         print("=" * 60)
         
         # Test health check first
@@ -520,6 +909,35 @@ class WayPledgeAPITester:
             
             # Test basic endpoints
             self.test_categories_endpoint()
+            
+            print("\n🚫 BLOCK USER SYSTEM TESTS")
+            print("-" * 40)
+            
+            # Test block user system
+            blocked_user_id = self.test_block_user_endpoint()
+            self.test_get_blocked_users_endpoint()
+            if blocked_user_id:
+                self.test_is_blocked_endpoint(blocked_user_id)
+                self.test_unblock_user_endpoint(blocked_user_id)
+            
+            # Test edge cases
+            self.test_block_self_fails()
+            self.test_block_nonexistent_user_fails()
+            
+            print("\n☁️ CLOUDINARY SIGNATURE TESTS")
+            print("-" * 40)
+            
+            # Test Cloudinary signature endpoints
+            self.test_cloudinary_signature_authenticated()
+            self.test_cloudinary_signature_unauthenticated()
+            self.test_cloudinary_signature_invalid_folder()
+        
+        print("\n🗑️ ACCOUNT DELETION TESTS")
+        print("-" * 40)
+        
+        # Test account deletion (creates its own users)
+        self.test_account_deletion_wrong_password()
+        self.test_account_deletion_success()
         
         # Print summary
         print("\n" + "=" * 60)
@@ -549,10 +967,10 @@ def main():
     success = tester.run_all_tests()
     
     # Save detailed results to file
-    with open("/app/test_results_email_verification.json", "w") as f:
+    with open("/app/test_results_new_features.json", "w") as f:
         json.dump(tester.test_results, f, indent=2, default=str)
     
-    print(f"\n📄 Detailed results saved to: /app/test_results_email_verification.json")
+    print(f"\n📄 Detailed results saved to: /app/test_results_new_features.json")
     
     # Exit with appropriate code
     sys.exit(0 if success else 1)

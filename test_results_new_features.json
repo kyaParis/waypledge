@@ -1,0 +1,319 @@
+[
+  {
+    "test": "Health Check",
+    "success": true,
+    "message": "Health check endpoint responding (non-JSON)",
+    "timestamp": "2026-04-10T05:53:36.082236",
+    "details": {
+      "status_code": 200,
+      "response": "<!DOCTYPE html><html  lang=\"en\" style=\"height:100%\"><head><title data-rh=\"true\"></title><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, shrink-to-fit=no\"/><m"
+    }
+  },
+  {
+    "test": "Registration Email Verification",
+    "success": true,
+    "message": "User registered with email_verified: false",
+    "timestamp": "2026-04-10T05:53:36.816759",
+    "details": {
+      "user_id": "69d890605d7f50677fe4b139",
+      "email_verified": false
+    }
+  },
+  {
+    "test": "Unverified User Setup",
+    "success": true,
+    "message": "Unverified test user created successfully",
+    "timestamp": "2026-04-10T05:53:37.358311",
+    "details": {
+      "user_id": "69d890615d7f50677fe4b13a",
+      "email_verified": false
+    }
+  },
+  {
+    "test": "Verify Email Wrong Code",
+    "success": true,
+    "message": "Wrong verification code correctly rejected",
+    "timestamp": "2026-04-10T05:53:37.409703",
+    "details": {
+      "status_code": 400,
+      "detail": "Invalid verification code"
+    }
+  },
+  {
+    "test": "Resend Verification",
+    "success": false,
+    "message": "Resend failed: 500",
+    "timestamp": "2026-04-10T05:53:37.670318",
+    "details": {
+      "response": "{\"detail\":\"Failed to send email. Please try again.\"}"
+    }
+  },
+  {
+    "test": "Block Unverified Pledges",
+    "success": false,
+    "message": "Unverified user not blocked from pledges: 200",
+    "timestamp": "2026-04-10T05:53:37.735917",
+    "details": {
+      "response": "{\"id\":\"69d890615d7f50677fe4b13b\",\"user_id\":\"69d890615d7f50677fe4b13a\",\"user_name\":\"Unverified Test User\",\"title\":\"Test Pledge from Unverified User\",\"description\":\"This should be blocked\",\"category\":\"Other\",\"tags\":[\"test\"],\"location\":\"Test Location\",\"latitude\":null,\"longitude\":null,\"distance_km\":null,\"status\":\"active\",\"image\":null,\"hive_id\":null,\"hive_name\":null,\"available_until\":null,\"created_at\":\"2026-04-10T05:53:37.715097\"}"
+    }
+  },
+  {
+    "test": "Block Unverified Wishes",
+    "success": false,
+    "message": "Unverified user not blocked from wishes: 200",
+    "timestamp": "2026-04-10T05:53:37.797233",
+    "details": {
+      "response": "{\"id\":\"69d890615d7f50677fe4b13c\",\"user_id\":\"69d890615d7f50677fe4b13a\",\"user_name\":\"Unverified Test User\",\"title\":\"Test Wish from Unverified User\",\"description\":\"This should be blocked\",\"category\":\"Other\",\"tags\":[\"test\"],\"location\":\"Test Location\",\"latitude\":null,\"longitude\":null,\"distance_km\":null,\"status\":\"active\",\"fulfilled_by\":null,\"hive_id\":null,\"hive_name\":null,\"needed_by\":null,\"urgency\":\"normal\",\"created_at\":\"2026-04-10T05:53:37.778372\"}"
+    }
+  },
+  {
+    "test": "User Setup",
+    "success": true,
+    "message": "Test user created successfully",
+    "timestamp": "2026-04-10T05:53:38.276014",
+    "details": {
+      "user_id": "69d890625d7f50677fe4b13d"
+    }
+  },
+  {
+    "test": "Hives List",
+    "success": true,
+    "message": "Retrieved 21 hives successfully",
+    "timestamp": "2026-04-10T05:53:38.344245",
+    "details": {}
+  },
+  {
+    "test": "Hives Stats Fields",
+    "success": true,
+    "message": "All required stats fields present in hive response",
+    "timestamp": "2026-04-10T05:53:38.344269",
+    "details": {
+      "sample_hive_id": "69c5a4be177c7d9acf65c58c",
+      "stats": {
+        "member_count": 0,
+        "pledge_count": 0,
+        "wish_count": 0,
+        "child_hive_count": 0
+      }
+    }
+  },
+  {
+    "test": "Hives Children",
+    "success": true,
+    "message": "Retrieved 0 child hives for hive 69c5a4be177c7d9acf65c58c",
+    "timestamp": "2026-04-10T05:53:38.445362",
+    "details": {}
+  },
+  {
+    "test": "My Hives",
+    "success": true,
+    "message": "Retrieved 0 user hives successfully",
+    "timestamp": "2026-04-10T05:53:38.498245",
+    "details": {}
+  },
+  {
+    "test": "Federation Partners",
+    "success": true,
+    "message": "Retrieved 0 federated partners successfully",
+    "timestamp": "2026-04-10T05:53:38.548049",
+    "details": {}
+  },
+  {
+    "test": "Federation Partners Stats",
+    "success": true,
+    "message": "No federation partners to check stats fields",
+    "timestamp": "2026-04-10T05:53:38.548070",
+    "details": {}
+  },
+  {
+    "test": "Pledges List",
+    "success": true,
+    "message": "Retrieved 6 pledges successfully",
+    "timestamp": "2026-04-10T05:53:38.659028",
+    "details": {}
+  },
+  {
+    "test": "Pledges Hive Names",
+    "success": true,
+    "message": "No pledges with hive_id to check hive_name field",
+    "timestamp": "2026-04-10T05:53:38.659062",
+    "details": {}
+  },
+  {
+    "test": "Categories",
+    "success": true,
+    "message": "Retrieved 9 categories successfully",
+    "timestamp": "2026-04-10T05:53:38.706553",
+    "details": {}
+  },
+  {
+    "test": "Second User Setup",
+    "success": true,
+    "message": "Second test user created successfully",
+    "timestamp": "2026-04-10T05:53:39.131618",
+    "details": {
+      "user_id": "69d890625d7f50677fe4b13e"
+    }
+  },
+  {
+    "test": "Block User",
+    "success": true,
+    "message": "User blocked successfully",
+    "timestamp": "2026-04-10T05:53:39.191024",
+    "details": {
+      "blocked_user_id": "69d890625d7f50677fe4b13e",
+      "response": {
+        "success": true,
+        "message": "User blocked successfully"
+      }
+    }
+  },
+  {
+    "test": "Get Blocked Users",
+    "success": true,
+    "message": "Retrieved 1 blocked users successfully",
+    "timestamp": "2026-04-10T05:53:39.238681",
+    "details": {}
+  },
+  {
+    "test": "Blocked Users Structure",
+    "success": true,
+    "message": "Blocked users have all required fields",
+    "timestamp": "2026-04-10T05:53:39.238706",
+    "details": {
+      "sample_blocked": {
+        "id": "69d890635d7f50677fe4b13f",
+        "user_id": "69d890625d7f50677fe4b13e",
+        "user_name": "Test7945",
+        "blocked_at": "2026-04-10T05:53:39.164000"
+      }
+    }
+  },
+  {
+    "test": "Is User Blocked",
+    "success": true,
+    "message": "User correctly identified as blocked",
+    "timestamp": "2026-04-10T05:53:39.288653",
+    "details": {
+      "blocked_user_id": "69d890625d7f50677fe4b13e",
+      "is_blocked": true
+    }
+  },
+  {
+    "test": "Unblock User",
+    "success": true,
+    "message": "User unblocked successfully",
+    "timestamp": "2026-04-10T05:53:39.388590",
+    "details": {
+      "unblocked_user_id": "69d890625d7f50677fe4b13e",
+      "response": {
+        "success": true,
+        "message": "User unblocked successfully"
+      }
+    }
+  },
+  {
+    "test": "Block Self Fails",
+    "success": true,
+    "message": "Correctly prevented self-blocking",
+    "timestamp": "2026-04-10T05:53:39.492292",
+    "details": {
+      "status_code": 400,
+      "detail": "Cannot block yourself"
+    }
+  },
+  {
+    "test": "Block Nonexistent User",
+    "success": true,
+    "message": "Correctly rejected blocking non-existent user",
+    "timestamp": "2026-04-10T05:53:39.544077",
+    "details": {
+      "status_code": 404,
+      "detail": "User not found"
+    }
+  },
+  {
+    "test": "Cloudinary Signature Auth",
+    "success": true,
+    "message": "Cloudinary signature generated successfully",
+    "timestamp": "2026-04-10T05:53:39.593144",
+    "details": {
+      "fields_present": [
+        "signature",
+        "timestamp",
+        "cloud_name",
+        "api_key",
+        "folder"
+      ],
+      "folder": "waypledge"
+    }
+  },
+  {
+    "test": "Cloudinary Signature Unauth",
+    "success": true,
+    "message": "Correctly rejected unauthenticated request",
+    "timestamp": "2026-04-10T05:53:39.759291",
+    "details": {
+      "status_code": 403
+    }
+  },
+  {
+    "test": "Cloudinary Invalid Folder",
+    "success": true,
+    "message": "Correctly rejected invalid folder",
+    "timestamp": "2026-04-10T05:53:39.807294",
+    "details": {
+      "status_code": 400,
+      "detail": "Invalid folder path"
+    }
+  },
+  {
+    "test": "Deletion User Setup",
+    "success": true,
+    "message": "Deletion test user created successfully",
+    "timestamp": "2026-04-10T05:53:40.270832",
+    "details": {
+      "user_id": "69d890645d7f50677fe4b140"
+    }
+  },
+  {
+    "test": "Account Deletion Wrong Password",
+    "success": true,
+    "message": "Correctly rejected wrong password",
+    "timestamp": "2026-04-10T05:53:40.677269",
+    "details": {
+      "status_code": 400,
+      "detail": "Incorrect password"
+    }
+  },
+  {
+    "test": "Deletion User Setup",
+    "success": true,
+    "message": "Deletion test user created successfully",
+    "timestamp": "2026-04-10T05:53:41.129690",
+    "details": {
+      "user_id": "69d890645d7f50677fe4b141"
+    }
+  },
+  {
+    "test": "Account Deletion Success",
+    "success": true,
+    "message": "Account deleted successfully",
+    "timestamp": "2026-04-10T05:53:41.509619",
+    "details": {
+      "deleted_user_id": "69d890645d7f50677fe4b141",
+      "pledge_created": true,
+      "response": {
+        "success": true,
+        "message": "Account and all associated data deleted successfully"
+      }
+    }
+  },
+  {
+    "test": "Account Deletion Verification",
+    "success": true,
+    "message": "User no longer exists after deletion",
+    "timestamp": "2026-04-10T05:53:41.552499",
+    "details": {}
+  }
+]

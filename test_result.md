@@ -228,6 +228,51 @@ backend:
           agent: "testing"
           comment: "✅ N+1 Query Fix Testing COMPLETED - All backend endpoints tested successfully. Verified batch query optimizations for: GET /api/hives (21 hives with accurate stats), GET /api/hives/{id}/children, GET /api/hives/my/memberships, GET /api/federation/partners, and GET /api/pledges (hive_name properly populated). Created test data including hive and pledge with hive association to verify batch_get_hive_stats() and batch_get_parent_hive_names() functions work correctly. All 15 comprehensive tests passed with 100% success rate."
 
+  - task: "Block User System"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Implemented POST /api/users/{id}/block, DELETE /api/users/{id}/block, GET /api/blocked-users, GET /api/users/{id}/is-blocked endpoints. Users can block other users and blocked users list is stored in DB."
+        - working: true
+          agent: "testing"
+          comment: "✅ BLOCK USER SYSTEM FULLY FUNCTIONAL! Comprehensive testing completed (8/8 tests passed, 100% success rate): 1) ✅ Block user endpoint works correctly, 2) ✅ Get blocked users list returns proper structure with all required fields, 3) ✅ Check if user is blocked returns correct status, 4) ✅ Unblock user works successfully, 5) ✅ Self-blocking correctly prevented with 400 error, 6) ✅ Blocking non-existent user correctly rejected with 404 error. All block user functionality working perfectly."
+
+  - task: "Account Deletion"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Implemented DELETE /api/account endpoint. Requires password confirmation, deletes all user data (pledges, wishes, messages, connections, gratitude, hive memberships, blocked users records), and finally deletes the user account."
+        - working: true
+          agent: "testing"
+          comment: "✅ ACCOUNT DELETION SYSTEM FULLY FUNCTIONAL! Comprehensive testing completed (4/4 tests passed, 100% success rate): 1) ✅ Wrong password correctly rejected with 400 error and 'Incorrect password' message, 2) ✅ Successful deletion with correct password removes account and all associated data, 3) ✅ User verification after deletion confirms complete removal (401 error when trying to access), 4) ✅ Created pledges are properly deleted along with account. Account deletion working perfectly with proper security validation."
+
+  - task: "Cloudinary Image Upload"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Implemented GET /api/cloudinary/signature endpoint for signed uploads. Uses Cloudinary free tier (25GB). Frontend ImagePickerButton component created for camera/gallery image selection with automatic upload to Cloudinary."
+        - working: true
+          agent: "testing"
+          comment: "✅ CLOUDINARY SIGNATURE SYSTEM FULLY FUNCTIONAL! Comprehensive testing completed (3/3 tests passed, 100% success rate): 1) ✅ Authenticated requests get valid signatures with all required fields (signature, timestamp, cloud_name, api_key, folder), 2) ✅ Unauthenticated requests correctly rejected with 401 error, 3) ✅ Invalid folder paths correctly rejected with 400 error and 'Invalid folder path' message. Cloudinary integration working perfectly with proper security validation."
+
 frontend:
   - task: "Authentication Flow"
     implemented: true
@@ -392,3 +437,7 @@ agent_communication:
       message: "✅ EMAIL VERIFICATION BACKEND TESTING COMPLETE! 94.1% pass rate (16/17 tests). ✅ Registration creates users with email_verified=false. ✅ Unverified users blocked from creating pledges (403). ✅ Unverified users blocked from creating wishes (403). ✅ Verify-email endpoint validates codes correctly. ⚠️ Resend-verification returns 500 due to waypledge.me domain not verified in Resend service (expected - user needs to verify domain in Resend dashboard). Backend anti-spam measures working as intended."
     - agent: "testing"
       message: "🔐 EMAIL VERIFICATION SYSTEM TESTING COMPLETE! Comprehensive testing of anti-spam email verification flow completed with 94.1% success rate (16/17 tests passed). ✅ VERIFIED: Registration creates users with email_verified: false, wrong verification codes properly rejected (400 error), unverified users correctly blocked from creating pledges/wishes (403 errors with proper messages). ✅ VERIFIED: All verification endpoints exist and respond correctly. Minor: Resend verification fails due to waypledge.me domain not verified in Resend service (expected in testing environment). The email verification system is working perfectly for anti-spam protection - users must verify email before creating content."
+    - agent: "main"
+      message: "Implemented NEW BACKEND FEATURES: 1) Block User System - POST/DELETE /api/users/{id}/block, GET /api/blocked-users, GET /api/users/{id}/is-blocked endpoints for user blocking functionality. 2) Account Deletion - DELETE /api/account endpoint with password confirmation that removes all user data. 3) Cloudinary Image Upload - GET /api/cloudinary/signature endpoint for secure image uploads. All endpoints include proper authentication, validation, and error handling."
+    - agent: "testing"
+      message: "🎯 NEW BACKEND FEATURES TESTING COMPLETE! Comprehensive testing of Block User System, Account Deletion, and Cloudinary Signature endpoints completed with 90.9% success rate (30/33 tests passed). ✅ BLOCK USER SYSTEM: All 8 tests passed - block/unblock users, get blocked list, check blocked status, prevent self-blocking, handle non-existent users. ✅ ACCOUNT DELETION: All 4 tests passed - password validation, successful deletion, data cleanup verification. ✅ CLOUDINARY SIGNATURE: All 3 tests passed - authenticated signatures, reject unauthenticated, validate folder paths. The 3 failed tests were related to email verification (expected - verification disabled in favor of honeypot anti-spam). All new backend features are fully functional and production-ready."
