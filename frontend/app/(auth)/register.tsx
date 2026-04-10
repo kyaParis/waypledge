@@ -11,6 +11,7 @@ import {
   Alert,
   ActivityIndicator,
   SafeAreaView,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
@@ -18,9 +19,61 @@ import { useAuthStore } from '../../store/authStore';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
 
+// BETA MODE - Set to true to disable registration
+const BETA_MODE = true;
+
 export default function RegisterScreen() {
   const router = useRouter();
   const register = useAuthStore((state) => state.register);
+  
+  // If in beta mode, show beta message instead of registration form
+  if (BETA_MODE) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.betaContainer}>
+          <View style={styles.betaIconContainer}>
+            <MaterialIcons name="science" size={64} color={Colors.accent} />
+          </View>
+          
+          <Text style={styles.betaTitle}>Beta Testing</Text>
+          
+          <Text style={styles.betaMessage}>
+            WayPledge is currently in private beta testing.
+          </Text>
+          
+          <Text style={styles.betaMessage}>
+            We're building a community where people give and receive freely, without money changing hands.
+          </Text>
+          
+          <View style={styles.betaBox}>
+            <MaterialIcons name="email" size={24} color={Colors.primary} />
+            <Text style={styles.betaBoxText}>
+              Want to be a tester?{'\n'}
+              Email us at:
+            </Text>
+            <TouchableOpacity 
+              onPress={() => Linking.openURL('mailto:together@waypledge.me?subject=Beta%20Tester%20Request')}
+            >
+              <Text style={styles.betaEmail}>together@waypledge.me</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <Text style={styles.betaNote}>
+            Tell us a bit about yourself and why you'd like to join the WayPledge community!
+          </Text>
+          
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <MaterialIcons name="arrow-back" size={20} color={Colors.primary} />
+            <Text style={styles.backButtonText}>Back to Login</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  
   const [name, setName] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -473,5 +526,83 @@ const styles = StyleSheet.create({
   loginLinkTextBold: {
     color: Colors.primary,
     fontWeight: '600',
+  },
+  // Beta mode styles
+  betaContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: Colors.background,
+  },
+  betaIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: Colors.accent + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  betaTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 16,
+  },
+  betaMessage: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  betaBox: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    marginVertical: 20,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  betaBoxText: {
+    fontSize: 15,
+    color: Colors.text,
+    textAlign: 'center',
+    marginTop: 12,
+    lineHeight: 22,
+  },
+  betaEmail: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginTop: 8,
+    textDecorationLine: 'underline',
+  },
+  betaNote: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 8,
+    paddingHorizontal: 20,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 32,
+    padding: 12,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: Colors.primary,
+    fontWeight: '500',
   },
 });

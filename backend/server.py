@@ -163,6 +163,7 @@ class UserResponse(BaseModel):
     created_at: datetime
     is_admin: bool = False
     email_verified: bool = False
+    is_approved: bool = False  # New users need admin approval
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -580,6 +581,13 @@ async def create_pledge(pledge: PledgeCreate, current_user = Depends(get_current
             detail="Please verify your email before creating pledges. Check your inbox for the verification code."
         )
     
+    # Block unapproved users from creating pledges
+    if not current_user.get("is_approved", False) and not current_user.get("is_admin", False):
+        raise HTTPException(
+            status_code=403, 
+            detail="Your account is pending approval. We'll notify you once approved!"
+        )
+    
     # Duplicate prevention: Check if same title was created in the last 60 seconds
     recent_cutoff = datetime.utcnow() - timedelta(seconds=60)
     existing = await db.pledges.find_one({
@@ -816,6 +824,13 @@ async def create_wish(wish: WishCreate, current_user = Depends(get_current_user)
         raise HTTPException(
             status_code=403, 
             detail="Please verify your email before creating wishes. Check your inbox for the verification code."
+        )
+    
+    # Block unapproved users from creating wishes
+    if not current_user.get("is_approved", False) and not current_user.get("is_admin", False):
+        raise HTTPException(
+            status_code=403, 
+            detail="Your account is pending approval. We'll notify you once approved!"
         )
     
     # Duplicate prevention: Check if same title was created in the last 60 seconds
@@ -1338,6 +1353,66 @@ async def check_if_blocked(user_id: str, current_user = Depends(get_current_user
         "blocked_id": user_id
     })
     return {"is_blocked": blocked is not None}
+
+# ==========================================
+# ADMIN USER APPROVAL ENDPOINTS
+# ==========================================
+
+@api_router.get("/admin/pending-users")
+async def get_pending_users(current_user = Depends(get_current_user)):
+    """Get list of users pending approval (admin only)"""
+    if not is_user_admin(current_user["email"]):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    pending_users = await db.users.find({
+        "is_approved": {"$ne": True}
+    }).sort("created_at", -1).to_list(100)
+    
+    return [{
+        "id": str(u["_id"]),
+        "name": u.get("name", "Unknown"),
+        "email": u.get("email", "Unknown"),
+        "created_at": u.get("created_at"),
+        "email_verified": u.get("email_verified", False)
+    } for u in pending_users]
+
+@api_router.post("/admin/approve-user/{user_id}")
+async def approve_user(user_id: str, current_user = Depends(get_current_user)):
+    """Approve a user to create content (admin only)"""
+    if not is_user_admin(current_user["email"]):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"is_approved": True, "email_verified": True}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get user info for logging
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    logger.info(f"Admin {current_user['email']} approved user: {user.get('email', 'unknown')}")
+    
+    return {"success": True, "message": f"User {user.get('name', 'unknown')} approved successfully"}
+
+@api_router.post("/admin/reject-user/{user_id}")
+async def reject_user(user_id: str, current_user = Depends(get_current_user)):
+    """Reject and delete a user account (admin only)"""
+    if not is_user_admin(current_user["email"]):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get user info for logging
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Delete the user
+    await db.users.delete_one({"_id": ObjectId(user_id)})
+    
+    logger.info(f"Admin {current_user['email']} rejected/deleted user: {user.get('email', 'unknown')}")
+    
+    return {"success": True, "message": f"User {user.get('name', 'unknown')} rejected and deleted"}
 
 # ==========================================
 # ACCOUNT DELETION ENDPOINTS
