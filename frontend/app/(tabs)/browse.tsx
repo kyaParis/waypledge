@@ -702,89 +702,88 @@ export default function BrowseScreen() {
         transparent={true}
         onRequestClose={() => setConnectModalVisible(false)}
       >
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
-          <Pressable 
-            style={styles.modalOverlayTouchable} 
-            onPress={() => {
-              Keyboard.dismiss();
-              setConnectModalVisible(false);
-            }}
-          >
-            <Pressable 
-              style={styles.modalContent}
-              onPress={(e) => e.stopPropagation()}
+        <TouchableWithoutFeedback onPress={() => {
+          Keyboard.dismiss();
+          setConnectModalVisible(false);
+        }}>
+          <View style={styles.modalOverlay}>
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={styles.keyboardAvoidContainer}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
             >
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {connectItem?.type === 'pledge' ? 'Ask About This Pledge' : 'Offer to Help'}
-                </Text>
-                <TouchableOpacity onPress={() => setConnectModalVisible(false)}>
-                  <MaterialIcons name="close" size={24} color={Colors.text} />
-                </TouchableOpacity>
-              </View>
-              
-              {connectItem && (
-                <View style={styles.modalItemInfo}>
-                  <Text style={styles.modalItemTitle}>{connectItem.item.title}</Text>
-                  <Text style={styles.modalItemUser}>by {connectItem.item.user_name}</Text>
-                </View>
-              )}
-              
-              <Text style={styles.modalLabel}>Your message:</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder={connectItem?.type === 'pledge' 
-                  ? "Hi! I'm interested in your pledge. Could you tell me more about..."
-                  : "Hi! I'd like to help with this. I can..."
-                }
-                value={connectMessage}
-                onChangeText={setConnectMessage}
-                multiline
-                numberOfLines={4}
-                placeholderTextColor={Colors.textSecondary}
-              />
-              
-              <View style={styles.modalButtons}>
-                <Pressable 
-                  style={({ pressed }) => [
-                    styles.modalCancelButton,
-                    pressed && { opacity: 0.7 }
-                  ]}
-                  onPress={() => setConnectModalVisible(false)}
-                >
-                  <Text style={styles.modalCancelText}>Cancel</Text>
-                </Pressable>
-                
-                <Pressable 
-                  style={({ pressed }) => [
-                    styles.modalSendButton,
-                    { backgroundColor: connectItem?.type === 'pledge' ? Colors.pledgeMedium : Colors.wishMedium },
-                    (!connectMessage.trim() || sendingMessage) && { opacity: 0.5 },
-                    pressed && { opacity: 0.8 }
-                  ]}
-                  onPress={() => {
-                    console.log('Send button pressed');
-                    Keyboard.dismiss();
-                    sendConnection();
-                  }}
-                  disabled={sendingMessage || !connectMessage.trim()}
-                >
-                  {sendingMessage ? (
-                    <ActivityIndicator color={Colors.surface} size="small" />
-                  ) : (
-                    <>
-                      <MaterialIcons name="send" size={18} color={Colors.surface} />
-                      <Text style={styles.modalSendText}>Send Message</Text>
-                    </>
+              <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>
+                      {connectItem?.type === 'pledge' ? 'Ask About This Pledge' : 'Offer to Help'}
+                    </Text>
+                    <TouchableOpacity onPress={() => setConnectModalVisible(false)}>
+                      <MaterialIcons name="close" size={24} color={Colors.text} />
+                    </TouchableOpacity>
+                  </View>
+                  
+                  {connectItem && (
+                    <View style={styles.modalItemInfo}>
+                      <Text style={styles.modalItemTitle}>{connectItem.item.title}</Text>
+                      <Text style={styles.modalItemUser}>by {connectItem.item.user_name}</Text>
+                    </View>
                   )}
-                </Pressable>
-              </View>
-            </Pressable>
-          </Pressable>
-        </KeyboardAvoidingView>
+                  
+                  <Text style={styles.modalLabel}>Your message:</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder={connectItem?.type === 'pledge' 
+                      ? "Hi! I'm interested in your pledge..."
+                      : "Hi! I'd like to help with this..."
+                    }
+                    value={connectMessage}
+                    onChangeText={setConnectMessage}
+                    multiline
+                    numberOfLines={3}
+                    placeholderTextColor={Colors.textSecondary}
+                  />
+                  
+                  <View style={styles.modalButtons}>
+                    <Pressable 
+                      style={({ pressed }) => [
+                        styles.modalCancelButton,
+                        pressed && { opacity: 0.7 }
+                      ]}
+                      onPress={() => setConnectModalVisible(false)}
+                    >
+                      <Text style={styles.modalCancelText}>Cancel</Text>
+                    </Pressable>
+                    
+                    <Pressable 
+                      style={({ pressed }) => [
+                        styles.modalSendButton,
+                        { backgroundColor: connectItem?.type === 'pledge' ? Colors.pledgeMedium : Colors.wishMedium },
+                        (!connectMessage.trim() || sendingMessage) && { opacity: 0.5 },
+                        pressed && { opacity: 0.8 }
+                      ]}
+                      onPress={() => {
+                        console.log('Send button pressed');
+                        Keyboard.dismiss();
+                        sendConnection();
+                      }}
+                      disabled={sendingMessage || !connectMessage.trim()}
+                    >
+                      {sendingMessage ? (
+                        <ActivityIndicator color={Colors.surface} size="small" />
+                      ) : (
+                        <>
+                          <MaterialIcons name="send" size={18} color={Colors.surface} />
+                          <Text style={styles.modalSendText}>Send Message</Text>
+                        </>
+                      )}
+                    </Pressable>
+                  </View>
+                </View>
+              </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
+          </View>
+        </TouchableWithoutFeedback>
       </Modal>
     </SafeAreaView>
   );
@@ -1072,15 +1071,19 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  keyboardAvoidContainer: {
+    width: '100%',
+    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: Colors.background,
-    borderRadius: 16,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     padding: 20,
-    width: '90%',
-    maxWidth: 400,
+    paddingBottom: 40,
+    width: '100%',
   },
   modalHeader: {
     flexDirection: 'row',
