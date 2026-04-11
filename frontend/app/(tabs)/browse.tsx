@@ -119,26 +119,29 @@ export default function BrowseScreen() {
     }
   };
 
-  // Search in a typed location
+  // Search in a typed location - use text matching
   const searchInLocation = async () => {
     if (!searchLocationText.trim()) {
       // Clear location filter
+      setLocationFilter('');
       setSearchLat(null);
       setSearchLng(null);
       return;
     }
     
+    // Use text-based location filtering instead of geocoding
+    setLocationFilter(searchLocationText.trim());
+    
+    // Also try geocoding for distance-based filtering (may not work on web)
     setIsGettingLocation(true);
     try {
       const results = await Location.geocodeAsync(searchLocationText);
       if (results && results.length > 0) {
         setSearchLat(results[0].latitude);
         setSearchLng(results[0].longitude);
-      } else {
-        Alert.alert('Location Not Found', 'Could not find that location. Try being more specific (e.g., "London, UK").');
       }
     } catch (error) {
-      Alert.alert('Error', 'Could not search for that location.');
+      console.log('Geocoding not available, using text filter only');
     } finally {
       setIsGettingLocation(false);
     }
@@ -331,12 +334,13 @@ export default function BrowseScreen() {
 
       {/* Location Search with GPS and Radius */}
       <View style={styles.locationSearchContainer}>
+        <Text style={styles.searchSectionLabel}>Filter by Location</Text>
         <View style={styles.locationInputRow}>
           <View style={styles.locationInputWrapper}>
             <MaterialIcons name="location-on" size={20} color={Colors.textSecondary} style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search location (e.g., New York, USA)"
+              placeholder="Type a city or country (e.g., London, UK)"
               value={searchLocationText}
               onChangeText={setSearchLocationText}
               onSubmitEditing={searchInLocation}
@@ -368,6 +372,19 @@ export default function BrowseScreen() {
             <MaterialIcons name="search" size={20} color={Colors.surface} />
           </TouchableOpacity>
         </View>
+        
+        {/* Show active location filter */}
+        {locationFilter && locationFilter !== 'Online' && (
+          <View style={styles.activeFilterBar}>
+            <MaterialIcons name="filter-list" size={16} color={Colors.primary} />
+            <Text style={styles.activeFilterText}>
+              Showing results matching: "{locationFilter}"
+            </Text>
+            <TouchableOpacity onPress={clearLocationSearch}>
+              <MaterialIcons name="close" size={18} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        )}
         
         {/* Radius selector */}
         <View style={styles.radiusRow}>
@@ -1195,6 +1212,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 4,
+  },
+  searchSectionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    marginBottom: 8,
+  },
+  activeFilterBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary + '15',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    gap: 8,
+  },
+  activeFilterText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '500',
   },
   locationInputRow: {
     flexDirection: 'row',
