@@ -583,18 +583,19 @@ export default function BrowseScreen() {
                 />
               )}
 
-              {item.location && (
+              {/* Only show "Online" indicator, hide specific locations for privacy */}
+              {item.location === 'Online' && (
                 <View style={styles.locationContainer}>
                   <MaterialIcons
-                    name={item.location === 'Online' ? 'language' : 'location-on'}
+                    name="language"
                     size={14}
-                    color={item.location === 'Online' ? Colors.primary : Colors.textSecondary}
+                    color={Colors.primary}
                   />
                   <Text style={[
                     styles.locationText,
-                    item.location === 'Online' && { color: Colors.primary, fontWeight: '600' }
+                    { color: Colors.primary, fontWeight: '600' }
                   ]}>
-                    {item.location}
+                    Online
                   </Text>
                 </View>
               )}

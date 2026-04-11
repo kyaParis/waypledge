@@ -234,12 +234,7 @@ export default function ProfileScreen() {
           </View>
           <Text style={styles.userName}>{user?.name}</Text>
           <Text style={styles.userEmail}>{user?.email}</Text>
-          {user?.location && (
-            <View style={styles.locationContainer}>
-              <MaterialIcons name="location-on" size={16} color={Colors.textSecondary} />
-              <Text style={styles.userLocation}>{user.location}</Text>
-            </View>
-          )}
+          {/* Location hidden for privacy */}
           {user?.bio && <Text style={styles.userBio}>{user.bio}</Text>}
         </View>
 
