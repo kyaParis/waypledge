@@ -533,6 +533,40 @@ export default function ProfileScreen() {
           </View>
         </Modal>
 
+        {/* Quick Links Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Links</Text>
+          
+          <TouchableOpacity 
+            style={styles.quickLinkButton}
+            onPress={() => router.push('/(tabs)/hive')}
+          >
+            <MaterialIcons name="hexagon" size={22} color={Colors.primary} />
+            <Text style={styles.quickLinkText}>My Hive</Text>
+            <MaterialIcons name="chevron-right" size={22} color={Colors.textSecondary} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.quickLinkButton}
+            onPress={() => router.push('/(tabs)/about')}
+          >
+            <MaterialIcons name="info" size={22} color={Colors.primary} />
+            <Text style={styles.quickLinkText}>About WayPledge</Text>
+            <MaterialIcons name="chevron-right" size={22} color={Colors.textSecondary} />
+          </TouchableOpacity>
+          
+          {isAdmin && (
+            <TouchableOpacity 
+              style={styles.quickLinkButton}
+              onPress={() => router.push('/(tabs)/admin')}
+            >
+              <MaterialIcons name="admin-panel-settings" size={22} color={Colors.primary} />
+              <Text style={styles.quickLinkText}>Admin Dashboard</Text>
+              <MaterialIcons name="chevron-right" size={22} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          )}
+        </View>
+
         <View style={styles.section}>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <MaterialIcons name="logout" size={20} color={Colors.error} />
@@ -1090,5 +1124,19 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  quickLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  quickLinkText: {
+    flex: 1,
+    fontSize: 16,
+    color: Colors.text,
+    marginLeft: 12,
   },
 });

@@ -43,7 +43,7 @@ export default function TabsLayout() {
           paddingTop: 10,
         },
         tabBarLabelStyle: {
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: '600',
           marginTop: 2,
         },
@@ -71,29 +71,11 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="hive"
-        options={{
-          title: 'Hive',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="hexagon" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="create"
         options={{
           title: 'Create',
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="add-circle" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="about"
-        options={{
-          title: 'About',
-          tabBarIcon: ({ color, size}) => (
-            <MaterialIcons name="info" size={size} color={color} />
           ),
         }}
       />
@@ -124,14 +106,23 @@ export default function TabsLayout() {
           ),
         }}
       />
+      {/* Hidden tabs - accessible from Profile */}
+      <Tabs.Screen
+        name="hive"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="about"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
       <Tabs.Screen
         name="admin"
         options={{
-          title: 'Admin',
-          href: isAdmin ? '/admin' : null,
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="admin-panel-settings" size={size} color={color} />
-          ),
+          href: null, // Hide from tab bar - access from Profile
         }}
       />
     </Tabs>
