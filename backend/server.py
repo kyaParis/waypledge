@@ -794,14 +794,20 @@ async def get_pledges(
     query = {"status": "active"}
     if category:
         query["category"] = category
-    if location and location.lower() != "online":
-        # Include items that match the location OR are Online (available everywhere)
+    if location and location.lower() not in ["online", "both"]:
+        # Include items that match the location OR are Online/Both (available everywhere)
         query["$or"] = [
             {"location": {"$regex": location, "$options": "i"}},
-            {"location": {"$regex": "^online$", "$options": "i"}}
+            {"location": {"$regex": "^online$", "$options": "i"}},
+            {"location": {"$regex": "^both$", "$options": "i"}}
         ]
     elif location and location.lower() == "online":
         query["location"] = {"$regex": "online", "$options": "i"}
+    elif location and location.lower() == "both":
+        query["$or"] = [
+            {"location": {"$regex": "online", "$options": "i"}},
+            {"location": {"$regex": "both", "$options": "i"}}
+        ]
     if hive_id:
         query["hive_id"] = hive_id
     if search:
