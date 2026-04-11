@@ -214,12 +214,7 @@ export default function ProfileScreen() {
       console.log('Logging out...');
       await logout();
       console.log('Logout successful, navigating to welcome...');
-      // Use window.location for web compatibility
-      if (typeof window !== 'undefined') {
-        window.location.href = '/';
-      } else {
-        router.replace('/(auth)/welcome');
-      }
+      router.replace('/(auth)/welcome');
     } catch (error) {
       console.error('Logout error:', error);
     }
