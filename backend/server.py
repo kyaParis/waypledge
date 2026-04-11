@@ -817,11 +817,20 @@ async def get_pledges(
         distance_km = None
         
         # Calculate distance if user provided coordinates and pledge has coordinates
-        if lat is not None and lng is not None and p.get("latitude") and p.get("longitude"):
-            distance_km = calculate_distance_km(lat, lng, p["latitude"], p["longitude"])
-            # Skip if outside radius
-            if radius_km and distance_km > radius_km:
-                continue
+        if lat is not None and lng is not None:
+            if p.get("latitude") and p.get("longitude"):
+                distance_km = calculate_distance_km(lat, lng, p["latitude"], p["longitude"])
+                # Skip if outside radius
+                if radius_km and distance_km > radius_km:
+                    continue
+            else:
+                # Pledge has no coordinates - skip it in location-based searches
+                # unless the pledge location text contains relevant keywords or is "Online"
+                pledge_location = (p.get("location") or "").lower()
+                if pledge_location == "online" or pledge_location == "both":
+                    pass  # Include online/both pledges in any search
+                else:
+                    continue  # Skip pledges without coordinates in location-based searches
         
         hive_id_val = p.get("hive_id")
         hive_name = hive_names.get(hive_id_val) if hive_id_val else None
