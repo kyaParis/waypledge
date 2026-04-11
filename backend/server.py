@@ -794,16 +794,34 @@ async def get_pledges(
     query = {"status": "active"}
     if category:
         query["category"] = category
-    if location:
-        query["location"] = {"$regex": location, "$options": "i"}
+    if location and location.lower() != "online":
+        # Include items that match the location OR are Online (available everywhere)
+        query["$or"] = [
+            {"location": {"$regex": location, "$options": "i"}},
+            {"location": {"$regex": "^online$", "$options": "i"}}
+        ]
+    elif location and location.lower() == "online":
+        query["location"] = {"$regex": "online", "$options": "i"}
     if hive_id:
         query["hive_id"] = hive_id
     if search:
-        query["$or"] = [
-            {"title": {"$regex": search, "$options": "i"}},
-            {"description": {"$regex": search, "$options": "i"}},
-            {"tags": {"$regex": search, "$options": "i"}}
-        ]
+        if "$or" in query:
+            # Combine with existing $or using $and
+            existing_or = query.pop("$or")
+            query["$and"] = [
+                {"$or": existing_or},
+                {"$or": [
+                    {"title": {"$regex": search, "$options": "i"}},
+                    {"description": {"$regex": search, "$options": "i"}},
+                    {"tags": {"$regex": search, "$options": "i"}}
+                ]}
+            ]
+        else:
+            query["$or"] = [
+                {"title": {"$regex": search, "$options": "i"}},
+                {"description": {"$regex": search, "$options": "i"}},
+                {"tags": {"$regex": search, "$options": "i"}}
+            ]
     
     pledges = await db.pledges.find(query).sort("created_at", -1).to_list(100)
     
