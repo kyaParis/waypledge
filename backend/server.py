@@ -50,8 +50,23 @@ resend.api_key = os.environ.get("RESEND_API_KEY", "")
 # Admin emails (comma-separated)
 ADMIN_EMAILS = [e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").split(",") if e.strip()]
 
-def is_user_admin(email: str) -> bool:
-    """Check if a user email is in the admin list"""
+async def is_user_admin(email: str, user_doc: dict = None) -> bool:
+    """Check if a user is an admin (via env var OR database flag)"""
+    # Check env var first
+    if email.lower() in ADMIN_EMAILS:
+        return True
+    # Check database flag
+    if user_doc and user_doc.get("is_admin"):
+        return True
+    # If no user_doc provided, look it up
+    if not user_doc:
+        user = await db.users.find_one({"email": email.lower()})
+        if user and user.get("is_admin"):
+            return True
+    return False
+
+def is_user_admin_sync(email: str) -> bool:
+    """Sync version - only checks env var (for non-async contexts)"""
     return email.lower() in ADMIN_EMAILS
 
 def generate_verification_code() -> str:
@@ -505,7 +520,7 @@ async def login(user_data: UserLogin):
         longitude=user.get("longitude"),
         avatar=user.get("avatar"),
         created_at=user["created_at"],
-        is_admin=is_user_admin(user["email"]),
+        is_admin=user.get("is_admin", False) or user["email"].lower() in ADMIN_EMAILS,
         email_verified=user.get("email_verified", False)
     )
     
@@ -666,7 +681,7 @@ async def get_me(current_user = Depends(get_current_user)):
         longitude=current_user.get("longitude"),
         avatar=current_user.get("avatar"),
         created_at=current_user["created_at"],
-        is_admin=is_user_admin(current_user["email"]),
+        is_admin=current_user.get("is_admin", False) or current_user["email"].lower() in ADMIN_EMAILS,
         email_verified=current_user.get("email_verified", False)
     )
 
@@ -1360,7 +1375,7 @@ async def create_report(report: ReportCreate, current_user = Depends(get_current
 @api_router.get("/reports/all", response_model=List[ReportResponse])
 async def get_all_reports(current_user = Depends(get_current_user)):
     # Only admins can view all reports
-    if not is_user_admin(current_user["email"]):
+    if not await is_user_admin(current_user["email"], current_user):
         raise HTTPException(status_code=403, detail="Admin access required")
     reports = await db.reports.find().sort("created_at", -1).to_list(200)
     return [ReportResponse(
@@ -1379,7 +1394,7 @@ async def get_all_reports(current_user = Depends(get_current_user)):
 @api_router.patch("/reports/{report_id}/status")
 async def update_report_status(report_id: str, status: str, current_user = Depends(get_current_user)):
     # Only admins can update report status
-    if not is_user_admin(current_user["email"]):
+    if not await is_user_admin(current_user["email"], current_user):
         raise HTTPException(status_code=403, detail="Admin access required")
     await db.reports.update_one(
         {"_id": ObjectId(report_id)},
@@ -1467,7 +1482,7 @@ async def check_if_blocked(user_id: str, current_user = Depends(get_current_user
 @api_router.get("/admin/pending-users")
 async def get_pending_users(current_user = Depends(get_current_user)):
     """Get list of users pending approval (admin only)"""
-    if not is_user_admin(current_user["email"]):
+    if not await is_user_admin(current_user["email"], current_user):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     pending_users = await db.users.find({
@@ -1485,7 +1500,7 @@ async def get_pending_users(current_user = Depends(get_current_user)):
 @api_router.post("/admin/approve-user/{user_id}")
 async def approve_user(user_id: str, current_user = Depends(get_current_user)):
     """Approve a user to create content (admin only)"""
-    if not is_user_admin(current_user["email"]):
+    if not await is_user_admin(current_user["email"], current_user):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     result = await db.users.update_one(
@@ -1505,7 +1520,7 @@ async def approve_user(user_id: str, current_user = Depends(get_current_user)):
 @api_router.post("/admin/reject-user/{user_id}")
 async def reject_user(user_id: str, current_user = Depends(get_current_user)):
     """Reject and delete a user account (admin only)"""
-    if not is_user_admin(current_user["email"]):
+    if not await is_user_admin(current_user["email"], current_user):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     # Get user info for logging
@@ -1519,6 +1534,67 @@ async def reject_user(user_id: str, current_user = Depends(get_current_user)):
     logger.info(f"Admin {current_user['email']} rejected/deleted user: {user.get('email', 'unknown')}")
     
     return {"success": True, "message": f"User {user.get('name', 'unknown')} rejected and deleted"}
+
+# Admin Management Endpoints
+@api_router.get("/admin/users")
+async def get_all_users(current_user = Depends(get_current_user)):
+    """Get list of all users (admin only)"""
+    if not await is_user_admin(current_user["email"], current_user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    users = await db.users.find().sort("created_at", -1).to_list(500)
+    
+    return [{
+        "id": str(u["_id"]),
+        "name": u.get("name", "Unknown"),
+        "email": u.get("email", "Unknown"),
+        "display_name": u.get("display_name", u.get("name", "User")),
+        "is_admin": u.get("is_admin", False) or u.get("email", "").lower() in ADMIN_EMAILS,
+        "is_approved": u.get("is_approved", False),
+        "created_at": u.get("created_at"),
+    } for u in users]
+
+@api_router.post("/admin/make-admin/{user_id}")
+async def make_user_admin(user_id: str, current_user = Depends(get_current_user)):
+    """Make a user an admin (admin only)"""
+    if not await is_user_admin(current_user["email"], current_user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"is_admin": True}}
+    )
+    
+    logger.info(f"Admin {current_user['email']} granted admin access to: {user.get('email', 'unknown')}")
+    
+    return {"success": True, "message": f"{user.get('name', 'Unknown')} is now an admin"}
+
+@api_router.post("/admin/remove-admin/{user_id}")
+async def remove_user_admin(user_id: str, current_user = Depends(get_current_user)):
+    """Remove admin status from a user (admin only)"""
+    if not await is_user_admin(current_user["email"], current_user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Prevent removing admin from env-defined admins
+    if user.get("email", "").lower() in ADMIN_EMAILS:
+        raise HTTPException(status_code=400, detail="Cannot remove admin status from system administrators")
+    
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"is_admin": False}}
+    )
+    
+    logger.info(f"Admin {current_user['email']} removed admin access from: {user.get('email', 'unknown')}")
+    
+    return {"success": True, "message": f"{user.get('name', 'Unknown')} is no longer an admin"}
 
 # ==========================================
 # ACCOUNT DELETION ENDPOINTS
@@ -1937,7 +2013,7 @@ async def create_hive(hive: HiveCreate, force: bool = False, current_user = Depe
 @api_router.post("/hives/{hive_id}/verify")
 async def verify_hive(hive_id: str, current_user = Depends(get_current_user)):
     """Admin: Verify a hive as legitimate"""
-    if not is_user_admin(current_user["email"]):
+    if not await is_user_admin(current_user["email"], current_user):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     hive = await db.hives.find_one({"_id": ObjectId(hive_id)})
@@ -1955,7 +2031,7 @@ async def verify_hive(hive_id: str, current_user = Depends(get_current_user)):
 @api_router.post("/hives/{hive_id}/unverify")
 async def unverify_hive(hive_id: str, current_user = Depends(get_current_user)):
     """Admin: Remove verification from a hive"""
-    if not is_user_admin(current_user["email"]):
+    if not await is_user_admin(current_user["email"], current_user):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     await db.hives.update_one(
@@ -2142,7 +2218,7 @@ async def request_federation(request: FederationRequest):
 @api_router.get("/federation/requests", response_model=List[FederationResponse])
 async def get_federation_requests(current_user = Depends(get_current_user)):
     """Admin: View all federation requests"""
-    if not is_user_admin(current_user["email"]):
+    if not await is_user_admin(current_user["email"], current_user):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     requests = await db.federation.find().sort("created_at", -1).to_list(100)
@@ -2163,7 +2239,7 @@ async def get_federation_requests(current_user = Depends(get_current_user)):
 @api_router.post("/federation/{request_id}/approve")
 async def approve_federation(request_id: str, current_user = Depends(get_current_user)):
     """Admin: Approve a federation request and generate API key"""
-    if not is_user_admin(current_user["email"]):
+    if not await is_user_admin(current_user["email"], current_user):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     fed_request = await db.federation.find_one({"_id": ObjectId(request_id)})
@@ -2216,7 +2292,7 @@ async def approve_federation(request_id: str, current_user = Depends(get_current
 @api_router.post("/federation/{request_id}/reject")
 async def reject_federation(request_id: str, current_user = Depends(get_current_user)):
     """Admin: Reject a federation request"""
-    if not is_user_admin(current_user["email"]):
+    if not await is_user_admin(current_user["email"], current_user):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     await db.federation.update_one(
