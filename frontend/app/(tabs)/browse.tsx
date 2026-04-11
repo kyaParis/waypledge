@@ -150,6 +150,7 @@ export default function BrowseScreen() {
   // Clear location search
   const clearLocationSearch = () => {
     setSearchLocationText('');
+    setLocationFilter('');
     setSearchLat(null);
     setSearchLng(null);
   };
