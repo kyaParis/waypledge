@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   Alert,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -45,6 +46,7 @@ export default function AdminScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'reviewed' | 'resolved'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (activeTab === 'reports') {
@@ -255,9 +257,38 @@ export default function AdminScreen() {
         >
           {loading && <ActivityIndicator size="large" color={Colors.primary} style={{ marginVertical: 20 }} />}
           
-          <Text style={styles.sectionLabel}>All Users ({users.length})</Text>
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
+            <MaterialIcons name="search" size={20} color={Colors.textSecondary} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by name or email..."
+              placeholderTextColor={Colors.textSecondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCapitalize="none"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <MaterialIcons name="close" size={20} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
           
-          {users.map((user) => (
+          <Text style={styles.sectionLabel}>
+            {searchQuery ? `Results (${users.filter(u => 
+              u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              u.email.toLowerCase().includes(searchQuery.toLowerCase())
+            ).length})` : `All Users (${users.length})`}
+          </Text>
+          
+          {users
+            .filter(u => 
+              searchQuery === '' ||
+              u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              u.email.toLowerCase().includes(searchQuery.toLowerCase())
+            )
+            .map((user) => (
             <View key={user.id} style={styles.userCard}>
               <View style={styles.userInfo}>
                 <View style={styles.userAvatar}>
@@ -393,6 +424,24 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginBottom: 12,
     marginTop: 4,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: Colors.text,
+    marginLeft: 10,
+    paddingVertical: 4,
   },
   reportCard: {
     backgroundColor: Colors.surface,
