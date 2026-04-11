@@ -229,7 +229,7 @@ export default function BrowseScreen() {
 
   useEffect(() => {
     loadData();
-  }, [selectedCategory, searchQuery, locationFilter]);
+  }, [selectedCategory, searchQuery, locationFilter, searchLat, searchLng, searchRadius]);
 
   const onRefresh = async () => {
     await loadData(true);
