@@ -208,13 +208,14 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
     gap: 8,
     marginBottom: 16,
   },
   filterButton: {
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     borderRadius: 20,
     backgroundColor: Colors.surface,
     borderWidth: 1,
