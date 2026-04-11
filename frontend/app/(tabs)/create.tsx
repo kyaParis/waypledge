@@ -411,13 +411,14 @@ export default function CreateScreen() {
               <>
                 <TextInput
                   style={styles.input}
-                  placeholder="e.g., Frigiliana, Andalusia, Spain"
+                  placeholder="e.g., Altaona, Murcia, Spain"
                   value={location}
                   onChangeText={setLocation}
                   placeholderTextColor={Colors.textSecondary}
                 />
                 <Text style={styles.helpText}>
-                  Enter your community, city, region, or country
+                  Include your area + country so people can find you.{'\n'}
+                  Don't share your exact address - just the nearest area you're comfortable with.
                 </Text>
               </>
             )}
