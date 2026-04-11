@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "me.waypledge.app",
-      "buildNumber": "3",
+      "buildNumber": "4",
       "infoPlist": {
         "NSCameraUsageDescription": "Take photos for your pledges",
         "NSPhotoLibraryUsageDescription": "Share photos from your gallery",
