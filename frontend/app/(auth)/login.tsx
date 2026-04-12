@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
+import api from '../../utils/api';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -24,6 +25,27 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isWakingServer, setIsWakingServer] = useState(true);
+
+  // Wake up server when login screen loads
+  useEffect(() => {
+    const wakeServer = async () => {
+      try {
+        await api.get('/health');
+      } catch (e) {
+        // Retry once after a short delay
+        setTimeout(async () => {
+          try {
+            await api.get('/health');
+          } catch (e2) {
+            // Server might be unavailable
+          }
+        }, 1000);
+      }
+      setIsWakingServer(false);
+    };
+    wakeServer();
+  }, []);
 
   const handleLogin = async () => {
     setErrorMessage('');

@@ -154,6 +154,11 @@ def calculate_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) ->
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
+# Health check endpoint - keeps server awake
+@api_router.get("/health")
+async def health_check():
+    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+
 # Helper functions
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
