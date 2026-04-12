@@ -2503,6 +2503,137 @@ async def shutdown_db_client():
     client.close()
 
 # Data Deletion Page for Google Play Store compliance
+
+@app.get("/api/child-safety", response_class=HTMLResponse)
+async def child_safety_page():
+    """Public page with child safety standards"""
+    return """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WayPledge - Child Safety Standards</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f7f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 2px solid #2E7D32;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2E7D32;
+            margin: 0;
+        }
+        .header p {
+            color: #666;
+            margin: 5px 0 0 0;
+        }
+        h2 {
+            color: #2E7D32;
+            margin-top: 30px;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .highlight {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .contact {
+            background: #e8f5e9;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 30px;
+        }
+        .contact a {
+            color: #2E7D32;
+            font-weight: bold;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>WayPledge</h1>
+        <p>Child Safety Standards</p>
+    </div>
+    
+    <div class="section">
+        <h2>Our Commitment</h2>
+        <p>WayPledge is committed to providing a safe environment for all users. We have <strong>zero tolerance</strong> for child sexual abuse material (CSAM) or any exploitation of minors.</p>
+    </div>
+    
+    <div class="section">
+        <h2>Age Requirement</h2>
+        <p>WayPledge is for users aged <strong>18 and older only</strong>. Users must confirm they are 18+ when creating an account.</p>
+    </div>
+    
+    <div class="section">
+        <h2>Reporting Concerns</h2>
+        <p>Users can report any concerning content or behaviour directly within the app using the Report feature. All reports are reviewed by our team.</p>
+        
+        <div class="highlight">
+            <strong>How to Report:</strong>
+            <ul>
+                <li>Tap on any pledge, wish, or user profile</li>
+                <li>Select "Report"</li>
+                <li>Choose the reason and submit</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>Moderation</h2>
+        <ul>
+            <li>All reports are reviewed promptly</li>
+            <li>Content violating our policies is removed immediately</li>
+            <li>Accounts may be suspended or terminated</li>
+            <li>We cooperate with law enforcement when required</li>
+        </ul>
+    </div>
+    
+    <div class="section">
+        <h2>Compliance</h2>
+        <p>WayPledge complies with all applicable child safety laws and reports illegal content to relevant authorities including the National Center for Missing & Exploited Children (NCMEC) and local law enforcement agencies.</p>
+    </div>
+    
+    <div class="contact">
+        <h2>Contact</h2>
+        <p>For child safety concerns, contact:</p>
+        <p><a href="mailto:safety@waypledge.me">safety@waypledge.me</a></p>
+    </div>
+    
+    <p style="text-align: center; color: #666; margin-top: 40px; font-size: 14px;">
+        Last updated: April 2026
+    </p>
+</body>
+</html>
+"""
+
+
 @app.get("/api/data-deletion", response_class=HTMLResponse)
 async def data_deletion_page():
     """Public page explaining how users can request data deletion"""
