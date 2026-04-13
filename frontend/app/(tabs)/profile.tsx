@@ -543,6 +543,15 @@ export default function ProfileScreen() {
           
           <TouchableOpacity 
             style={styles.quickLinkButton}
+            onPress={() => router.push('/resolution')}
+          >
+            <MaterialIcons name="support-agent" size={22} color={Colors.accent} />
+            <Text style={styles.quickLinkText}>Resolution Centre</Text>
+            <MaterialIcons name="chevron-right" size={22} color={Colors.textSecondary} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.quickLinkButton}
             onPress={() => router.push('/(tabs)/about')}
           >
             <MaterialIcons name="info" size={22} color={Colors.primary} />

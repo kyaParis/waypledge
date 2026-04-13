@@ -206,3 +206,54 @@ export const uploadImageToCloudinary = async (
   // Return the secure URL with auto-optimization
   return result.secure_url;
 };
+
+// Resolution Centre types and functions
+export interface ResolutionRequest {
+  issue_type: string;
+  subject: string;
+  description: string;
+  related_user_id?: string;
+  related_item_id?: string;
+  related_item_type?: string;
+}
+
+export interface Resolution {
+  id: string;
+  user_id: string;
+  user_name: string;
+  issue_type: string;
+  subject: string;
+  description: string;
+  ai_response?: string;
+  status: string;
+  admin_response?: string;
+  related_user_id?: string;
+  related_item_id?: string;
+  related_item_type?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export const createResolution = async (request: ResolutionRequest): Promise<Resolution> => {
+  const response = await api.post('/resolution', request);
+  return response.data;
+};
+
+export const getMyResolutions = async (): Promise<Resolution[]> => {
+  const response = await api.get('/resolution/my');
+  return response.data;
+};
+
+export const escalateResolution = async (resolutionId: string): Promise<void> => {
+  await api.post(`/resolution/${resolutionId}/escalate`);
+};
+
+export const getAllResolutions = async (statusFilter?: string): Promise<Resolution[]> => {
+  const params = statusFilter ? { status_filter: statusFilter } : {};
+  const response = await api.get('/resolution/all', { params });
+  return response.data;
+};
+
+export const respondToResolution = async (resolutionId: string, response: string): Promise<void> => {
+  await api.post(`/resolution/${resolutionId}/respond`, null, { params: { response } });
+};

@@ -10,12 +10,14 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Modal,
+  Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { useAuthStore } from '../../store/authStore';
 import { router } from 'expo-router';
 import api from '../../utils/api';
+import * as Location from 'expo-location';
 
 interface Hive {
   id: string;
@@ -44,6 +46,8 @@ export default function HiveScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'discover' | 'my-hives'>('discover');
+  const [locationFilter, setLocationFilter] = useState<string | null>(null);
+  const [loadingLocation, setLoadingLocation] = useState(false);
   
   // Create hive form
   const [newHiveName, setNewHiveName] = useState('');
@@ -56,7 +60,9 @@ export default function HiveScreen() {
 
   const loadHives = useCallback(async () => {
     try {
-      const params = searchQuery ? { search: searchQuery } : {};
+      const params: any = {};
+      if (searchQuery) params.search = searchQuery;
+      if (locationFilter) params.location = locationFilter;
       const [hivesRes, countryRes] = await Promise.all([
         api.get('/hives', { params }),
         api.get('/hives', { params: { country_only: true } })
@@ -66,7 +72,7 @@ export default function HiveScreen() {
     } catch (error) {
       console.error('Error loading hives:', error);
     }
-  }, [searchQuery]);
+  }, [searchQuery, locationFilter]);
 
   const loadMyHives = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -77,6 +83,40 @@ export default function HiveScreen() {
       console.error('Error loading my hives:', error);
     }
   }, [isAuthenticated]);
+
+  // Near Me location filter
+  const handleNearMe = async () => {
+    try {
+      setLoadingLocation(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Location Permission', 'Please enable location to find hives near you.');
+        return;
+      }
+      
+      const location = await Location.getCurrentPositionAsync({});
+      const geocode = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+      
+      if (geocode.length > 0) {
+        const place = geocode[0];
+        // Use city/region for filtering
+        const locationStr = place.city || place.region || place.country || '';
+        setLocationFilter(locationStr);
+      }
+    } catch (error) {
+      console.error('Error getting location:', error);
+      Alert.alert('Location Error', 'Could not get your location. Please try again.');
+    } finally {
+      setLoadingLocation(false);
+    }
+  };
+
+  const clearLocationFilter = () => {
+    setLocationFilter(null);
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -307,17 +347,53 @@ export default function HiveScreen() {
       </View>
 
       {activeTab === 'discover' && (
-        <View style={styles.searchContainer}>
-          <MaterialIcons name="search" size={20} color={Colors.textSecondary} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search hives by name or location..."
-            placeholderTextColor={Colors.textSecondary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={loadHives}
-          />
-        </View>
+        <>
+          <View style={styles.searchContainer}>
+            <MaterialIcons name="search" size={20} color={Colors.textSecondary} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search hives by name or location..."
+              placeholderTextColor={Colors.textSecondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onSubmitEditing={loadHives}
+            />
+          </View>
+          
+          {/* Filter buttons row */}
+          <View style={styles.filterRow}>
+            <TouchableOpacity
+              style={[styles.filterButton, locationFilter && styles.filterButtonActive]}
+              onPress={locationFilter ? clearLocationFilter : handleNearMe}
+              disabled={loadingLocation}
+            >
+              {loadingLocation ? (
+                <ActivityIndicator size="small" color={Colors.primary} />
+              ) : (
+                <>
+                  <MaterialIcons 
+                    name={locationFilter ? "close" : "near-me"} 
+                    size={18} 
+                    color={locationFilter ? Colors.surface : Colors.primary} 
+                  />
+                  <Text style={[styles.filterButtonText, locationFilter && styles.filterButtonTextActive]}>
+                    {locationFilter ? locationFilter : 'Near Me'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+            
+            {isAuthenticated && (
+              <TouchableOpacity
+                style={styles.createHiveButton}
+                onPress={() => setShowCreateModal(true)}
+              >
+                <MaterialIcons name="add" size={18} color={Colors.surface} />
+                <Text style={styles.createHiveButtonText}>Create Hive</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </>
       )}
 
       <ScrollView
@@ -334,10 +410,22 @@ export default function HiveScreen() {
             ) : (
               <View style={styles.emptyState}>
                 <MaterialIcons name="hexagon" size={64} color={Colors.border} />
-                <Text style={styles.emptyTitle}>No Hives Yet</Text>
+                <Text style={styles.emptyTitle}>No Hives Found</Text>
                 <Text style={styles.emptyText}>
-                  Be the first to create a local hive and start building your community!
+                  {locationFilter 
+                    ? `No hives found near ${locationFilter}. Be the first to create one!`
+                    : 'Be the first to create a local hive and start building your community!'
+                  }
                 </Text>
+                {isAuthenticated && (
+                  <TouchableOpacity
+                    style={styles.emptyCreateButton}
+                    onPress={() => setShowCreateModal(true)}
+                  >
+                    <MaterialIcons name="add" size={20} color={Colors.surface} />
+                    <Text style={styles.emptyCreateButtonText}>Create a Hive</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
           </>
@@ -646,6 +734,64 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     color: Colors.text,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    marginBottom: 12,
+    gap: 10,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  filterButtonActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.primary,
+  },
+  filterButtonTextActive: {
+    color: Colors.surface,
+  },
+  createHiveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.accent,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    gap: 6,
+  },
+  createHiveButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.surface,
+  },
+  emptyCreateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.accent,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 8,
+    marginTop: 20,
+  },
+  emptyCreateButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.surface,
   },
   scrollView: {
     flex: 1,

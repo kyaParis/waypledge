@@ -20,6 +20,7 @@ import resend
 import cloudinary
 import cloudinary.utils
 import time
+from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -376,6 +377,31 @@ class BlockedUserResponse(BaseModel):
 class AccountDeletionRequest(BaseModel):
     confirm_password: str
     reason: Optional[str] = None
+
+# Resolution Centre Models
+class ResolutionRequest(BaseModel):
+    issue_type: str  # "dispute", "technical", "account", "safety", "other"
+    subject: str
+    description: str
+    related_user_id: Optional[str] = None
+    related_item_id: Optional[str] = None
+    related_item_type: Optional[str] = None  # "pledge", "wish", "message"
+
+class ResolutionResponse(BaseModel):
+    id: str
+    user_id: str
+    user_name: str
+    issue_type: str
+    subject: str
+    description: str
+    ai_response: Optional[str] = None
+    status: str  # "open", "ai_responded", "escalated", "resolved"
+    admin_response: Optional[str] = None
+    related_user_id: Optional[str] = None
+    related_item_id: Optional[str] = None
+    related_item_type: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
 
 # Hive Models - Federation-Ready Architecture
 class HiveCreate(BaseModel):
@@ -1430,15 +1456,216 @@ async def get_all_reports(current_user = Depends(get_current_user)):
     ) for r in reports]
 
 @api_router.patch("/reports/{report_id}/status")
-async def update_report_status(report_id: str, status: str, current_user = Depends(get_current_user)):
+async def update_report_status(report_id: str, new_status: str, current_user = Depends(get_current_user)):
     # Only admins can update report status
     if not await is_user_admin(current_user["email"], current_user):
         raise HTTPException(status_code=403, detail="Admin access required")
     await db.reports.update_one(
         {"_id": ObjectId(report_id)},
-        {"$set": {"status": status}}
+        {"$set": {"status": new_status}}
     )
-    return {"success": True, "message": f"Report marked as {status}"}
+    return {"success": True, "message": f"Report marked as {new_status}"}
+
+# ==========================================
+# RESOLUTION CENTRE ENDPOINTS (AI-First Support)
+# ==========================================
+
+RESOLUTION_SYSTEM_PROMPT = """You are a friendly and empathetic support assistant for WayPledge, a community platform where people help each other through pledges (offering help) and wishes (requesting help) without any money involved.
+
+Your role is to:
+1. Listen carefully to the user's issue
+2. Provide helpful, understanding responses
+3. Suggest practical solutions where possible
+4. De-escalate conflicts with compassion
+5. Remind users of community values when appropriate
+
+WayPledge values:
+- "Do No Harm" - treat everyone with respect
+- Mutual support without monetary exchange
+- Building trust through genuine connections
+- Community over transactions
+
+Guidelines:
+- Be warm, supportive, and understanding
+- Never take sides in disputes
+- Suggest communication and understanding
+- For serious safety concerns, recommend contacting local authorities
+- If the issue requires admin intervention, let them know an admin will review
+
+Keep responses concise but helpful (2-3 paragraphs max)."""
+
+async def get_ai_response(issue_type: str, subject: str, description: str) -> str:
+    """Get AI response for a resolution request"""
+    try:
+        llm_key = os.getenv("EMERGENT_LLM_KEY")
+        if not llm_key:
+            return "Thank you for reaching out. An admin will review your concern shortly."
+        
+        chat = LlmChat(
+            api_key=llm_key,
+            session_id=f"resolution-{uuid.uuid4()}",
+            system_message=RESOLUTION_SYSTEM_PROMPT
+        ).with_model("openai", "gpt-4.1-mini")
+        
+        user_prompt = f"""Issue Type: {issue_type}
+Subject: {subject}
+
+User's Description:
+{description}
+
+Please provide a helpful, empathetic response to help resolve this issue."""
+        
+        user_message = UserMessage(text=user_prompt)
+        response = await chat.send_message(user_message)
+        return response
+    except Exception as e:
+        logger.error(f"AI response error: {e}")
+        return "Thank you for reaching out. Your concern has been logged and an admin will review it shortly."
+
+@api_router.post("/resolution", response_model=ResolutionResponse)
+async def create_resolution_request(request: ResolutionRequest, current_user = Depends(get_current_user)):
+    """Create a resolution request - AI responds first, then escalate if needed"""
+    
+    # Get AI response
+    ai_response = await get_ai_response(
+        request.issue_type,
+        request.subject,
+        request.description
+    )
+    
+    resolution_dict = {
+        "user_id": str(current_user["_id"]),
+        "user_name": current_user["name"],
+        "user_email": current_user["email"],
+        "issue_type": request.issue_type,
+        "subject": request.subject,
+        "description": request.description,
+        "ai_response": ai_response,
+        "status": "ai_responded",
+        "admin_response": None,
+        "related_user_id": request.related_user_id,
+        "related_item_id": request.related_item_id,
+        "related_item_type": request.related_item_type,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    }
+    
+    result = await db.resolutions.insert_one(resolution_dict)
+    
+    logger.info(f"Resolution request created: {request.issue_type} - {request.subject} by {current_user['name']}")
+    
+    return ResolutionResponse(
+        id=str(result.inserted_id),
+        user_id=resolution_dict["user_id"],
+        user_name=resolution_dict["user_name"],
+        issue_type=resolution_dict["issue_type"],
+        subject=resolution_dict["subject"],
+        description=resolution_dict["description"],
+        ai_response=resolution_dict["ai_response"],
+        status=resolution_dict["status"],
+        admin_response=resolution_dict["admin_response"],
+        related_user_id=resolution_dict["related_user_id"],
+        related_item_id=resolution_dict["related_item_id"],
+        related_item_type=resolution_dict["related_item_type"],
+        created_at=resolution_dict["created_at"],
+        updated_at=resolution_dict["updated_at"]
+    )
+
+@api_router.post("/resolution/{resolution_id}/escalate")
+async def escalate_resolution(resolution_id: str, current_user = Depends(get_current_user)):
+    """Escalate a resolution request to human admin"""
+    resolution = await db.resolutions.find_one({"_id": ObjectId(resolution_id)})
+    if not resolution:
+        raise HTTPException(status_code=404, detail="Resolution request not found")
+    
+    # Only the creator can escalate
+    if resolution["user_id"] != str(current_user["_id"]):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    await db.resolutions.update_one(
+        {"_id": ObjectId(resolution_id)},
+        {"$set": {"status": "escalated", "updated_at": datetime.utcnow()}}
+    )
+    
+    logger.warning(f"Resolution ESCALATED to admin: {resolution['subject']} by {current_user['name']}")
+    
+    return {"success": True, "message": "Your request has been escalated to an admin. They will respond soon."}
+
+@api_router.get("/resolution/my", response_model=List[ResolutionResponse])
+async def get_my_resolutions(current_user = Depends(get_current_user)):
+    """Get user's resolution requests"""
+    resolutions = await db.resolutions.find(
+        {"user_id": str(current_user["_id"])}
+    ).sort("created_at", -1).to_list(50)
+    
+    return [ResolutionResponse(
+        id=str(r["_id"]),
+        user_id=r["user_id"],
+        user_name=r["user_name"],
+        issue_type=r["issue_type"],
+        subject=r["subject"],
+        description=r["description"],
+        ai_response=r.get("ai_response"),
+        status=r["status"],
+        admin_response=r.get("admin_response"),
+        related_user_id=r.get("related_user_id"),
+        related_item_id=r.get("related_item_id"),
+        related_item_type=r.get("related_item_type"),
+        created_at=r["created_at"],
+        updated_at=r.get("updated_at")
+    ) for r in resolutions]
+
+@api_router.get("/resolution/all", response_model=List[ResolutionResponse])
+async def get_all_resolutions(status_filter: Optional[str] = None, current_user = Depends(get_current_user)):
+    """Admin: Get all resolution requests"""
+    if not await is_user_admin(current_user["email"], current_user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    query = {}
+    if status_filter:
+        query["status"] = status_filter
+    
+    resolutions = await db.resolutions.find(query).sort("created_at", -1).to_list(200)
+    
+    return [ResolutionResponse(
+        id=str(r["_id"]),
+        user_id=r["user_id"],
+        user_name=r["user_name"],
+        issue_type=r["issue_type"],
+        subject=r["subject"],
+        description=r["description"],
+        ai_response=r.get("ai_response"),
+        status=r["status"],
+        admin_response=r.get("admin_response"),
+        related_user_id=r.get("related_user_id"),
+        related_item_id=r.get("related_item_id"),
+        related_item_type=r.get("related_item_type"),
+        created_at=r["created_at"],
+        updated_at=r.get("updated_at")
+    ) for r in resolutions]
+
+@api_router.post("/resolution/{resolution_id}/respond")
+async def admin_respond_resolution(resolution_id: str, response: str = Query(...), current_user = Depends(get_current_user)):
+    """Admin: Respond to a resolution request"""
+    if not await is_user_admin(current_user["email"], current_user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    resolution = await db.resolutions.find_one({"_id": ObjectId(resolution_id)})
+    if not resolution:
+        raise HTTPException(status_code=404, detail="Resolution request not found")
+    
+    await db.resolutions.update_one(
+        {"_id": ObjectId(resolution_id)},
+        {"$set": {
+            "admin_response": response,
+            "status": "resolved",
+            "updated_at": datetime.utcnow()
+        }}
+    )
+    
+    logger.info(f"Resolution resolved by admin: {resolution_id}")
+    
+    return {"success": True, "message": "Response sent successfully"}
 
 # ==========================================
 # BLOCK USER ENDPOINTS
