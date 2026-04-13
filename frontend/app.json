@@ -33,7 +33,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "me.waypledge.app",
-      "versionCode": 2,
+      "versionCode": 6,
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
