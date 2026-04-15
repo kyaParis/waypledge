@@ -1467,32 +1467,48 @@ async def update_report_status(report_id: str, new_status: str, current_user = D
     return {"success": True, "message": f"Report marked as {new_status}"}
 
 # ==========================================
-# RESOLUTION CENTRE ENDPOINTS (AI-First Support)
+# AI ASSISTANT & RESOLUTION CENTRE ENDPOINTS
 # ==========================================
 
-RESOLUTION_SYSTEM_PROMPT = """You are a friendly and empathetic support assistant for WayPledge, a community platform where people help each other through pledges (offering help) and wishes (requesting help) without any money involved.
+AI_ASSISTANT_SYSTEM_PROMPT = """You are a friendly AI assistant for WayPledge, a community platform where people help each other through pledges (offering help) and wishes (requesting help) without any money involved.
 
-Your role is to:
-1. Listen carefully to the user's issue
-2. Provide helpful, understanding responses
-3. Suggest practical solutions where possible
-4. De-escalate conflicts with compassion
-5. Remind users of community values when appropriate
+You help users with TWO things:
+1. **App Help** - How to use WayPledge features
+2. **Issue Support** - Problems, disputes, or concerns
 
-WayPledge values:
+## App Features You Can Explain:
+- **Pledges**: Offers of help (create, browse, respond to pledges)
+- **Wishes**: Requests for help (create, browse, respond to wishes) 
+- **Hives**: Local community groups to join
+- **Connections/Chat**: Message other users
+- **Profile**: Your public profile, settings, language
+- **Near Me**: Find pledges, wishes, and hives nearby
+
+## How to Guide Users:
+- **Create a Pledge**: Go to Create tab → Select "Pledge" → Fill in what help you can offer → Add location → Post
+- **Create a Wish**: Go to Create tab → Select "Wish" → Describe what help you need → Post
+- **Join a Hive**: Go to Profile → My Hive → Browse hives → Join
+- **Find Help Nearby**: Go to Browse → Tap "Near Me" filter
+- **Message Someone**: Tap on a pledge/wish → Click "Connect" or "Offer Help"
+- **Change Language**: Go to Profile → Settings → Language
+
+## WayPledge Values:
 - "Do No Harm" - treat everyone with respect
-- Mutual support without monetary exchange
+- No money exchanged - pure giving and receiving
 - Building trust through genuine connections
 - Community over transactions
 
-Guidelines:
-- Be warm, supportive, and understanding
-- Never take sides in disputes
-- Suggest communication and understanding
-- For serious safety concerns, recommend contacting local authorities
-- If the issue requires admin intervention, let them know an admin will review
+## Guidelines:
+- Be warm, friendly, and helpful
+- Give clear step-by-step instructions when explaining features
+- For disputes, be neutral and suggest communication
+- For safety concerns, recommend contacting authorities
+- Keep responses concise (2-3 short paragraphs max)
+- Use emojis sparingly to be friendly 😊
 
-Keep responses concise but helpful (2-3 paragraphs max)."""
+If you don't know something, say so and suggest contacting an admin."""
+
+RESOLUTION_SYSTEM_PROMPT = AI_ASSISTANT_SYSTEM_PROMPT
 
 async def get_ai_response(issue_type: str, subject: str, description: str) -> str:
     """Get AI response for a resolution request"""
@@ -1521,6 +1537,48 @@ Please provide a helpful, empathetic response to help resolve this issue."""
     except Exception as e:
         logger.error(f"AI response error: {e}")
         return "Thank you for reaching out. Your concern has been logged and an admin will review it shortly."
+
+# AI Assistant Chat endpoint
+class AssistantMessage(BaseModel):
+    message: str
+    conversation_id: Optional[str] = None
+
+class AssistantResponse(BaseModel):
+    response: str
+    conversation_id: str
+
+@api_router.post("/assistant/chat", response_model=AssistantResponse)
+async def chat_with_assistant(request: AssistantMessage, current_user = Depends(get_current_user)):
+    """Chat with the AI assistant for help or support"""
+    try:
+        llm_key = os.getenv("EMERGENT_LLM_KEY")
+        if not llm_key:
+            return AssistantResponse(
+                response="I'm sorry, the assistant is currently unavailable. Please contact an admin for help.",
+                conversation_id=request.conversation_id or str(uuid.uuid4())
+            )
+        
+        conversation_id = request.conversation_id or str(uuid.uuid4())
+        
+        chat = LlmChat(
+            api_key=llm_key,
+            session_id=f"assistant-{current_user['_id']}-{conversation_id}",
+            system_message=AI_ASSISTANT_SYSTEM_PROMPT
+        ).with_model("openai", "gpt-4.1-mini")
+        
+        user_message = UserMessage(text=request.message)
+        response = await chat.send_message(user_message)
+        
+        return AssistantResponse(
+            response=response,
+            conversation_id=conversation_id
+        )
+    except Exception as e:
+        logger.error(f"Assistant chat error: {e}")
+        return AssistantResponse(
+            response="I'm having trouble right now. Please try again in a moment, or contact an admin for help.",
+            conversation_id=request.conversation_id or str(uuid.uuid4())
+        )
 
 @api_router.post("/resolution", response_model=ResolutionResponse)
 async def create_resolution_request(request: ResolutionRequest, current_user = Depends(get_current_user)):

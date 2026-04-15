@@ -257,3 +257,22 @@ export const getAllResolutions = async (statusFilter?: string): Promise<Resoluti
 export const respondToResolution = async (resolutionId: string, response: string): Promise<void> => {
   await api.post(`/resolution/${resolutionId}/respond`, null, { params: { response } });
 };
+
+// AI Assistant
+export interface AssistantMessage {
+  message: string;
+  conversation_id?: string;
+}
+
+export interface AssistantResponse {
+  response: string;
+  conversation_id: string;
+}
+
+export const chatWithAssistant = async (message: string, conversationId?: string): Promise<AssistantResponse> => {
+  const response = await api.post('/assistant/chat', {
+    message,
+    conversation_id: conversationId
+  });
+  return response.data;
+};
