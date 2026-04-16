@@ -221,6 +221,21 @@ export default function HomeScreen() {
           )}
         </View>
 
+        {/* Gratitude Section - Thank people & Support WayPledge */}
+        <TouchableOpacity 
+          style={styles.wallLink}
+          onPress={() => router.push('/wall')}
+        >
+          <View style={styles.wallLinkLeft}>
+            <MaterialIcons name="favorite" size={24} color={Colors.accent} />
+            <View>
+              <Text style={styles.wallLinkTitle}>Gratitude</Text>
+              <Text style={styles.wallLinkSubtitle}>Thank someone or support WayPledge</Text>
+            </View>
+          </View>
+          <MaterialIcons name="chevron-right" size={24} color={Colors.textSecondary} />
+        </TouchableOpacity>
+
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
