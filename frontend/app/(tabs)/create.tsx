@@ -166,6 +166,9 @@ export default function CreateScreen() {
       } else {
         // Wish fields
         data.urgency = urgency;
+        if (image) {
+          data.image = image;
+        }
         if (neededBy) {
           const parsed = parseDate(neededBy);
           if (parsed) {
