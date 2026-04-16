@@ -295,27 +295,43 @@ export default function ProfileScreen() {
         </View>
 
         {/* Pending Gratitude Approvals - PROMINENT POSITION */}
-        {pendingGratitude.length > 0 && (
-          <View style={styles.section}>
-            <TouchableOpacity 
-              style={styles.pendingGratitudeButton}
-              onPress={() => setShowGratitudeModal(true)}
-            >
-              <View style={styles.pendingGratitudeLeft}>
-                <MaterialIcons name="favorite" size={24} color={Colors.error} />
-                <View>
-                  <Text style={styles.pendingGratitudeTitle}>Gratitude Waiting for Approval</Text>
-                  <Text style={styles.pendingGratitudeSubtitle}>
-                    {pendingGratitude.length} {pendingGratitude.length === 1 ? 'person wants' : 'people want'} to thank you publicly
-                  </Text>
-                </View>
+        <View style={styles.section}>
+          <TouchableOpacity 
+            style={[
+              styles.pendingGratitudeButton,
+              pendingGratitude.length === 0 && styles.pendingGratitudeButtonEmpty
+            ]}
+            onPress={() => pendingGratitude.length > 0 ? setShowGratitudeModal(true) : null}
+            disabled={pendingGratitude.length === 0}
+          >
+            <View style={styles.pendingGratitudeLeft}>
+              <MaterialIcons 
+                name="favorite" 
+                size={24} 
+                color={pendingGratitude.length > 0 ? Colors.error : Colors.textSecondary} 
+              />
+              <View>
+                <Text style={[
+                  styles.pendingGratitudeTitle,
+                  pendingGratitude.length === 0 && styles.pendingGratitudeTitleEmpty
+                ]}>
+                  {pendingGratitude.length > 0 ? 'Gratitude Waiting for Approval' : 'Pending Gratitude'}
+                </Text>
+                <Text style={styles.pendingGratitudeSubtitle}>
+                  {pendingGratitude.length > 0 
+                    ? `${pendingGratitude.length} ${pendingGratitude.length === 1 ? 'person wants' : 'people want'} to thank you publicly`
+                    : 'No pending thank yous to approve'
+                  }
+                </Text>
               </View>
+            </View>
+            {pendingGratitude.length > 0 && (
               <View style={styles.pendingBadge}>
                 <Text style={styles.pendingBadgeText}>{pendingGratitude.length}</Text>
               </View>
-            </TouchableOpacity>
-          </View>
-        )}
+            )}
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -1269,6 +1285,10 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: Colors.error,
   },
+  pendingGratitudeButtonEmpty: {
+    backgroundColor: Colors.surface,
+    borderLeftColor: Colors.border,
+  },
   pendingGratitudeLeft: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1279,6 +1299,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: Colors.text,
+  },
+  pendingGratitudeTitleEmpty: {
+    color: Colors.textSecondary,
   },
   pendingGratitudeSubtitle: {
     fontSize: 13,
