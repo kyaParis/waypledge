@@ -1,0 +1,159 @@
+[
+  {
+    "test": "Pending Gratitude Unauth",
+    "success": true,
+    "message": "Correctly rejected unauthenticated request",
+    "timestamp": "2026-04-16T12:48:59.797165",
+    "details": {
+      "status_code": 403
+    }
+  },
+  {
+    "test": "Approve Gratitude Unauth",
+    "success": true,
+    "message": "Correctly rejected unauthenticated request",
+    "timestamp": "2026-04-16T12:48:59.949840",
+    "details": {
+      "status_code": 403
+    }
+  },
+  {
+    "test": "Decline Gratitude Unauth",
+    "success": true,
+    "message": "Correctly rejected unauthenticated request",
+    "timestamp": "2026-04-16T12:49:00.111905",
+    "details": {
+      "status_code": 403
+    }
+  },
+  {
+    "test": "User Setup",
+    "success": true,
+    "message": "Both test users created successfully",
+    "timestamp": "2026-04-16T12:49:01.197969",
+    "details": {
+      "user1_id": "69e0dabcdc8677425e145786",
+      "user2_id": "69e0dabcdc8677425e145787"
+    }
+  },
+  {
+    "test": "Create Test Gratitude",
+    "success": true,
+    "message": "Test gratitude created successfully",
+    "timestamp": "2026-04-16T12:49:01.349720",
+    "details": {
+      "gratitude_id": "69e0dabddc8677425e145788",
+      "status": "pending"
+    }
+  },
+  {
+    "test": "Pending Gratitude Auth",
+    "success": true,
+    "message": "Retrieved 1 pending gratitudes including test gratitude",
+    "timestamp": "2026-04-16T12:49:01.401092",
+    "details": {
+      "count": 1,
+      "test_gratitude_found": true
+    }
+  },
+  {
+    "test": "Pending Gratitude Structure",
+    "success": true,
+    "message": "Pending gratitudes have all required fields",
+    "timestamp": "2026-04-16T12:49:01.401122",
+    "details": {
+      "sample_fields": [
+        "id",
+        "from_user_id",
+        "from_user_name",
+        "to_user_id",
+        "to_user_name",
+        "connection_id",
+        "message",
+        "status",
+        "created_at"
+      ]
+    }
+  },
+  {
+    "test": "Approve Gratitude",
+    "success": true,
+    "message": "Gratitude approved successfully",
+    "timestamp": "2026-04-16T12:49:01.452871",
+    "details": {
+      "gratitude_id": "69e0dabddc8677425e145788",
+      "response": {
+        "success": true,
+        "message": "Gratitude approved and now visible on the wall!"
+      }
+    }
+  },
+  {
+    "test": "Gratitude Wall Shows Approved",
+    "success": true,
+    "message": "Approved gratitude appears on public wall",
+    "timestamp": "2026-04-16T12:49:01.500835",
+    "details": {
+      "wall_count": 1,
+      "test_gratitude_found": true
+    }
+  },
+  {
+    "test": "Create Test Gratitude",
+    "success": true,
+    "message": "Test gratitude created successfully",
+    "timestamp": "2026-04-16T12:49:01.646999",
+    "details": {
+      "gratitude_id": "69e0dabddc8677425e145789",
+      "status": "pending"
+    }
+  },
+  {
+    "test": "Decline Gratitude",
+    "success": true,
+    "message": "Gratitude declined successfully",
+    "timestamp": "2026-04-16T12:49:01.697980",
+    "details": {
+      "gratitude_id": "69e0dabddc8677425e145789",
+      "response": {
+        "success": true,
+        "message": "Gratitude declined - it will not appear publicly"
+      }
+    }
+  },
+  {
+    "test": "Declined Gratitude Not On Wall",
+    "success": true,
+    "message": "Declined gratitude correctly hidden from public wall",
+    "timestamp": "2026-04-16T12:49:01.744312",
+    "details": {}
+  },
+  {
+    "test": "Approve Nonexistent",
+    "success": true,
+    "message": "Correctly rejected non-existent gratitude",
+    "timestamp": "2026-04-16T12:49:01.820538",
+    "details": {
+      "status_code": 404
+    }
+  },
+  {
+    "test": "Create Test Gratitude",
+    "success": true,
+    "message": "Test gratitude created successfully",
+    "timestamp": "2026-04-16T12:49:01.928054",
+    "details": {
+      "gratitude_id": "69e0dabddc8677425e14578a",
+      "status": "pending"
+    }
+  },
+  {
+    "test": "Approve Wrong User",
+    "success": true,
+    "message": "Correctly rejected approval by non-recipient",
+    "timestamp": "2026-04-16T12:49:02.134696",
+    "details": {
+      "status_code": 403
+    }
+  }
+]

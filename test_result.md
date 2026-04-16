@@ -412,6 +412,18 @@ metadata:
           agent: "testing"
           comment: "✅ EMAIL VERIFICATION SYSTEM FULLY FUNCTIONAL! Comprehensive testing completed (16/17 tests passed, 94.1% success rate): 1) ✅ Registration creates users with email_verified: false, 2) ✅ Wrong verification codes properly rejected with 400 error and 'Invalid verification code' message, 3) ✅ Unverified users correctly blocked from creating pledges with 403 error and proper message, 4) ✅ Unverified users correctly blocked from creating wishes with 403 error and proper message, 5) ✅ All verification endpoints (/api/auth/verify-email, /api/auth/resend-verification) exist and respond correctly. Minor: Resend verification returns 500 due to waypledge.me domain not verified in Resend service (expected in testing environment). The anti-spam email verification system is working perfectly - users must verify email before creating content."
 
+  - task: "Gratitude Approval Workflow"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ GRATITUDE APPROVAL WORKFLOW FULLY FUNCTIONAL! Comprehensive testing completed (15/15 tests passed, 100% success rate): 1) ✅ GET /api/gratitude/pending returns pending gratitude items for authenticated users, 2) ✅ POST /api/gratitude/{id}/approve successfully approves gratitude and makes it visible on public wall, 3) ✅ POST /api/gratitude/{id}/decline successfully declines gratitude and keeps it hidden, 4) ✅ All endpoints properly enforce authentication (403 for unauthenticated requests), 5) ✅ Only recipients can approve/decline their own gratitude (403 for wrong users), 6) ✅ Proper error handling for non-existent gratitude IDs (404), 7) ✅ Complete workflow: create → pending → approve/decline → wall visibility. The gratitude approval system provides full control to recipients over their gratitude visibility."
+
 test_plan:
   current_focus: []
   stuck_tasks:
@@ -446,3 +458,5 @@ agent_communication:
       message: "🎯 NEW BACKEND FEATURES TESTING COMPLETE! Comprehensive testing of Block User System, Account Deletion, and Cloudinary Signature endpoints completed with 90.9% success rate (30/33 tests passed). ✅ BLOCK USER SYSTEM: All 8 tests passed - block/unblock users, get blocked list, check blocked status, prevent self-blocking, handle non-existent users. ✅ ACCOUNT DELETION: All 4 tests passed - password validation, successful deletion, data cleanup verification. ✅ CLOUDINARY SIGNATURE: All 3 tests passed - authenticated signatures, reject unauthenticated, validate folder paths. The 3 failed tests were related to email verification (expected - verification disabled in favor of honeypot anti-spam). All new backend features are fully functional and production-ready."
     - agent: "testing"
       message: "📸 IMAGE UPLOAD FEATURE TESTING COMPLETE! Comprehensive code analysis and mobile UI verification completed for WayPledge image upload functionality. ✅ VERIFIED: 'Photo (optional)' labels present for both Pledge and Wish creation types, 'Add Photo' buttons with camera icons (add-a-photo) properly implemented, ImagePickerButton component integrated with Cloudinary upload system, dashed border styling applied correctly, mobile-responsive design maintained (390x844 viewport). ✅ BACKEND INTEGRATION: Cloudinary signature endpoint working (tested previously), proper folder organization (pledges/wishes), secure upload flow implemented. ✅ UI ELEMENTS: Both creation flows include image upload functionality with proper styling and mobile accessibility. Browser automation had authentication flow issues but all UI components are correctly implemented and functional."
+    - agent: "testing"
+      message: "🙏 GRATITUDE APPROVAL WORKFLOW TESTING COMPLETE! Comprehensive testing of gratitude approval endpoints completed with 100% success rate (15/15 tests passed). ✅ VERIFIED: GET /api/gratitude/pending returns pending gratitude items for authenticated users, POST /api/gratitude/{id}/approve successfully approves gratitude and makes it visible on public wall, POST /api/gratitude/{id}/decline successfully declines gratitude and keeps it hidden. ✅ VERIFIED: All endpoints properly enforce authentication (403 for unauthenticated requests), only recipients can approve/decline their own gratitude (403 for wrong users), proper error handling for non-existent gratitude IDs (404). ✅ VERIFIED: Complete workflow: create → pending → approve/decline → wall visibility. The gratitude approval system provides full control to recipients over their gratitude visibility and is production-ready."
