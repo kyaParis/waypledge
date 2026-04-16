@@ -128,6 +128,46 @@ export const sendGratitude = async (toUserId: string, message: string, connectio
   return response.data;
 };
 
+// Success Stories
+export interface Story {
+  id: string;
+  user_id: string;
+  user_name: string;
+  title: string;
+  content: string;
+  status: string;
+  created_at: string;
+}
+
+export const getApprovedStories = async (): Promise<Story[]> => {
+  const response = await api.get('/stories');
+  return response.data;
+};
+
+export const submitStory = async (title: string, content: string): Promise<Story> => {
+  const response = await api.post('/stories', { title, content });
+  return response.data;
+};
+
+export const getMyStories = async (): Promise<Story[]> => {
+  const response = await api.get('/stories/mine');
+  return response.data;
+};
+
+// Admin Stories
+export const getPendingStories = async (): Promise<Story[]> => {
+  const response = await api.get('/admin/stories/pending');
+  return response.data;
+};
+
+export const approveStory = async (storyId: string): Promise<void> => {
+  await api.post(`/admin/stories/${storyId}/approve`);
+};
+
+export const rejectStory = async (storyId: string): Promise<void> => {
+  await api.post(`/admin/stories/${storyId}/reject`);
+};
+
 export interface Category {
   id: string;
   name: string;

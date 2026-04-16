@@ -225,10 +225,13 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+          <TouchableOpacity 
+            style={styles.sectionHeader}
+            onPress={() => router.push('/wall')}
+          >
             <Text style={styles.sectionTitle}>Gratitude Wall</Text>
-            <MaterialIcons name="favorite" size={24} color={Colors.accent} />
-          </View>
+            <MaterialIcons name="chevron-right" size={24} color={Colors.accent} />
+          </TouchableOpacity>
           
           {/* Send Gratitude Button */}
           <TouchableOpacity

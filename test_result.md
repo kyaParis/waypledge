@@ -273,6 +273,18 @@ backend:
           agent: "testing"
           comment: "✅ CLOUDINARY SIGNATURE SYSTEM FULLY FUNCTIONAL! Comprehensive testing completed (3/3 tests passed, 100% success rate): 1) ✅ Authenticated requests get valid signatures with all required fields (signature, timestamp, cloud_name, api_key, folder), 2) ✅ Unauthenticated requests correctly rejected with 401 error, 3) ✅ Invalid folder paths correctly rejected with 400 error and 'Invalid folder path' message. Cloudinary integration working perfectly with proper security validation."
 
+  - task: "Stories Endpoints for Gratitude Wall"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ STORIES ENDPOINTS FULLY FUNCTIONAL! Comprehensive testing completed for all 6 endpoints: 1) ✅ POST /api/stories - Submit story (requires auth, validates min 50 chars content, min 5 chars title), 2) ✅ GET /api/stories - Get approved stories (public), 3) ✅ GET /api/stories/mine - Get my stories (requires auth), 4) ✅ GET /api/admin/stories/pending - Get pending stories (admin only), 5) ✅ POST /api/admin/stories/{id}/approve - Approve story (admin only), 6) ✅ POST /api/admin/stories/{id}/reject - Reject story (admin only). Fixed admin access control to use proper is_user_admin() function. Complete workflow tested: submit → pending → admin approval/rejection → public visibility. All authentication, validation, and authorization working correctly."
+
 frontend:
   - task: "Authentication Flow"
     implemented: true
@@ -474,3 +486,5 @@ agent_communication:
       message: "🙏 GRATITUDE APPROVAL WORKFLOW TESTING COMPLETE! Comprehensive testing of gratitude approval endpoints completed with 100% success rate (15/15 tests passed). ✅ VERIFIED: GET /api/gratitude/pending returns pending gratitude items for authenticated users, POST /api/gratitude/{id}/approve successfully approves gratitude and makes it visible on public wall, POST /api/gratitude/{id}/decline successfully declines gratitude and keeps it hidden. ✅ VERIFIED: All endpoints properly enforce authentication (403 for unauthenticated requests), only recipients can approve/decline their own gratitude (403 for wrong users), proper error handling for non-existent gratitude IDs (404). ✅ VERIFIED: Complete workflow: create → pending → approve/decline → wall visibility. The gratitude approval system provides full control to recipients over their gratitude visibility and is production-ready."
     - agent: "testing"
       message: "🔍 USER SEARCH ENDPOINT TESTING COMPLETE! Comprehensive testing of GET /api/users/search endpoint for Send Gratitude feature completed with 100% success rate (11/11 tests passed). ✅ VERIFIED: Authentication required (403 for unauthenticated), query validation enforces minimum 2 characters (422 for short queries), case-insensitive search by name works correctly, current user properly excluded from results, suspended users excluded from results. ✅ VERIFIED: Response structure includes all required fields (id, email, name, display_name, bio, location, avatar, created_at, is_admin, email_verified, is_approved). ✅ FIXED: UserResponse model validation issue by adding missing display_name field. The user search endpoint is production-ready for Send Gratitude feature."
+    - agent: "testing"
+      message: "📖 STORIES ENDPOINTS TESTING COMPLETE! Comprehensive testing of Stories endpoints for Gratitude Wall feature completed successfully. ✅ VERIFIED: All 6 endpoints working correctly - POST /api/stories (submit story with auth + validation), GET /api/stories (public approved stories), GET /api/stories/mine (user's own stories), GET /api/admin/stories/pending (admin view pending), POST /api/admin/stories/{id}/approve (admin approve), POST /api/admin/stories/{id}/reject (admin reject). ✅ FIXED: Admin access control to use proper is_user_admin() function instead of direct database flag check. ✅ VERIFIED: Complete workflow - story submission → pending status → admin approval/rejection → public visibility control. All authentication, validation (min 50 chars content, min 5 chars title), and authorization working perfectly. Stories system is production-ready for Gratitude Wall feature."

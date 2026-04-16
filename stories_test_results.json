@@ -1,0 +1,108 @@
+{
+  "timestamp": "2026-04-16T13:28:11.206942",
+  "base_url": "https://pledge-app-redesign.preview.emergentagent.com/api",
+  "summary": {
+    "total": 16,
+    "passed": 10,
+    "failed": 6,
+    "success_rate": 62.5
+  },
+  "tests": [
+    {
+      "name": "Register regular user",
+      "passed": true,
+      "details": "User storyuser_1776346085@test.com registered successfully",
+      "timestamp": "2026-04-16T13:28:05.985280"
+    },
+    {
+      "name": "Setup admin user",
+      "passed": true,
+      "details": "Admin admin@waypledge.me logged in successfully",
+      "timestamp": "2026-04-16T13:28:06.501632"
+    },
+    {
+      "name": "Submit story",
+      "passed": true,
+      "details": "Story submitted with ID 69e0e3e6374d0c9ed2f0584a, status: pending",
+      "timestamp": "2026-04-16T13:28:06.621203"
+    },
+    {
+      "name": "Story validation (too short)",
+      "passed": false,
+      "details": "Should reject stories that are too short",
+      "timestamp": "2026-04-16T13:28:06.889135"
+    },
+    {
+      "name": "Get public stories (pending not visible)",
+      "passed": true,
+      "details": "Pending story correctly not visible in public list",
+      "timestamp": "2026-04-16T13:28:07.007536"
+    },
+    {
+      "name": "Get my stories",
+      "passed": true,
+      "details": "User can see their own pending story",
+      "timestamp": "2026-04-16T13:28:07.124791"
+    },
+    {
+      "name": "Admin get pending stories",
+      "passed": true,
+      "details": "Admin can see pending stories",
+      "timestamp": "2026-04-16T13:28:07.342727"
+    },
+    {
+      "name": "Non-admin access restriction",
+      "passed": false,
+      "details": "Non-admin should be blocked from pending stories",
+      "timestamp": "2026-04-16T13:28:07.463793"
+    },
+    {
+      "name": "Approve story",
+      "passed": true,
+      "details": "Story approved successfully",
+      "timestamp": "2026-04-16T13:28:07.579777"
+    },
+    {
+      "name": "Approved story in public list",
+      "passed": true,
+      "details": "Approved story now visible in public list",
+      "timestamp": "2026-04-16T13:28:08.796568"
+    },
+    {
+      "name": "Reject story",
+      "passed": true,
+      "details": "Story rejected successfully",
+      "timestamp": "2026-04-16T13:28:09.089920"
+    },
+    {
+      "name": "Rejected story not in public list",
+      "passed": true,
+      "details": "Rejected story correctly not visible in public list",
+      "timestamp": "2026-04-16T13:28:10.383152"
+    },
+    {
+      "name": "Story submission requires auth",
+      "passed": false,
+      "details": "Should require authentication for story submission",
+      "timestamp": "2026-04-16T13:28:10.571041"
+    },
+    {
+      "name": "My stories requires auth",
+      "passed": false,
+      "details": "Should require authentication for my stories",
+      "timestamp": "2026-04-16T13:28:10.958172"
+    },
+    {
+      "name": "Admin-only approve access",
+      "passed": false,
+      "details": "Regular user should be blocked from approving stories",
+      "timestamp": "2026-04-16T13:28:11.088978"
+    },
+    {
+      "name": "Admin-only reject access",
+      "passed": false,
+      "details": "Regular user should be blocked from rejecting stories",
+      "timestamp": "2026-04-16T13:28:11.205855"
+    }
+  ]
+}

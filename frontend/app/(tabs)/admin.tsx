@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
-import api from '../../utils/api';
+import api, { Story, getPendingStories, approveStory, rejectStory } from '../../utils/api';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Report {
@@ -42,9 +42,10 @@ interface User {
 }
 
 export default function AdminScreen() {
-  const [activeTab, setActiveTab] = useState<'reports' | 'users'>('reports');
+  const [activeTab, setActiveTab] = useState<'reports' | 'users' | 'stories'>('reports');
   const [reports, setReports] = useState<Report[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [pendingStories, setPendingStories] = useState<Story[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'reviewed' | 'resolved'>('all');
@@ -53,8 +54,10 @@ export default function AdminScreen() {
   useEffect(() => {
     if (activeTab === 'reports') {
       loadReports();
-    } else {
+    } else if (activeTab === 'users') {
       loadUsers();
+    } else {
+      loadPendingStories();
     }
   }, [activeTab]);
 
@@ -80,10 +83,66 @@ export default function AdminScreen() {
     setRefreshing(true);
     if (activeTab === 'reports') {
       await loadReports();
-    } else {
+    } else if (activeTab === 'users') {
       await loadUsers();
+    } else {
+      await loadPendingStories();
     }
     setRefreshing(false);
+  };
+
+  const loadPendingStories = async () => {
+    try {
+      const stories = await getPendingStories();
+      setPendingStories(stories);
+    } catch (error) {
+      console.error('Error loading pending stories:', error);
+    }
+  };
+
+  const handleApproveStory = async (story: Story) => {
+    Alert.alert(
+      'Approve Story',
+      `Approve "${story.title}" by ${story.user_name}? It will appear on the Gratitude Wall.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Approve',
+          onPress: async () => {
+            try {
+              await approveStory(story.id);
+              Alert.alert('Approved!', 'The story is now visible on the Gratitude Wall.');
+              loadPendingStories();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to approve story');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRejectStory = async (story: Story) => {
+    Alert.alert(
+      'Reject Story',
+      `Reject "${story.title}" by ${story.user_name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reject',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await rejectStory(story.id);
+              Alert.alert('Rejected', 'The story has been rejected.');
+              loadPendingStories();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to reject story');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const updateReportStatus = async (reportId: string, status: string) => {
@@ -237,6 +296,18 @@ export default function AdminScreen() {
           <MaterialIcons name="people" size={20} color={activeTab === 'users' ? Colors.primary : Colors.textSecondary} />
           <Text style={[styles.tabText, activeTab === 'users' && styles.tabTextActive]}>Users</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'stories' && styles.tabActive]}
+          onPress={() => setActiveTab('stories')}
+        >
+          <MaterialIcons name="auto-stories" size={20} color={activeTab === 'stories' ? Colors.primary : Colors.textSecondary} />
+          <Text style={[styles.tabText, activeTab === 'stories' && styles.tabTextActive]}>Stories</Text>
+          {pendingStories.length > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{pendingStories.length}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       {activeTab === 'reports' ? (
@@ -322,7 +393,7 @@ export default function AdminScreen() {
             <View style={{ height: 40 }} />
           </ScrollView>
         </>
-      ) : (
+      ) : activeTab === 'users' ? (
         <ScrollView
           style={styles.scrollView}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -443,7 +514,55 @@ export default function AdminScreen() {
           ))}
           <View style={{ height: 40 }} />
         </ScrollView>
-      )}
+      ) : activeTab === 'stories' ? (
+        /* Stories Tab */
+        <ScrollView
+          style={styles.scrollView}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
+          <Text style={styles.sectionLabel}>
+            Pending Stories ({pendingStories.length})
+          </Text>
+          
+          {pendingStories.length > 0 ? (
+            pendingStories.map((story) => (
+              <View key={story.id} style={styles.storyCard}>
+                <Text style={styles.storyTitle}>{story.title}</Text>
+                <Text style={styles.storyContent} numberOfLines={6}>{story.content}</Text>
+                <View style={styles.storyMeta}>
+                  <Text style={styles.storyAuthor}>By: {story.user_name}</Text>
+                  <Text style={styles.storyDate}>
+                    {formatDistanceToNow(new Date(story.created_at), { addSuffix: true })}
+                  </Text>
+                </View>
+                <View style={styles.storyActions}>
+                  <TouchableOpacity
+                    style={[styles.storyActionBtn, styles.approveBtn]}
+                    onPress={() => handleApproveStory(story)}
+                  >
+                    <MaterialIcons name="check-circle" size={18} color="#fff" />
+                    <Text style={styles.storyActionText}>Approve</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.storyActionBtn, styles.rejectBtn]}
+                    onPress={() => handleRejectStory(story)}
+                  >
+                    <MaterialIcons name="cancel" size={18} color="#fff" />
+                    <Text style={styles.storyActionText}>Reject</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          ) : (
+            <View style={styles.emptyContainer}>
+              <MaterialIcons name="auto-stories" size={64} color={Colors.textSecondary} />
+              <Text style={styles.emptyText}>No pending stories</Text>
+              <Text style={styles.emptySubtext}>All stories have been reviewed!</Text>
+            </View>
+          )}
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -776,5 +895,82 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: Colors.error,
+  },
+  badge: {
+    backgroundColor: Colors.error,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 4,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  storyCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  storyTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  storyContent: {
+    fontSize: 14,
+    color: Colors.text,
+    lineHeight: 21,
+    marginBottom: 12,
+  },
+  storyMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  storyAuthor: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  storyDate: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  storyActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  storyActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  approveBtn: {
+    backgroundColor: Colors.success,
+  },
+  rejectBtn: {
+    backgroundColor: Colors.error,
+  },
+  storyActionText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

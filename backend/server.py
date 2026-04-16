@@ -344,6 +344,20 @@ class GratitudeResponse(BaseModel):
     status: str = "pending"  # pending, approved, declined
     created_at: datetime
 
+# Success Stories - longer form gratitude/testimonials
+class StoryCreate(BaseModel):
+    title: str
+    content: str  # Longer form story
+
+class StoryResponse(BaseModel):
+    id: str
+    user_id: str
+    user_name: str
+    title: str
+    content: str
+    status: str = "pending"  # pending, approved, rejected
+    created_at: datetime
+
 class ReportCreate(BaseModel):
     report_type: str  # "pledge", "wish", "user", "other"
     item_id: Optional[str] = None  # ID of pledge/wish/user being reported
@@ -1484,6 +1498,127 @@ async def decline_gratitude(gratitude_id: str, current_user = Depends(get_curren
     logger.info(f"Gratitude declined by {current_user['name']}: from {gratitude['from_user_name']}")
     
     return {"success": True, "message": "Gratitude declined - it will not appear publicly"}
+
+# ==========================================
+# SUCCESS STORIES ENDPOINTS
+# ==========================================
+
+@api_router.post("/stories", response_model=StoryResponse)
+async def create_story(story: StoryCreate, current_user = Depends(get_current_user)):
+    """Submit a success story - requires admin approval"""
+    if len(story.content) < 50:
+        raise HTTPException(status_code=400, detail="Story must be at least 50 characters")
+    if len(story.title) < 5:
+        raise HTTPException(status_code=400, detail="Title must be at least 5 characters")
+    
+    story_dict = {
+        "user_id": str(current_user["_id"]),
+        "user_name": current_user["name"],
+        "title": story.title,
+        "content": story.content,
+        "status": "pending",
+        "created_at": datetime.utcnow()
+    }
+    
+    result = await db.stories.insert_one(story_dict)
+    
+    logger.info(f"New story submitted by {current_user['name']}: {story.title}")
+    
+    return StoryResponse(
+        id=str(result.inserted_id),
+        user_id=story_dict["user_id"],
+        user_name=story_dict["user_name"],
+        title=story_dict["title"],
+        content=story_dict["content"],
+        status=story_dict["status"],
+        created_at=story_dict["created_at"]
+    )
+
+@api_router.get("/stories", response_model=List[StoryResponse])
+async def get_approved_stories():
+    """Get all approved success stories for the public wall"""
+    stories = await db.stories.find({"status": "approved"}).sort("created_at", -1).to_list(100)
+    
+    return [StoryResponse(
+        id=str(s["_id"]),
+        user_id=s["user_id"],
+        user_name=s["user_name"],
+        title=s["title"],
+        content=s["content"],
+        status=s["status"],
+        created_at=s["created_at"]
+    ) for s in stories]
+
+@api_router.get("/stories/mine", response_model=List[StoryResponse])
+async def get_my_stories(current_user = Depends(get_current_user)):
+    """Get stories submitted by the current user"""
+    stories = await db.stories.find({"user_id": str(current_user["_id"])}).sort("created_at", -1).to_list(50)
+    
+    return [StoryResponse(
+        id=str(s["_id"]),
+        user_id=s["user_id"],
+        user_name=s["user_name"],
+        title=s["title"],
+        content=s["content"],
+        status=s["status"],
+        created_at=s["created_at"]
+    ) for s in stories]
+
+@api_router.get("/admin/stories/pending", response_model=List[StoryResponse])
+async def get_pending_stories(current_user = Depends(get_current_user)):
+    """Get pending stories for admin approval"""
+    if not await is_user_admin(current_user["email"], current_user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    stories = await db.stories.find({"status": "pending"}).sort("created_at", -1).to_list(100)
+    
+    return [StoryResponse(
+        id=str(s["_id"]),
+        user_id=s["user_id"],
+        user_name=s["user_name"],
+        title=s["title"],
+        content=s["content"],
+        status=s["status"],
+        created_at=s["created_at"]
+    ) for s in stories]
+
+@api_router.post("/admin/stories/{story_id}/approve")
+async def approve_story(story_id: str, current_user = Depends(get_current_user)):
+    """Admin approve a story"""
+    if not await is_user_admin(current_user["email"], current_user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    story = await db.stories.find_one({"_id": ObjectId(story_id)})
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+    
+    await db.stories.update_one(
+        {"_id": ObjectId(story_id)},
+        {"$set": {"status": "approved"}}
+    )
+    
+    logger.info(f"Story approved by admin {current_user['name']}: {story['title']} by {story['user_name']}")
+    
+    return {"success": True, "message": "Story approved and now visible on the Gratitude Wall"}
+
+@api_router.post("/admin/stories/{story_id}/reject")
+async def reject_story(story_id: str, current_user = Depends(get_current_user)):
+    """Admin reject a story"""
+    if not await is_user_admin(current_user["email"], current_user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    story = await db.stories.find_one({"_id": ObjectId(story_id)})
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+    
+    await db.stories.update_one(
+        {"_id": ObjectId(story_id)},
+        {"$set": {"status": "rejected"}}
+    )
+    
+    logger.info(f"Story rejected by admin {current_user['name']}: {story['title']} by {story['user_name']}")
+    
+    return {"success": True, "message": "Story rejected"}
 
 # Report endpoints
 @api_router.post("/reports", response_model=ReportResponse)
