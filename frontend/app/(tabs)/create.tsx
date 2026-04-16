@@ -594,18 +594,79 @@ export default function CreateScreen() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Needed By (optional)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="DD/MM/YYYY (e.g., 15/06/2025)"
-                  value={neededBy}
-                  onChangeText={setNeededBy}
-                  placeholderTextColor={Colors.textSecondary}
-                  keyboardType="numbers-and-punctuation"
-                />
-                <Text style={styles.helpText}>
-                  Leave empty if no specific deadline
-                </Text>
+                <Text style={styles.label}>When do you need this? (optional)</Text>
+                <View style={styles.dateTypeSelector}>
+                  <TouchableOpacity
+                    style={[
+                      styles.dateTypeButton,
+                      !neededBy.includes(' - ') && styles.dateTypeButtonActive,
+                    ]}
+                    onPress={() => setNeededBy('')}
+                  >
+                    <Text style={[
+                      styles.dateTypeText,
+                      !neededBy.includes(' - ') && styles.dateTypeTextActive
+                    ]}>Single Date</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.dateTypeButton,
+                      neededBy.includes(' - ') && styles.dateTypeButtonActive,
+                    ]}
+                    onPress={() => setNeededBy(' - ')}
+                  >
+                    <Text style={[
+                      styles.dateTypeText,
+                      neededBy.includes(' - ') && styles.dateTypeTextActive
+                    ]}>Date Range</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                {neededBy.includes(' - ') ? (
+                  <>
+                    <View style={styles.dateRangeInputs}>
+                      <View style={styles.dateInputWrapper}>
+                        <Text style={styles.dateLabel}>From</Text>
+                        <TextInput
+                          style={styles.dateInput}
+                          placeholder="DD/MM/YYYY"
+                          value={neededBy.split(' - ')[0] || ''}
+                          onChangeText={(text) => setNeededBy(text + ' - ' + (neededBy.split(' - ')[1] || ''))}
+                          placeholderTextColor={Colors.textSecondary}
+                          keyboardType="numbers-and-punctuation"
+                        />
+                      </View>
+                      <View style={styles.dateInputWrapper}>
+                        <Text style={styles.dateLabel}>To</Text>
+                        <TextInput
+                          style={styles.dateInput}
+                          placeholder="DD/MM/YYYY"
+                          value={neededBy.split(' - ')[1] || ''}
+                          onChangeText={(text) => setNeededBy((neededBy.split(' - ')[0] || '') + ' - ' + text)}
+                          placeholderTextColor={Colors.textSecondary}
+                          keyboardType="numbers-and-punctuation"
+                        />
+                      </View>
+                    </View>
+                    <Text style={styles.helpText}>
+                      Perfect for accommodation, transport, or event-based needs
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="DD/MM/YYYY (e.g., 15/06/2025)"
+                      value={neededBy}
+                      onChangeText={setNeededBy}
+                      placeholderTextColor={Colors.textSecondary}
+                      keyboardType="numbers-and-punctuation"
+                    />
+                    <Text style={styles.helpText}>
+                      Leave empty if no specific deadline
+                    </Text>
+                  </>
+                )}
               </View>
             </>
           )}
@@ -940,5 +1001,55 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.accent,
     fontWeight: '500',
+  },
+  dateTypeSelector: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  dateTypeButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+  },
+  dateTypeButtonActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  dateTypeText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  dateTypeTextActive: {
+    color: Colors.surface,
+  },
+  dateRangeInputs: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  dateInputWrapper: {
+    flex: 1,
+  },
+  dateLabel: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 6,
+    fontWeight: '500',
+  },
+  dateInput: {
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: Colors.text,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
 });

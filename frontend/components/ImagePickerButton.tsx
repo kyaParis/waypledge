@@ -114,6 +114,7 @@ export default function ImagePickerButton({
   };
 
   const showOptions = () => {
+    console.log('ImagePickerButton: showOptions called');
     Alert.alert(
       'Add Photo',
       'Choose an option',
