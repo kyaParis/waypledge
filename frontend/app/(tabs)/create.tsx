@@ -177,7 +177,9 @@ export default function CreateScreen() {
         }
       }
 
-      await api.post(endpoint, data);
+      console.log('Submitting', type, ':', data);
+      const response = await api.post(endpoint, data);
+      console.log('Success! Response:', response.data);
 
       Alert.alert(
         'Success',
@@ -391,19 +393,19 @@ export default function CreateScreen() {
               <TouchableOpacity
                 style={[
                   styles.locationButton,
-                  location && location !== 'Online' && styles.locationButtonActive,
+                  location !== 'Online' && styles.locationButtonActive,
                 ]}
                 onPress={() => setLocation('')}
               >
                 <MaterialIcons
                   name="location-on"
                   size={18}
-                  color={location && location !== 'Online' ? Colors.surface : Colors.primary}
+                  color={location !== 'Online' ? Colors.surface : Colors.primary}
                 />
                 <Text
                   style={[
                     styles.locationButtonText,
-                    location && location !== 'Online' && styles.locationButtonTextActive,
+                    location !== 'Online' && styles.locationButtonTextActive,
                   ]}
                 >
                   Local
