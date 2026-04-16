@@ -1434,10 +1434,16 @@ async def get_my_gratitude(current_user = Depends(get_current_user)):
 @api_router.get("/gratitude/pending", response_model=List[GratitudeResponse])
 async def get_pending_gratitude(current_user = Depends(get_current_user)):
     """Get pending gratitude waiting for user's approval"""
+    user_id = str(current_user["_id"])
+    logger.info(f"Getting pending gratitude for user {current_user['name']} (ID: {user_id})")
+    
     gratitudes = await db.gratitude.find({
-        "to_user_id": str(current_user["_id"]),
+        "to_user_id": user_id,
         "status": "pending"
     }).sort("created_at", -1).to_list(50)
+    
+    logger.info(f"Found {len(gratitudes)} pending gratitude for {current_user['name']}")
+    
     return [GratitudeResponse(
         id=str(g["_id"]),
         from_user_id=g["from_user_id"],
