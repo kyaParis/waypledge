@@ -160,7 +160,7 @@ export default function SendGratitudeScreen() {
                 <Text style={styles.messageLabel}>Your Message of Gratitude</Text>
                 <TextInput
                   style={styles.messageInput}
-                  placeholder="Write your thank you message here... What did they do that you're grateful for?"
+                  placeholder="Write your thank you message here... What did they do that you're grateful for? (min 10 characters)"
                   placeholderTextColor={Colors.textSecondary}
                   value={message}
                   onChangeText={setMessage}
@@ -169,7 +169,12 @@ export default function SendGratitudeScreen() {
                   textAlignVertical="top"
                   maxLength={500}
                 />
-                <Text style={styles.charCount}>{message.length}/500</Text>
+                <Text style={[
+                  styles.charCount,
+                  message.trim().length < 10 && message.length > 0 && { color: Colors.error }
+                ]}>
+                  {message.length}/500 {message.trim().length < 10 && message.length > 0 ? '(need at least 10 characters)' : ''}
+                </Text>
               </View>
 
               {/* Send Button */}
