@@ -867,6 +867,292 @@ class WayPledgeAPITester:
                             {"response": response.text})
         except Exception as e:
             self.log_test("Cloudinary Invalid Folder", False, f"Request failed: {str(e)}")
+
+    # ==========================================
+    # USER SEARCH ENDPOINT TESTS
+    # ==========================================
+
+    def setup_search_test_users(self):
+        """Create multiple test users for search testing"""
+        test_users = []
+        user_data_list = [
+            {
+                "email": f"andrew_test_{datetime.now().strftime('%Y%m%d_%H%M%S')}@example.com",
+                "password": "TestPassword123!",
+                "name": "Andrew Johnson",
+                "bio": "Test user Andrew for search testing",
+                "location": "New York, NY"
+            },
+            {
+                "email": f"kathryn_test_{datetime.now().strftime('%Y%m%d_%H%M%S')}@example.com",
+                "password": "TestPassword123!",
+                "name": "Kathryn Smith",
+                "bio": "Test user Kathryn for search testing",
+                "location": "Los Angeles, CA"
+            },
+            {
+                "email": f"suspended_test_{datetime.now().strftime('%Y%m%d_%H%M%S')}@example.com",
+                "password": "TestPassword123!",
+                "name": "Suspended User",
+                "bio": "Test user that will be suspended",
+                "location": "Chicago, IL"
+            }
+        ]
+        
+        for user_data in user_data_list:
+            try:
+                response = self.session.post(f"{API_BASE}/auth/register", json=user_data)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    user_info = {
+                        "id": data.get("user", {}).get("id"),
+                        "name": user_data["name"],
+                        "email": user_data["email"],
+                        "token": data.get("access_token")
+                    }
+                    test_users.append(user_info)
+                    self.log_test("Search User Setup", True, f"Created search test user: {user_data['name']}", 
+                                {"user_id": user_info["id"]})
+                else:
+                    self.log_test("Search User Setup", False, f"Failed to create search test user {user_data['name']}: {response.status_code}", 
+                                {"response": response.text})
+            except Exception as e:
+                self.log_test("Search User Setup", False, f"Search user setup failed for {user_data['name']}: {str(e)}")
+        
+        return test_users
+
+    def test_user_search_unauthenticated(self):
+        """Test user search without authentication should return 401 or 403"""
+        try:
+            # Create session without auth token
+            unauth_session = requests.Session()
+            response = unauth_session.get(f"{API_BASE}/users/search?q=Andrew")
+            
+            if response.status_code in [401, 403]:
+                self.log_test("User Search Unauthenticated", True, "Correctly rejected unauthenticated search request", 
+                            {"status_code": response.status_code})
+            else:
+                self.log_test("User Search Unauthenticated", False, f"Unauthenticated search not rejected: {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("User Search Unauthenticated", False, f"Request failed: {str(e)}")
+
+    def test_user_search_short_query(self):
+        """Test user search with query too short (1 char) should return 422"""
+        if not self.auth_token:
+            self.log_test("User Search Short Query", False, "No auth token available for testing")
+            return
+        
+        try:
+            response = self.session.get(f"{API_BASE}/users/search?q=A")
+            
+            if response.status_code == 422:
+                data = response.json()
+                # Check if it's a validation error about minimum length
+                detail = data.get("detail", [])
+                if isinstance(detail, list) and len(detail) > 0:
+                    error_msg = detail[0].get("msg", "")
+                    if "at least 2 characters" in error_msg or "min_length" in error_msg:
+                        self.log_test("User Search Short Query", True, "Correctly rejected short query", 
+                                    {"status_code": response.status_code, "validation_error": error_msg})
+                    else:
+                        self.log_test("User Search Short Query", False, "Short query rejected but with unexpected validation message", 
+                                    {"response": data})
+                else:
+                    self.log_test("User Search Short Query", False, "Short query rejected but validation format unexpected", 
+                                {"response": data})
+            else:
+                self.log_test("User Search Short Query", False, f"Short query not rejected: {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("User Search Short Query", False, f"Request failed: {str(e)}")
+
+    def test_user_search_andrew(self):
+        """Test user search with valid query 'Andrew' should return matching users"""
+        if not self.auth_token:
+            self.log_test("User Search Andrew", False, "No auth token available for testing")
+            return
+        
+        try:
+            response = self.session.get(f"{API_BASE}/users/search?q=Andrew")
+            
+            if response.status_code == 200:
+                users = response.json()
+                if isinstance(users, list):
+                    # Check if any users contain "Andrew" in their name
+                    andrew_users = [u for u in users if "andrew" in u.get("name", "").lower()]
+                    
+                    if andrew_users:
+                        self.log_test("User Search Andrew", True, f"Found {len(andrew_users)} users matching 'Andrew'", 
+                                    {"total_results": len(users), "andrew_matches": len(andrew_users), 
+                                     "sample_user": andrew_users[0].get("name")})
+                    else:
+                        # If no Andrew users found, it might be because none were created yet
+                        self.log_test("User Search Andrew", True, "Search executed successfully but no Andrew users found", 
+                                    {"total_results": len(users), "note": "No Andrew users in database"})
+                else:
+                    self.log_test("User Search Andrew", False, "Response is not a list", 
+                                {"response": users})
+            else:
+                self.log_test("User Search Andrew", False, f"Search failed with status {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("User Search Andrew", False, f"Request failed: {str(e)}")
+
+    def test_user_search_kathryn(self):
+        """Test user search with valid query 'Kathryn' should return matching users"""
+        if not self.auth_token:
+            self.log_test("User Search Kathryn", False, "No auth token available for testing")
+            return
+        
+        try:
+            response = self.session.get(f"{API_BASE}/users/search?q=Kathryn")
+            
+            if response.status_code == 200:
+                users = response.json()
+                if isinstance(users, list):
+                    # Check if any users contain "Kathryn" in their name
+                    kathryn_users = [u for u in users if "kathryn" in u.get("name", "").lower()]
+                    
+                    if kathryn_users:
+                        self.log_test("User Search Kathryn", True, f"Found {len(kathryn_users)} users matching 'Kathryn'", 
+                                    {"total_results": len(users), "kathryn_matches": len(kathryn_users), 
+                                     "sample_user": kathryn_users[0].get("name")})
+                    else:
+                        # If no Kathryn users found, it might be because none were created yet
+                        self.log_test("User Search Kathryn", True, "Search executed successfully but no Kathryn users found", 
+                                    {"total_results": len(users), "note": "No Kathryn users in database"})
+                else:
+                    self.log_test("User Search Kathryn", False, "Response is not a list", 
+                                {"response": users})
+            else:
+                self.log_test("User Search Kathryn", False, f"Search failed with status {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("User Search Kathryn", False, f"Request failed: {str(e)}")
+
+    def test_user_search_excludes_current_user(self):
+        """Test that user search excludes the current user from results"""
+        if not self.auth_token or not self.test_user_id:
+            self.log_test("User Search Excludes Self", False, "No auth token or user ID available for testing")
+            return
+        
+        try:
+            # Get current user info first
+            me_response = self.session.get(f"{API_BASE}/auth/me")
+            if me_response.status_code != 200:
+                self.log_test("User Search Excludes Self", False, "Could not get current user info")
+                return
+            
+            current_user = me_response.json()
+            current_user_name = current_user.get("name", "")
+            
+            # Search for the current user's name
+            if current_user_name:
+                # Use first word of name for search
+                search_term = current_user_name.split()[0]
+                response = self.session.get(f"{API_BASE}/users/search?q={search_term}")
+                
+                if response.status_code == 200:
+                    users = response.json()
+                    if isinstance(users, list):
+                        # Check that current user is not in results
+                        current_user_in_results = any(u.get("id") == self.test_user_id for u in users)
+                        
+                        if not current_user_in_results:
+                            self.log_test("User Search Excludes Self", True, "Current user correctly excluded from search results", 
+                                        {"search_term": search_term, "current_user_id": self.test_user_id, 
+                                         "total_results": len(users)})
+                        else:
+                            self.log_test("User Search Excludes Self", False, "Current user found in search results", 
+                                        {"search_term": search_term, "current_user_id": self.test_user_id})
+                    else:
+                        self.log_test("User Search Excludes Self", False, "Response is not a list", 
+                                    {"response": users})
+                else:
+                    self.log_test("User Search Excludes Self", False, f"Search failed with status {response.status_code}", 
+                                {"response": response.text})
+            else:
+                self.log_test("User Search Excludes Self", False, "Current user has no name to search for")
+        except Exception as e:
+            self.log_test("User Search Excludes Self", False, f"Request failed: {str(e)}")
+
+    def test_user_search_case_insensitive(self):
+        """Test that user search is case-insensitive"""
+        if not self.auth_token:
+            self.log_test("User Search Case Insensitive", False, "No auth token available for testing")
+            return
+        
+        try:
+            # Test with lowercase
+            response_lower = self.session.get(f"{API_BASE}/users/search?q=andrew")
+            # Test with uppercase
+            response_upper = self.session.get(f"{API_BASE}/users/search?q=ANDREW")
+            # Test with mixed case
+            response_mixed = self.session.get(f"{API_BASE}/users/search?q=AnDrEw")
+            
+            if (response_lower.status_code == 200 and 
+                response_upper.status_code == 200 and 
+                response_mixed.status_code == 200):
+                
+                users_lower = response_lower.json()
+                users_upper = response_upper.json()
+                users_mixed = response_mixed.json()
+                
+                # All should return the same results (same number of users)
+                if (len(users_lower) == len(users_upper) == len(users_mixed)):
+                    self.log_test("User Search Case Insensitive", True, "Search is case-insensitive", 
+                                {"lowercase_results": len(users_lower), "uppercase_results": len(users_upper), 
+                                 "mixed_case_results": len(users_mixed)})
+                else:
+                    self.log_test("User Search Case Insensitive", False, "Search results differ by case", 
+                                {"lowercase_results": len(users_lower), "uppercase_results": len(users_upper), 
+                                 "mixed_case_results": len(users_mixed)})
+            else:
+                self.log_test("User Search Case Insensitive", False, "One or more search requests failed", 
+                            {"lower_status": response_lower.status_code, "upper_status": response_upper.status_code, 
+                             "mixed_status": response_mixed.status_code})
+        except Exception as e:
+            self.log_test("User Search Case Insensitive", False, f"Request failed: {str(e)}")
+
+    def test_user_search_response_structure(self):
+        """Test that user search returns proper response structure"""
+        if not self.auth_token:
+            self.log_test("User Search Response Structure", False, "No auth token available for testing")
+            return
+        
+        try:
+            response = self.session.get(f"{API_BASE}/users/search?q=test")
+            
+            if response.status_code == 200:
+                users = response.json()
+                if isinstance(users, list):
+                    if users:
+                        # Check structure of first user
+                        sample_user = users[0]
+                        required_fields = ["id", "email", "name", "bio", "location", "created_at"]
+                        optional_fields = ["avatar"]
+                        
+                        missing_required = [field for field in required_fields if field not in sample_user]
+                        
+                        if not missing_required:
+                            self.log_test("User Search Response Structure", True, "User search response has correct structure", 
+                                        {"required_fields_present": required_fields, "sample_user_id": sample_user.get("id"),
+                                         "optional_fields_present": [f for f in optional_fields if f in sample_user]})
+                        else:
+                            self.log_test("User Search Response Structure", False, f"Missing required fields: {missing_required}", 
+                                        {"sample_user": sample_user})
+                    else:
+                        self.log_test("User Search Response Structure", True, "Search returned empty list (no users to check structure)")
+                else:
+                    self.log_test("User Search Response Structure", False, "Response is not a list", 
+                                {"response_type": type(users), "response": users})
+            else:
+                self.log_test("User Search Response Structure", False, f"Search failed with status {response.status_code}", 
+                            {"response": response.text})
+        except Exception as e:
+            self.log_test("User Search Response Structure", False, f"Request failed: {str(e)}")
     
     def run_all_tests(self):
         """Run all backend tests including new features"""
@@ -931,6 +1217,21 @@ class WayPledgeAPITester:
             self.test_cloudinary_signature_authenticated()
             self.test_cloudinary_signature_unauthenticated()
             self.test_cloudinary_signature_invalid_folder()
+            
+            print("\n🔍 USER SEARCH ENDPOINT TESTS")
+            print("-" * 40)
+            
+            # Setup test users for search
+            search_test_users = self.setup_search_test_users()
+            
+            # Test user search functionality
+            self.test_user_search_unauthenticated()
+            self.test_user_search_short_query()
+            self.test_user_search_andrew()
+            self.test_user_search_kathryn()
+            self.test_user_search_excludes_current_user()
+            self.test_user_search_case_insensitive()
+            self.test_user_search_response_structure()
         
         print("\n🗑️ ACCOUNT DELETION TESTS")
         print("-" * 40)

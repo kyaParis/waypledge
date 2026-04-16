@@ -2179,6 +2179,39 @@ async def get_categories():
     return [CategoryResponse(**cat) for cat in categories]
 
 # User profile endpoint
+@api_router.get("/users/search", response_model=List[UserResponse])
+async def search_users(
+    q: str = Query(..., min_length=2, description="Search query (min 2 characters)"),
+    limit: int = Query(20, ge=1, le=50),
+    current_user = Depends(get_current_user)
+):
+    """Search for users by name - for sending gratitude"""
+    # Case-insensitive search on name
+    query = {
+        "name": {"$regex": q, "$options": "i"},
+        "_id": {"$ne": ObjectId(current_user["_id"])},  # Exclude self
+        "is_suspended": {"$ne": True}  # Exclude suspended users
+    }
+    
+    users = await db.users.find(query).limit(limit).to_list(limit)
+    
+    return [UserResponse(
+        id=str(u["_id"]),
+        email=u["email"],
+        name=u["name"],
+        display_name=u.get("display_name", u["name"]),  # Use display_name or fallback to name
+        bio=u.get("bio", ""),
+        location=u.get("location", ""),
+        latitude=u.get("latitude"),
+        longitude=u.get("longitude"),
+        avatar=u.get("avatar"),
+        created_at=u["created_at"],
+        is_admin=u.get("is_admin", False),
+        email_verified=u.get("email_verified", False),
+        is_approved=u.get("is_approved", False)
+    ) for u in users]
+
+
 @api_router.get("/users/{user_id}", response_model=UserResponse)
 async def get_user_profile(user_id: str):
     user = await db.users.find_one({"_id": ObjectId(user_id)})

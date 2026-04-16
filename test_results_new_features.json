@@ -3,7 +3,7 @@
     "test": "Health Check",
     "success": true,
     "message": "Health check endpoint responding (non-JSON)",
-    "timestamp": "2026-04-10T05:53:36.082236",
+    "timestamp": "2026-04-16T13:10:38.149000",
     "details": {
       "status_code": 200,
       "response": "<!DOCTYPE html><html  lang=\"en\" style=\"height:100%\"><head><title data-rh=\"true\"></title><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, shrink-to-fit=no\"/><m"
@@ -13,9 +13,9 @@
     "test": "Registration Email Verification",
     "success": true,
     "message": "User registered with email_verified: false",
-    "timestamp": "2026-04-10T05:53:36.816759",
+    "timestamp": "2026-04-16T13:10:38.815326",
     "details": {
-      "user_id": "69d890605d7f50677fe4b139",
+      "user_id": "69e0dfce7bd6f59441312691",
       "email_verified": false
     }
   },
@@ -23,9 +23,9 @@
     "test": "Unverified User Setup",
     "success": true,
     "message": "Unverified test user created successfully",
-    "timestamp": "2026-04-10T05:53:37.358311",
+    "timestamp": "2026-04-16T13:10:39.274067",
     "details": {
-      "user_id": "69d890615d7f50677fe4b13a",
+      "user_id": "69e0dfcf7bd6f59441312692",
       "email_verified": false
     }
   },
@@ -33,7 +33,7 @@
     "test": "Verify Email Wrong Code",
     "success": true,
     "message": "Wrong verification code correctly rejected",
-    "timestamp": "2026-04-10T05:53:37.409703",
+    "timestamp": "2026-04-16T13:10:39.326370",
     "details": {
       "status_code": 400,
       "detail": "Invalid verification code"
@@ -43,50 +43,52 @@
     "test": "Resend Verification",
     "success": false,
     "message": "Resend failed: 500",
-    "timestamp": "2026-04-10T05:53:37.670318",
+    "timestamp": "2026-04-16T13:10:39.570138",
     "details": {
       "response": "{\"detail\":\"Failed to send email. Please try again.\"}"
     }
   },
   {
     "test": "Block Unverified Pledges",
-    "success": false,
-    "message": "Unverified user not blocked from pledges: 200",
-    "timestamp": "2026-04-10T05:53:37.735917",
+    "success": true,
+    "message": "Unverified user correctly blocked from creating pledges",
+    "timestamp": "2026-04-16T13:10:39.621905",
     "details": {
-      "response": "{\"id\":\"69d890615d7f50677fe4b13b\",\"user_id\":\"69d890615d7f50677fe4b13a\",\"user_name\":\"Unverified Test User\",\"title\":\"Test Pledge from Unverified User\",\"description\":\"This should be blocked\",\"category\":\"Other\",\"tags\":[\"test\"],\"location\":\"Test Location\",\"latitude\":null,\"longitude\":null,\"distance_km\":null,\"status\":\"active\",\"image\":null,\"hive_id\":null,\"hive_name\":null,\"available_until\":null,\"created_at\":\"2026-04-10T05:53:37.715097\"}"
+      "status_code": 403,
+      "detail": "Please verify your email before creating pledges. Check your inbox for the verification code."
     }
   },
   {
     "test": "Block Unverified Wishes",
-    "success": false,
-    "message": "Unverified user not blocked from wishes: 200",
-    "timestamp": "2026-04-10T05:53:37.797233",
+    "success": true,
+    "message": "Unverified user correctly blocked from creating wishes",
+    "timestamp": "2026-04-16T13:10:39.672688",
     "details": {
-      "response": "{\"id\":\"69d890615d7f50677fe4b13c\",\"user_id\":\"69d890615d7f50677fe4b13a\",\"user_name\":\"Unverified Test User\",\"title\":\"Test Wish from Unverified User\",\"description\":\"This should be blocked\",\"category\":\"Other\",\"tags\":[\"test\"],\"location\":\"Test Location\",\"latitude\":null,\"longitude\":null,\"distance_km\":null,\"status\":\"active\",\"fulfilled_by\":null,\"hive_id\":null,\"hive_name\":null,\"needed_by\":null,\"urgency\":\"normal\",\"created_at\":\"2026-04-10T05:53:37.778372\"}"
+      "status_code": 403,
+      "detail": "Please verify your email before creating wishes. Check your inbox for the verification code."
     }
   },
   {
     "test": "User Setup",
     "success": true,
     "message": "Test user created successfully",
-    "timestamp": "2026-04-10T05:53:38.276014",
+    "timestamp": "2026-04-16T13:10:40.156543",
     "details": {
-      "user_id": "69d890625d7f50677fe4b13d"
+      "user_id": "69e0dfcf7bd6f59441312693"
     }
   },
   {
     "test": "Hives List",
     "success": true,
     "message": "Retrieved 21 hives successfully",
-    "timestamp": "2026-04-10T05:53:38.344245",
+    "timestamp": "2026-04-16T13:10:40.210198",
     "details": {}
   },
   {
     "test": "Hives Stats Fields",
     "success": true,
     "message": "All required stats fields present in hive response",
-    "timestamp": "2026-04-10T05:53:38.344269",
+    "timestamp": "2026-04-16T13:10:40.210223",
     "details": {
       "sample_hive_id": "69c5a4be177c7d9acf65c58c",
       "stats": {
@@ -101,67 +103,67 @@
     "test": "Hives Children",
     "success": true,
     "message": "Retrieved 0 child hives for hive 69c5a4be177c7d9acf65c58c",
-    "timestamp": "2026-04-10T05:53:38.445362",
+    "timestamp": "2026-04-16T13:10:40.494629",
     "details": {}
   },
   {
     "test": "My Hives",
     "success": true,
     "message": "Retrieved 0 user hives successfully",
-    "timestamp": "2026-04-10T05:53:38.498245",
+    "timestamp": "2026-04-16T13:10:40.547801",
     "details": {}
   },
   {
     "test": "Federation Partners",
     "success": true,
     "message": "Retrieved 0 federated partners successfully",
-    "timestamp": "2026-04-10T05:53:38.548049",
+    "timestamp": "2026-04-16T13:10:40.596807",
     "details": {}
   },
   {
     "test": "Federation Partners Stats",
     "success": true,
     "message": "No federation partners to check stats fields",
-    "timestamp": "2026-04-10T05:53:38.548070",
+    "timestamp": "2026-04-16T13:10:40.596832",
     "details": {}
   },
   {
     "test": "Pledges List",
     "success": true,
     "message": "Retrieved 6 pledges successfully",
-    "timestamp": "2026-04-10T05:53:38.659028",
+    "timestamp": "2026-04-16T13:10:40.706130",
     "details": {}
   },
   {
     "test": "Pledges Hive Names",
     "success": true,
     "message": "No pledges with hive_id to check hive_name field",
-    "timestamp": "2026-04-10T05:53:38.659062",
+    "timestamp": "2026-04-16T13:10:40.706164",
     "details": {}
   },
   {
     "test": "Categories",
     "success": true,
     "message": "Retrieved 9 categories successfully",
-    "timestamp": "2026-04-10T05:53:38.706553",
+    "timestamp": "2026-04-16T13:10:40.751940",
     "details": {}
   },
   {
     "test": "Second User Setup",
     "success": true,
     "message": "Second test user created successfully",
-    "timestamp": "2026-04-10T05:53:39.131618",
+    "timestamp": "2026-04-16T13:10:41.200359",
     "details": {
-      "user_id": "69d890625d7f50677fe4b13e"
+      "user_id": "69e0dfd17bd6f59441312694"
     }
   },
   {
     "test": "Block User",
     "success": true,
     "message": "User blocked successfully",
-    "timestamp": "2026-04-10T05:53:39.191024",
+    "timestamp": "2026-04-16T13:10:41.257883",
     "details": {
-      "blocked_user_id": "69d890625d7f50677fe4b13e",
+      "blocked_user_id": "69e0dfd17bd6f59441312694",
       "response": {
         "success": true,
         "message": "User blocked successfully"
@@ -172,20 +174,20 @@
     "test": "Get Blocked Users",
     "success": true,
     "message": "Retrieved 1 blocked users successfully",
-    "timestamp": "2026-04-10T05:53:39.238681",
+    "timestamp": "2026-04-16T13:10:41.308070",
     "details": {}
   },
   {
     "test": "Blocked Users Structure",
     "success": true,
     "message": "Blocked users have all required fields",
-    "timestamp": "2026-04-10T05:53:39.238706",
+    "timestamp": "2026-04-16T13:10:41.308101",
     "details": {
       "sample_blocked": {
-        "id": "69d890635d7f50677fe4b13f",
-        "user_id": "69d890625d7f50677fe4b13e",
-        "user_name": "Test7945",
-        "blocked_at": "2026-04-10T05:53:39.164000"
+        "id": "69e0dfd17bd6f59441312695",
+        "user_id": "69e0dfd17bd6f59441312694",
+        "user_name": "Test4802",
+        "blocked_at": "2026-04-16T13:10:41.234000"
       }
     }
   },
@@ -193,9 +195,9 @@
     "test": "Is User Blocked",
     "success": true,
     "message": "User correctly identified as blocked",
-    "timestamp": "2026-04-10T05:53:39.288653",
+    "timestamp": "2026-04-16T13:10:41.357715",
     "details": {
-      "blocked_user_id": "69d890625d7f50677fe4b13e",
+      "blocked_user_id": "69e0dfd17bd6f59441312694",
       "is_blocked": true
     }
   },
@@ -203,9 +205,9 @@
     "test": "Unblock User",
     "success": true,
     "message": "User unblocked successfully",
-    "timestamp": "2026-04-10T05:53:39.388590",
+    "timestamp": "2026-04-16T13:10:41.414994",
     "details": {
-      "unblocked_user_id": "69d890625d7f50677fe4b13e",
+      "unblocked_user_id": "69e0dfd17bd6f59441312694",
       "response": {
         "success": true,
         "message": "User unblocked successfully"
@@ -216,7 +218,7 @@
     "test": "Block Self Fails",
     "success": true,
     "message": "Correctly prevented self-blocking",
-    "timestamp": "2026-04-10T05:53:39.492292",
+    "timestamp": "2026-04-16T13:10:41.465452",
     "details": {
       "status_code": 400,
       "detail": "Cannot block yourself"
@@ -226,7 +228,7 @@
     "test": "Block Nonexistent User",
     "success": true,
     "message": "Correctly rejected blocking non-existent user",
-    "timestamp": "2026-04-10T05:53:39.544077",
+    "timestamp": "2026-04-16T13:10:41.513955",
     "details": {
       "status_code": 404,
       "detail": "User not found"
@@ -236,7 +238,7 @@
     "test": "Cloudinary Signature Auth",
     "success": true,
     "message": "Cloudinary signature generated successfully",
-    "timestamp": "2026-04-10T05:53:39.593144",
+    "timestamp": "2026-04-16T13:10:41.563723",
     "details": {
       "fields_present": [
         "signature",
@@ -252,7 +254,7 @@
     "test": "Cloudinary Signature Unauth",
     "success": true,
     "message": "Correctly rejected unauthenticated request",
-    "timestamp": "2026-04-10T05:53:39.759291",
+    "timestamp": "2026-04-16T13:10:41.889016",
     "details": {
       "status_code": 403
     }
@@ -261,26 +263,119 @@
     "test": "Cloudinary Invalid Folder",
     "success": true,
     "message": "Correctly rejected invalid folder",
-    "timestamp": "2026-04-10T05:53:39.807294",
+    "timestamp": "2026-04-16T13:10:41.952975",
     "details": {
       "status_code": 400,
       "detail": "Invalid folder path"
     }
   },
   {
+    "test": "Search User Setup",
+    "success": true,
+    "message": "Created search test user: Andrew Johnson",
+    "timestamp": "2026-04-16T13:10:42.624870",
+    "details": {
+      "user_id": "69e0dfd27bd6f59441312696"
+    }
+  },
+  {
+    "test": "Search User Setup",
+    "success": true,
+    "message": "Created search test user: Kathryn Smith",
+    "timestamp": "2026-04-16T13:10:43.114438",
+    "details": {
+      "user_id": "69e0dfd27bd6f59441312697"
+    }
+  },
+  {
+    "test": "Search User Setup",
+    "success": true,
+    "message": "Created search test user: Suspended User",
+    "timestamp": "2026-04-16T13:10:43.866228",
+    "details": {
+      "user_id": "69e0dfd37bd6f59441312698"
+    }
+  },
+  {
+    "test": "User Search Unauthenticated",
+    "success": false,
+    "message": "Unauthenticated search not rejected: 403",
+    "timestamp": "2026-04-16T13:10:44.058776",
+    "details": {
+      "response": "{\"detail\":\"Not authenticated\"}"
+    }
+  },
+  {
+    "test": "User Search Short Query",
+    "success": true,
+    "message": "Correctly rejected short query",
+    "timestamp": "2026-04-16T13:10:44.117650",
+    "details": {
+      "status_code": 422,
+      "validation_error": "String should have at least 2 characters"
+    }
+  },
+  {
+    "test": "User Search Andrew",
+    "success": false,
+    "message": "Search failed with status 500",
+    "timestamp": "2026-04-16T13:10:44.178037",
+    "details": {
+      "response": "Internal Server Error"
+    }
+  },
+  {
+    "test": "User Search Kathryn",
+    "success": false,
+    "message": "Search failed with status 500",
+    "timestamp": "2026-04-16T13:10:44.228451",
+    "details": {
+      "response": "Internal Server Error"
+    }
+  },
+  {
+    "test": "User Search Excludes Self",
+    "success": false,
+    "message": "Search failed with status 500",
+    "timestamp": "2026-04-16T13:10:44.330721",
+    "details": {
+      "response": "Internal Server Error"
+    }
+  },
+  {
+    "test": "User Search Case Insensitive",
+    "success": false,
+    "message": "One or more search requests failed",
+    "timestamp": "2026-04-16T13:10:44.485337",
+    "details": {
+      "lower_status": 500,
+      "upper_status": 500,
+      "mixed_status": 500
+    }
+  },
+  {
+    "test": "User Search Response Structure",
+    "success": false,
+    "message": "Search failed with status 500",
+    "timestamp": "2026-04-16T13:10:44.535723",
+    "details": {
+      "response": "Internal Server Error"
+    }
+  },
+  {
     "test": "Deletion User Setup",
     "success": true,
     "message": "Deletion test user created successfully",
-    "timestamp": "2026-04-10T05:53:40.270832",
+    "timestamp": "2026-04-16T13:10:44.993327",
     "details": {
-      "user_id": "69d890645d7f50677fe4b140"
+      "user_id": "69e0dfd47bd6f59441312699"
     }
   },
   {
     "test": "Account Deletion Wrong Password",
     "success": true,
     "message": "Correctly rejected wrong password",
-    "timestamp": "2026-04-10T05:53:40.677269",
+    "timestamp": "2026-04-16T13:10:45.330327",
     "details": {
       "status_code": 400,
       "detail": "Incorrect password"
@@ -290,19 +385,19 @@
     "test": "Deletion User Setup",
     "success": true,
     "message": "Deletion test user created successfully",
-    "timestamp": "2026-04-10T05:53:41.129690",
+    "timestamp": "2026-04-16T13:10:45.781300",
     "details": {
-      "user_id": "69d890645d7f50677fe4b141"
+      "user_id": "69e0dfd57bd6f5944131269a"
     }
   },
   {
     "test": "Account Deletion Success",
     "success": true,
     "message": "Account deleted successfully",
-    "timestamp": "2026-04-10T05:53:41.509619",
+    "timestamp": "2026-04-16T13:10:46.166338",
     "details": {
-      "deleted_user_id": "69d890645d7f50677fe4b141",
-      "pledge_created": true,
+      "deleted_user_id": "69e0dfd57bd6f5944131269a",
+      "pledge_created": false,
       "response": {
         "success": true,
         "message": "Account and all associated data deleted successfully"
@@ -313,7 +408,7 @@
     "test": "Account Deletion Verification",
     "success": true,
     "message": "User no longer exists after deletion",
-    "timestamp": "2026-04-10T05:53:41.552499",
+    "timestamp": "2026-04-16T13:10:46.215968",
     "details": {}
   }
 ]

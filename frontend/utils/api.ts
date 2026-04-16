@@ -104,6 +104,30 @@ export const declineGratitude = async (gratitudeId: string): Promise<void> => {
   await api.post(`/gratitude/${gratitudeId}/decline`);
 };
 
+// Search users for sending gratitude
+export interface UserSearchResult {
+  id: string;
+  name: string;
+  bio: string;
+  location: string;
+  avatar?: string;
+}
+
+export const searchUsers = async (query: string): Promise<UserSearchResult[]> => {
+  const response = await api.get('/users/search', { params: { q: query } });
+  return response.data;
+};
+
+// Send gratitude to a user
+export const sendGratitude = async (toUserId: string, message: string, connectionId?: string): Promise<Gratitude> => {
+  const response = await api.post('/gratitude', {
+    to_user_id: toUserId,
+    message,
+    connection_id: connectionId
+  });
+  return response.data;
+};
+
 export interface Category {
   id: string;
   name: string;

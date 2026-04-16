@@ -11,7 +11,7 @@ import {
   AppState,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -19,6 +19,7 @@ import api, { Pledge, Wish, Gratitude } from '../../utils/api';
 import WelcomeModal from '../../components/WelcomeModal';
 
 export default function HomeScreen() {
+  const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const [recentPledges, setRecentPledges] = useState<Pledge[]>([]);
   const [recentWishes, setRecentWishes] = useState<Wish[]>([]);
@@ -228,6 +229,16 @@ export default function HomeScreen() {
             <Text style={styles.sectionTitle}>Gratitude Wall</Text>
             <MaterialIcons name="favorite" size={24} color={Colors.accent} />
           </View>
+          
+          {/* Send Gratitude Button */}
+          <TouchableOpacity
+            style={styles.sendGratitudeButton}
+            onPress={() => router.push('/gratitude')}
+          >
+            <MaterialIcons name="volunteer-activism" size={24} color="#fff" />
+            <Text style={styles.sendGratitudeButtonText}>Say Thank You</Text>
+          </TouchableOpacity>
+          
           {recentGratitude.length > 0 ? (
             recentGratitude.map((gratitude) => (
               <View key={gratitude.id} style={styles.gratitudeCard}>
@@ -488,5 +499,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
     paddingVertical: 20,
+  },
+  sendGratitudeButton: {
+    flexDirection: 'row',
+    backgroundColor: Colors.accent,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 8,
+  },
+  sendGratitudeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
