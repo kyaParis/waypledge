@@ -15,7 +15,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
-import api, { Pledge, Wish, Gratitude } from '../../utils/api';
+import api, { Pledge, Wish } from '../../utils/api';
 import WelcomeModal from '../../components/WelcomeModal';
 
 export default function HomeScreen() {
@@ -23,7 +23,6 @@ export default function HomeScreen() {
   const user = useAuthStore((state) => state.user);
   const [recentPledges, setRecentPledges] = useState<Pledge[]>([]);
   const [recentWishes, setRecentWishes] = useState<Wish[]>([]);
-  const [recentGratitude, setRecentGratitude] = useState<Gratitude[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   
@@ -33,14 +32,12 @@ export default function HomeScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [pledgesRes, wishesRes, gratitudeRes] = await Promise.all([
+      const [pledgesRes, wishesRes] = await Promise.all([
         api.get('/pledges'),
         api.get('/wishes'),
-        api.get('/gratitude/wall'),
       ]);
       setRecentPledges(pledgesRes.data.slice(0, 3));
       setRecentWishes(wishesRes.data.slice(0, 3));
-      setRecentGratitude(gratitudeRes.data.slice(0, 5));
     } catch (error) {
       console.error('Error loading data:', error);
     }
@@ -224,37 +221,20 @@ export default function HomeScreen() {
           )}
         </View>
 
-        <View style={styles.section}>
-          <TouchableOpacity 
-            style={styles.sectionHeader}
-            onPress={() => router.push('/wall')}
-          >
-            <Text style={styles.sectionTitle}>Gratitude Wall</Text>
-            <MaterialIcons name="chevron-right" size={24} color={Colors.accent} />
-          </TouchableOpacity>
-          
-          {/* Send Gratitude Button */}
-          <TouchableOpacity
-            style={styles.sendGratitudeButton}
-            onPress={() => router.push('/gratitude')}
-          >
-            <MaterialIcons name="volunteer-activism" size={24} color="#fff" />
-            <Text style={styles.sendGratitudeButtonText}>Say Thank You</Text>
-          </TouchableOpacity>
-          
-          {recentGratitude.length > 0 ? (
-            recentGratitude.map((gratitude) => (
-              <View key={gratitude.id} style={styles.gratitudeCard}>
-                <Text style={styles.gratitudeMessage}>"{gratitude.message}"</Text>
-                <Text style={styles.gratitudeAuthor}>
-                  {gratitude.from_user_name} → {gratitude.to_user_name}
-                </Text>
-              </View>
-            ))
-          ) : (
-            <Text style={styles.emptyText}>No gratitude messages yet</Text>
-          )}
-        </View>
+        {/* Link to Gratitude Wall */}
+        <TouchableOpacity 
+          style={styles.wallLink}
+          onPress={() => router.push('/wall')}
+        >
+          <View style={styles.wallLinkLeft}>
+            <MaterialIcons name="favorite" size={24} color={Colors.accent} />
+            <View>
+              <Text style={styles.wallLinkTitle}>Gratitude Wall</Text>
+              <Text style={styles.wallLinkSubtitle}>Thank yous & Stories</Text>
+            </View>
+          </View>
+          <MaterialIcons name="chevron-right" size={24} color={Colors.textSecondary} />
+        </TouchableOpacity>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -503,20 +483,31 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     paddingVertical: 20,
   },
-  sendGratitudeButton: {
+  wallLink: {
     flexDirection: 'row',
-    backgroundColor: Colors.accent,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-    gap: 8,
+    justifyContent: 'space-between',
+    backgroundColor: Colors.card,
+    marginHorizontal: 20,
+    marginTop: 8,
+    padding: 16,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.accent,
   },
-  sendGratitudeButtonText: {
+  wallLinkLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  wallLinkTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: Colors.text,
+  },
+  wallLinkSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
 });
