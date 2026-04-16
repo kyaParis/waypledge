@@ -99,6 +99,8 @@ export default function LoginScreen() {
                 onChangeText={(text) => { setEmail(text); setErrorMessage(''); }}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoComplete="email"
+                textContentType="emailAddress"
                 placeholderTextColor={Colors.textSecondary}
               />
             </View>
@@ -111,6 +113,8 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={(text) => { setPassword(text); setErrorMessage(''); }}
                 secureTextEntry={!showPassword}
+                autoComplete="password"
+                textContentType="password"
                 placeholderTextColor={Colors.textSecondary}
               />
               <TouchableOpacity 
