@@ -17,7 +17,7 @@ import { useFocusEffect } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
-import api, { Pledge, Wish, Gratitude, deleteAccount, getBlockedUsers, unblockUser, BlockedUser, getPendingUsers, approveUser, rejectUser, PendingUser } from '../../utils/api';
+import api, { Pledge, Wish, Gratitude, deleteAccount, getBlockedUsers, unblockUser, BlockedUser, getPendingUsers, approveUser, rejectUser, PendingUser, getPendingGratitude, approveGratitude, declineGratitude } from '../../utils/api';
 import { useTranslation } from 'react-i18next';
 import { languages, setLanguage, getCurrentLanguage } from '../../i18n';
 
@@ -28,6 +28,7 @@ export default function ProfileScreen() {
   const [myPledges, setMyPledges] = useState<Pledge[]>([]);
   const [myWishes, setMyWishes] = useState<Wish[]>([]);
   const [myGratitude, setMyGratitude] = useState<Gratitude[]>([]);
+  const [pendingGratitude, setPendingGratitude] = useState<Gratitude[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [currentLang, setCurrentLang] = useState(getCurrentLanguage());
@@ -42,6 +43,9 @@ export default function ProfileScreen() {
   const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [loadingBlocked, setLoadingBlocked] = useState(false);
+  
+  // Pending Gratitude Modal state
+  const [showGratitudeModal, setShowGratitudeModal] = useState(false);
   
   // Admin: Pending Users state
   const [showPendingModal, setShowPendingModal] = useState(false);
@@ -183,18 +187,54 @@ export default function ProfileScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [pledgesRes, wishesRes, gratitudeRes] = await Promise.all([
+      const [pledgesRes, wishesRes, gratitudeRes, pendingGratitudeRes] = await Promise.all([
         api.get('/pledges/mine'),
         api.get('/wishes/mine'),
         api.get('/gratitude/mine'),
+        getPendingGratitude(),
       ]);
       setMyPledges(pledgesRes.data);
       setMyWishes(wishesRes.data);
       setMyGratitude(gratitudeRes.data);
+      setPendingGratitude(pendingGratitudeRes);
     } catch (error) {
       console.error('Error loading data:', error);
     }
   }, []);
+
+  const handleApproveGratitude = async (gratitude: Gratitude) => {
+    try {
+      await approveGratitude(gratitude.id);
+      Alert.alert('Approved!', 'The gratitude is now visible on the public wall.');
+      setPendingGratitude(pendingGratitude.filter(g => g.id !== gratitude.id));
+      loadData();
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Failed to approve');
+    }
+  };
+
+  const handleDeclineGratitude = async (gratitude: Gratitude) => {
+    Alert.alert(
+      'Decline Gratitude',
+      'This will keep the gratitude private. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Decline',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await declineGratitude(gratitude.id);
+              Alert.alert('Declined', 'The gratitude will not appear publicly.');
+              setPendingGratitude(pendingGratitude.filter(g => g.id !== gratitude.id));
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.detail || 'Failed to decline');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   // Refetch data when screen comes into focus (e.g., after deleting a pledge)
   useFocusEffect(
@@ -528,6 +568,29 @@ export default function ProfileScreen() {
           </View>
         </Modal>
 
+        {/* Pending Gratitude Approvals */}
+        {pendingGratitude.length > 0 && (
+          <View style={styles.section}>
+            <TouchableOpacity 
+              style={styles.pendingGratitudeButton}
+              onPress={() => setShowGratitudeModal(true)}
+            >
+              <View style={styles.pendingGratitudeLeft}>
+                <MaterialIcons name="favorite" size={24} color={Colors.error} />
+                <View>
+                  <Text style={styles.pendingGratitudeTitle}>Gratitude Waiting for Approval</Text>
+                  <Text style={styles.pendingGratitudeSubtitle}>
+                    {pendingGratitude.length} {pendingGratitude.length === 1 ? 'person wants' : 'people want'} to thank you publicly
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.pendingBadge}>
+                <Text style={styles.pendingBadgeText}>{pendingGratitude.length}</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Quick Links Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Links</Text>
@@ -654,6 +717,57 @@ export default function ProfileScreen() {
                   </>
                 )}
               </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Pending Gratitude Modal */}
+        <Modal
+          visible={showGratitudeModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowGratitudeModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.gratitudeModalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Pending Gratitude</Text>
+                <TouchableOpacity onPress={() => setShowGratitudeModal(false)}>
+                  <MaterialIcons name="close" size={24} color={Colors.text} />
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={styles.gratitudeModalSubtitle}>
+                These people want to thank you publicly. Approve to show on the Gratitude Wall.
+              </Text>
+              
+              <ScrollView style={styles.gratitudeList}>
+                {pendingGratitude.map((gratitude) => (
+                  <View key={gratitude.id} style={styles.gratitudeItem}>
+                    <View style={styles.gratitudeHeader}>
+                      <MaterialIcons name="person" size={20} color={Colors.primary} />
+                      <Text style={styles.gratitudeFrom}>{gratitude.from_user_name}</Text>
+                    </View>
+                    <Text style={styles.gratitudeMessage}>"{gratitude.message}"</Text>
+                    <View style={styles.gratitudeActions}>
+                      <TouchableOpacity
+                        style={styles.approveButton}
+                        onPress={() => handleApproveGratitude(gratitude)}
+                      >
+                        <MaterialIcons name="check" size={18} color={Colors.surface} />
+                        <Text style={styles.approveButtonText}>Approve</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.declineButton}
+                        onPress={() => handleDeclineGratitude(gratitude)}
+                      >
+                        <MaterialIcons name="close" size={18} color={Colors.error} />
+                        <Text style={styles.declineButtonText}>Decline</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
             </View>
           </View>
         </Modal>
@@ -1142,5 +1256,123 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
     marginLeft: 12,
+  },
+  // Pending Gratitude styles
+  pendingGratitudeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.error + '10',
+    padding: 16,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.error,
+  },
+  pendingGratitudeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  pendingGratitudeTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  pendingGratitudeSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  pendingBadge: {
+    backgroundColor: Colors.error,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    minWidth: 28,
+    alignItems: 'center',
+  },
+  pendingBadgeText: {
+    color: Colors.surface,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  gratitudeModalContent: {
+    backgroundColor: Colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  gratitudeModalSubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  gratitudeList: {
+    maxHeight: 400,
+  },
+  gratitudeItem: {
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primary,
+  },
+  gratitudeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  gratitudeFrom: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  gratitudeMessage: {
+    fontSize: 14,
+    color: Colors.text,
+    fontStyle: 'italic',
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  gratitudeActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  approveButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.success,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  approveButtonText: {
+    color: Colors.surface,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  declineButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surface,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: Colors.error,
+  },
+  declineButtonText: {
+    color: Colors.error,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

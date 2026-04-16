@@ -81,8 +81,28 @@ export interface Gratitude {
   to_user_name: string;
   connection_id?: string;
   message: string;
+  status: string;
   created_at: string;
 }
+
+// Gratitude approval functions
+export const getPendingGratitude = async (): Promise<Gratitude[]> => {
+  const response = await api.get('/gratitude/pending');
+  return response.data;
+};
+
+export const getPendingGratitudeCount = async (): Promise<number> => {
+  const response = await api.get('/gratitude/pending/count');
+  return response.data.count;
+};
+
+export const approveGratitude = async (gratitudeId: string): Promise<void> => {
+  await api.post(`/gratitude/${gratitudeId}/approve`);
+};
+
+export const declineGratitude = async (gratitudeId: string): Promise<void> => {
+  await api.post(`/gratitude/${gratitudeId}/decline`);
+};
 
 export interface Category {
   id: string;

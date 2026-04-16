@@ -341,6 +341,7 @@ class GratitudeResponse(BaseModel):
     to_user_name: str
     connection_id: Optional[str] = None
     message: str
+    status: str = "pending"  # pending, approved, declined
     created_at: datetime
 
 class ReportCreate(BaseModel):
@@ -1347,9 +1348,10 @@ async def get_unread_count(current_user = Depends(get_current_user)):
     
     return {"count": unread_count}
 
-# Gratitude endpoints
+# Gratitude endpoints (with approval workflow)
 @api_router.post("/gratitude", response_model=GratitudeResponse)
 async def create_gratitude(gratitude: GratitudeCreate, current_user = Depends(get_current_user)):
+    """Create gratitude - starts as 'pending' until recipient approves"""
     to_user = await db.users.find_one({"_id": ObjectId(gratitude.to_user_id)})
     if not to_user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -1361,9 +1363,12 @@ async def create_gratitude(gratitude: GratitudeCreate, current_user = Depends(ge
         "to_user_name": to_user["name"],
         "connection_id": gratitude.connection_id,
         "message": gratitude.message,
+        "status": "pending",  # NEW: starts as pending
         "created_at": datetime.utcnow()
     }
     result = await db.gratitude.insert_one(gratitude_dict)
+    
+    logger.info(f"Gratitude created (pending approval): {current_user['name']} -> {to_user['name']}")
     
     return GratitudeResponse(
         id=str(result.inserted_id),
@@ -1373,12 +1378,14 @@ async def create_gratitude(gratitude: GratitudeCreate, current_user = Depends(ge
         to_user_name=gratitude_dict["to_user_name"],
         connection_id=gratitude_dict["connection_id"],
         message=gratitude_dict["message"],
+        status=gratitude_dict["status"],
         created_at=gratitude_dict["created_at"]
     )
 
 @api_router.get("/gratitude/wall", response_model=List[GratitudeResponse])
 async def get_gratitude_wall():
-    gratitudes = await db.gratitude.find().sort("created_at", -1).to_list(100)
+    """Get public gratitude wall - only APPROVED gratitude"""
+    gratitudes = await db.gratitude.find({"status": "approved"}).sort("created_at", -1).to_list(100)
     return [GratitudeResponse(
         id=str(g["_id"]),
         from_user_id=g["from_user_id"],
@@ -1387,12 +1394,17 @@ async def get_gratitude_wall():
         to_user_name=g["to_user_name"],
         connection_id=g.get("connection_id"),
         message=g["message"],
+        status=g.get("status", "approved"),
         created_at=g["created_at"]
     ) for g in gratitudes]
 
 @api_router.get("/gratitude/mine", response_model=List[GratitudeResponse])
 async def get_my_gratitude(current_user = Depends(get_current_user)):
-    gratitudes = await db.gratitude.find({"to_user_id": str(current_user["_id"])}).sort("created_at", -1).to_list(100)
+    """Get gratitude received by current user (approved only)"""
+    gratitudes = await db.gratitude.find({
+        "to_user_id": str(current_user["_id"]),
+        "status": "approved"
+    }).sort("created_at", -1).to_list(100)
     return [GratitudeResponse(
         id=str(g["_id"]),
         from_user_id=g["from_user_id"],
@@ -1401,8 +1413,77 @@ async def get_my_gratitude(current_user = Depends(get_current_user)):
         to_user_name=g["to_user_name"],
         connection_id=g.get("connection_id"),
         message=g["message"],
+        status=g.get("status", "approved"),
         created_at=g["created_at"]
     ) for g in gratitudes]
+
+@api_router.get("/gratitude/pending", response_model=List[GratitudeResponse])
+async def get_pending_gratitude(current_user = Depends(get_current_user)):
+    """Get pending gratitude waiting for user's approval"""
+    gratitudes = await db.gratitude.find({
+        "to_user_id": str(current_user["_id"]),
+        "status": "pending"
+    }).sort("created_at", -1).to_list(50)
+    return [GratitudeResponse(
+        id=str(g["_id"]),
+        from_user_id=g["from_user_id"],
+        from_user_name=g["from_user_name"],
+        to_user_id=g["to_user_id"],
+        to_user_name=g["to_user_name"],
+        connection_id=g.get("connection_id"),
+        message=g["message"],
+        status=g.get("status", "pending"),
+        created_at=g["created_at"]
+    ) for g in gratitudes]
+
+@api_router.get("/gratitude/pending/count")
+async def get_pending_gratitude_count(current_user = Depends(get_current_user)):
+    """Get count of pending gratitude approvals"""
+    count = await db.gratitude.count_documents({
+        "to_user_id": str(current_user["_id"]),
+        "status": "pending"
+    })
+    return {"count": count}
+
+@api_router.post("/gratitude/{gratitude_id}/approve")
+async def approve_gratitude(gratitude_id: str, current_user = Depends(get_current_user)):
+    """Approve gratitude - makes it visible on public wall"""
+    gratitude = await db.gratitude.find_one({"_id": ObjectId(gratitude_id)})
+    if not gratitude:
+        raise HTTPException(status_code=404, detail="Gratitude not found")
+    
+    # Only the recipient can approve
+    if gratitude["to_user_id"] != str(current_user["_id"]):
+        raise HTTPException(status_code=403, detail="Only the recipient can approve")
+    
+    await db.gratitude.update_one(
+        {"_id": ObjectId(gratitude_id)},
+        {"$set": {"status": "approved"}}
+    )
+    
+    logger.info(f"Gratitude approved by {current_user['name']}: from {gratitude['from_user_name']}")
+    
+    return {"success": True, "message": "Gratitude approved and now visible on the wall!"}
+
+@api_router.post("/gratitude/{gratitude_id}/decline")
+async def decline_gratitude(gratitude_id: str, current_user = Depends(get_current_user)):
+    """Decline gratitude - keeps it private/hidden"""
+    gratitude = await db.gratitude.find_one({"_id": ObjectId(gratitude_id)})
+    if not gratitude:
+        raise HTTPException(status_code=404, detail="Gratitude not found")
+    
+    # Only the recipient can decline
+    if gratitude["to_user_id"] != str(current_user["_id"]):
+        raise HTTPException(status_code=403, detail="Only the recipient can decline")
+    
+    await db.gratitude.update_one(
+        {"_id": ObjectId(gratitude_id)},
+        {"$set": {"status": "declined"}}
+    )
+    
+    logger.info(f"Gratitude declined by {current_user['name']}: from {gratitude['from_user_name']}")
+    
+    return {"success": True, "message": "Gratitude declined - it will not appear publicly"}
 
 # Report endpoints
 @api_router.post("/reports", response_model=ReportResponse)
