@@ -221,21 +221,6 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Link to Gratitude Wall */}
-        <TouchableOpacity 
-          style={styles.wallLink}
-          onPress={() => router.push('/wall')}
-        >
-          <View style={styles.wallLinkLeft}>
-            <MaterialIcons name="favorite" size={24} color={Colors.accent} />
-            <View>
-              <Text style={styles.wallLinkTitle}>Gratitude Wall</Text>
-              <Text style={styles.wallLinkSubtitle}>Thank yous & Stories</Text>
-            </View>
-          </View>
-          <MaterialIcons name="chevron-right" size={24} color={Colors.textSecondary} />
-        </TouchableOpacity>
-
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
