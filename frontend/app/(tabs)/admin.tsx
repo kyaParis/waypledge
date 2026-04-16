@@ -36,6 +36,8 @@ interface User {
   display_name: string;
   is_admin: boolean;
   is_approved: boolean;
+  is_suspended?: boolean;
+  suspension_reason?: string;
   created_at: string;
 }
 
@@ -115,6 +117,76 @@ export default function AdminScreen() {
               Alert.alert('Error', error.response?.data?.detail || 'Failed to update admin status');
             }
             setLoading(false);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSuspendUser = (user: User) => {
+    if (user.is_suspended) {
+      // Unsuspend
+      Alert.alert(
+        'Unsuspend User',
+        `Are you sure you want to unsuspend ${user.name}?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Unsuspend',
+            onPress: async () => {
+              try {
+                await api.post(`/admin/unsuspend/${user.id}`);
+                Alert.alert('Success', `${user.name} has been unsuspended`);
+                loadUsers();
+              } catch (error: any) {
+                Alert.alert('Error', error.response?.data?.detail || 'Failed to unsuspend user');
+              }
+            },
+          },
+        ]
+      );
+    } else {
+      // Suspend
+      Alert.alert(
+        'Suspend User',
+        `Are you sure you want to suspend ${user.name}? They will not be able to log in.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Suspend',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await api.post(`/admin/suspend/${user.id}`);
+                Alert.alert('Success', `${user.name} has been suspended`);
+                loadUsers();
+              } catch (error: any) {
+                Alert.alert('Error', error.response?.data?.detail || 'Failed to suspend user');
+              }
+            },
+          },
+        ]
+      );
+    }
+  };
+
+  const handleDeleteUser = (user: User) => {
+    Alert.alert(
+      'Delete User Permanently',
+      `Are you sure you want to PERMANENTLY DELETE ${user.name} and all their data? This cannot be undone!`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Forever',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/admin/delete-user/${user.id}`);
+              Alert.alert('Deleted', `${user.name} has been permanently deleted`);
+              loadUsers();
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.detail || 'Failed to delete user');
+            }
           },
         },
       ]
@@ -308,28 +380,65 @@ export default function AdminScreen() {
                     )}
                   </View>
                   <Text style={styles.userEmail}>{user.email}</Text>
+                  {user.is_suspended && (
+                    <View style={styles.suspendedBadge}>
+                      <MaterialIcons name="block" size={12} color={Colors.error} />
+                      <Text style={styles.suspendedText}>Suspended</Text>
+                    </View>
+                  )}
                   <Text style={styles.userDate}>
                     Joined {formatDistanceToNow(new Date(user.created_at), { addSuffix: true })}
                   </Text>
                 </View>
               </View>
               
-              <TouchableOpacity
-                style={[
-                  styles.adminToggle,
-                  user.is_admin ? styles.adminToggleRemove : styles.adminToggleAdd
-                ]}
-                onPress={() => toggleAdmin(user)}
-              >
-                <MaterialIcons 
-                  name={user.is_admin ? "remove-circle" : "add-circle"} 
-                  size={20} 
-                  color={Colors.surface} 
-                />
-                <Text style={styles.adminToggleText}>
-                  {user.is_admin ? 'Remove' : 'Make Admin'}
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.userActions}>
+                <TouchableOpacity
+                  style={[
+                    styles.adminToggle,
+                    user.is_admin ? styles.adminToggleRemove : styles.adminToggleAdd
+                  ]}
+                  onPress={() => toggleAdmin(user)}
+                >
+                  <MaterialIcons 
+                    name={user.is_admin ? "remove-circle" : "add-circle"} 
+                    size={18} 
+                    color={Colors.surface} 
+                  />
+                  <Text style={styles.adminToggleText}>
+                    {user.is_admin ? 'Remove Admin' : 'Make Admin'}
+                  </Text>
+                </TouchableOpacity>
+                
+                {!user.is_admin && (
+                  <>
+                    <TouchableOpacity
+                      style={[
+                        styles.actionBtn,
+                        user.is_suspended ? styles.unsuspendBtn : styles.suspendBtn
+                      ]}
+                      onPress={() => handleSuspendUser(user)}
+                    >
+                      <MaterialIcons 
+                        name={user.is_suspended ? "check-circle" : "pause-circle"} 
+                        size={16} 
+                        color={Colors.surface} 
+                      />
+                      <Text style={styles.actionBtnText}>
+                        {user.is_suspended ? 'Unsuspend' : 'Suspend'}
+                      </Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      style={styles.deleteBtn}
+                      onPress={() => handleDeleteUser(user)}
+                    >
+                      <MaterialIcons name="delete-forever" size={16} color={Colors.surface} />
+                      <Text style={styles.actionBtnText}>Delete</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
             </View>
           ))}
           <View style={{ height: 40 }} />
@@ -602,9 +711,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 8,
-    gap: 6,
+    gap: 4,
   },
   adminToggleAdd: {
     backgroundColor: Colors.primary,
@@ -614,7 +724,57 @@ const styles = StyleSheet.create({
   },
   adminToggleText: {
     color: Colors.surface,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
+  },
+  userActions: {
+    gap: 8,
+    marginTop: 12,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 4,
+  },
+  suspendBtn: {
+    backgroundColor: Colors.warning,
+  },
+  unsuspendBtn: {
+    backgroundColor: Colors.success,
+  },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 4,
+    backgroundColor: Colors.error,
+  },
+  actionBtnText: {
+    color: Colors.surface,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  suspendedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.error + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 4,
+    marginTop: 4,
+    alignSelf: 'flex-start',
+  },
+  suspendedText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.error,
   },
 });

@@ -1919,6 +1919,80 @@ async def remove_user_admin(user_id: str, current_user = Depends(get_current_use
     
     return {"success": True, "message": f"{user.get('name', 'Unknown')} is no longer an admin"}
 
+@api_router.post("/admin/suspend/{user_id}")
+async def suspend_user(user_id: str, reason: str = Query(default="Violation of community guidelines"), current_user = Depends(get_current_user)):
+    """Suspend a user account (admin only) - they cannot log in"""
+    if not await is_user_admin(current_user["email"], current_user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Prevent suspending admins
+    if user.get("is_admin") or user.get("email", "").lower() in ADMIN_EMAILS:
+        raise HTTPException(status_code=400, detail="Cannot suspend admin users")
+    
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"is_suspended": True, "suspension_reason": reason, "suspended_at": datetime.utcnow()}}
+    )
+    
+    logger.warning(f"Admin {current_user['email']} SUSPENDED user: {user.get('email', 'unknown')} - Reason: {reason}")
+    
+    return {"success": True, "message": f"{user.get('name', 'Unknown')} has been suspended"}
+
+@api_router.post("/admin/unsuspend/{user_id}")
+async def unsuspend_user(user_id: str, current_user = Depends(get_current_user)):
+    """Unsuspend a user account (admin only)"""
+    if not await is_user_admin(current_user["email"], current_user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"is_suspended": False}, "$unset": {"suspension_reason": "", "suspended_at": ""}}
+    )
+    
+    logger.info(f"Admin {current_user['email']} unsuspended user: {user.get('email', 'unknown')}")
+    
+    return {"success": True, "message": f"{user.get('name', 'Unknown')} has been unsuspended"}
+
+@api_router.delete("/admin/delete-user/{user_id}")
+async def admin_delete_user(user_id: str, current_user = Depends(get_current_user)):
+    """Permanently delete a user and all their data (admin only)"""
+    if not await is_user_admin(current_user["email"], current_user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Prevent deleting admins
+    if user.get("is_admin") or user.get("email", "").lower() in ADMIN_EMAILS:
+        raise HTTPException(status_code=400, detail="Cannot delete admin users")
+    
+    user_name = user.get('name', 'Unknown')
+    user_email = user.get('email', 'unknown')
+    
+    # Delete all user data
+    await db.pledges.delete_many({"user_id": user_id})
+    await db.wishes.delete_many({"user_id": user_id})
+    await db.messages.delete_many({"$or": [{"sender_id": user_id}, {"receiver_id": user_id}]})
+    await db.connections.delete_many({"$or": [{"pledger_id": user_id}, {"wisher_id": user_id}]})
+    await db.hive_members.delete_many({"user_id": user_id})
+    await db.blocked_users.delete_many({"$or": [{"blocker_id": user_id}, {"blocked_id": user_id}]})
+    await db.reports.delete_many({"reporter_id": user_id})
+    await db.resolutions.delete_many({"user_id": user_id})
+    await db.users.delete_one({"_id": ObjectId(user_id)})
+    
+    logger.warning(f"Admin {current_user['email']} DELETED user: {user_email}")
+    
+    return {"success": True, "message": f"{user_name} has been permanently deleted"}
+
 # ==========================================
 # ACCOUNT DELETION ENDPOINTS
 # ==========================================
