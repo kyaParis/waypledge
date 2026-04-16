@@ -184,10 +184,19 @@ export default function ImagePickerButton({
           )}
         </View>
       ) : (
-        <TouchableOpacity style={styles.addButton} onPress={showOptions} disabled={isUploading}>
+        <TouchableOpacity 
+          style={styles.addButton} 
+          onPress={() => {
+            console.log('Add Photo button pressed!');
+            // Go directly to photo library instead of showing options
+            pickImage();
+          }} 
+          disabled={isUploading}
+          activeOpacity={0.7}
+        >
           <MaterialIcons name="add-a-photo" size={32} color={Colors.primary} />
           <Text style={styles.addButtonText}>{label}</Text>
-          <Text style={styles.addButtonHint}>Shows what you're offering</Text>
+          <Text style={styles.addButtonHint}>Tap to select from your photos</Text>
         </TouchableOpacity>
       )}
     </View>
