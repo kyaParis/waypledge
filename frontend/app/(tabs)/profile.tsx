@@ -197,6 +197,7 @@ export default function ProfileScreen() {
       setMyWishes(wishesRes.data);
       setMyGratitude(gratitudeRes.data);
       setPendingGratitude(pendingGratitudeRes);
+      console.log('Pending gratitude loaded:', pendingGratitudeRes?.length || 0, pendingGratitudeRes);
     } catch (error) {
       console.error('Error loading data:', error);
     }
@@ -292,6 +293,29 @@ export default function ProfileScreen() {
             <Text style={styles.statLabel}>Gratitude</Text>
           </View>
         </View>
+
+        {/* Pending Gratitude Approvals - PROMINENT POSITION */}
+        {pendingGratitude.length > 0 && (
+          <View style={styles.section}>
+            <TouchableOpacity 
+              style={styles.pendingGratitudeButton}
+              onPress={() => setShowGratitudeModal(true)}
+            >
+              <View style={styles.pendingGratitudeLeft}>
+                <MaterialIcons name="favorite" size={24} color={Colors.error} />
+                <View>
+                  <Text style={styles.pendingGratitudeTitle}>Gratitude Waiting for Approval</Text>
+                  <Text style={styles.pendingGratitudeSubtitle}>
+                    {pendingGratitude.length} {pendingGratitude.length === 1 ? 'person wants' : 'people want'} to thank you publicly
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.pendingBadge}>
+                <Text style={styles.pendingBadgeText}>{pendingGratitude.length}</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -567,29 +591,6 @@ export default function ProfileScreen() {
             </View>
           </View>
         </Modal>
-
-        {/* Pending Gratitude Approvals */}
-        {pendingGratitude.length > 0 && (
-          <View style={styles.section}>
-            <TouchableOpacity 
-              style={styles.pendingGratitudeButton}
-              onPress={() => setShowGratitudeModal(true)}
-            >
-              <View style={styles.pendingGratitudeLeft}>
-                <MaterialIcons name="favorite" size={24} color={Colors.error} />
-                <View>
-                  <Text style={styles.pendingGratitudeTitle}>Gratitude Waiting for Approval</Text>
-                  <Text style={styles.pendingGratitudeSubtitle}>
-                    {pendingGratitude.length} {pendingGratitude.length === 1 ? 'person wants' : 'people want'} to thank you publicly
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.pendingBadge}>
-                <Text style={styles.pendingBadgeText}>{pendingGratitude.length}</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        )}
 
         {/* Quick Links Section */}
         <View style={styles.section}>
