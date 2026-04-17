@@ -71,8 +71,6 @@ export default function GratitudeWallScreen() {
 
   const handleSubmitStory = async () => {
     console.log('handleSubmitStory called');
-    console.log('Title:', storyTitle, 'Length:', storyTitle.trim().length);
-    console.log('Content length:', storyContent.trim().length);
     
     if (storyTitle.trim().length < 5) {
       Alert.alert('Title too short', 'Please enter a title with at least 5 characters');
@@ -86,17 +84,22 @@ export default function GratitudeWallScreen() {
     setSubmitting(true);
     try {
       console.log('Submitting story...');
-      const result = await submitStory(storyTitle.trim(), storyContent.trim());
-      console.log('Story submitted successfully:', result);
-      Alert.alert(
-        'Story Submitted!',
-        'Thank you for sharing! An admin will review your story before it appears on the wall.',
-        [{ text: 'OK', onPress: () => {
-          setShowStoryModal(false);
-          setStoryTitle('');
-          setStoryContent('');
-        }}]
-      );
+      await submitStory(storyTitle.trim(), storyContent.trim());
+      console.log('Story submitted successfully');
+      
+      // Close modal and clear form immediately
+      setShowStoryModal(false);
+      setStoryTitle('');
+      setStoryContent('');
+      
+      // Show success message
+      setTimeout(() => {
+        Alert.alert(
+          'Story Submitted!',
+          'Thank you for sharing! An admin will review your story before it appears on the wall.'
+        );
+      }, 300);
+      
     } catch (error: any) {
       console.error('Error submitting story:', error);
       Alert.alert('Error', error.response?.data?.detail || 'Failed to submit story');
