@@ -203,7 +203,24 @@ export default function CreateScreen() {
         ]
       );
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || `Failed to create ${type}`);
+      const status = error.response?.status;
+      const detail = error.response?.data?.detail;
+      
+      if (status === 403 && detail?.includes('not approved')) {
+        Alert.alert(
+          'Account Pending Approval',
+          'Your account is waiting for admin approval before you can create pledges or wishes. This helps keep our community safe. Please check back soon!',
+          [{ text: 'OK' }]
+        );
+      } else if (status === 403) {
+        Alert.alert(
+          'Action Not Allowed',
+          detail || 'You do not have permission to perform this action.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Error', detail || `Failed to create ${type}`);
+      }
     } finally {
       setIsLoading(false);
       // Reset the ref after a short delay to allow UI to update
