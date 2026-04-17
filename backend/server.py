@@ -41,7 +41,7 @@ db = client[os.environ['DB_NAME']]
 # Security
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
-SECRET_KEY = os.environ.get("SECRET_KEY", "your-secret-key-change-in-production")
+SECRET_KEY = os.environ['SECRET_KEY']  # Required - will raise error if missing
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
 
