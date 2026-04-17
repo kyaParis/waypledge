@@ -3113,10 +3113,19 @@ async def sync_wishes_from_partner(
 # Include the router
 app.include_router(api_router)
 
+# Allowed origins for CORS
+ALLOWED_ORIGINS = [
+    "https://pledge-app-redesign.emergentagent.com",
+    "https://waypledge.me",
+    "https://www.waypledge.me",
+    "http://localhost:3000",  # Development
+    "http://localhost:8081",  # Expo development
+]
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
