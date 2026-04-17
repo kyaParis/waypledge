@@ -101,48 +101,29 @@ export default function AdminScreen() {
   };
 
   const handleApproveStory = async (story: Story) => {
-    Alert.alert(
-      'Approve Story',
-      `Approve "${story.title}" by ${story.user_name}? It will appear on the Gratitude Wall.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Approve',
-          onPress: async () => {
-            try {
-              await approveStory(story.id);
-              Alert.alert('Approved!', 'The story is now visible on the Gratitude Wall.');
-              loadPendingStories();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to approve story');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      console.log('Approving story:', story.id);
+      await approveStory(story.id);
+      console.log('Story approved successfully');
+      Alert.alert('Approved!', 'The story is now visible on the Gratitude Wall.');
+      loadPendingStories();
+    } catch (error: any) {
+      console.error('Error approving story:', error);
+      Alert.alert('Error', error.response?.data?.detail || 'Failed to approve story');
+    }
   };
 
   const handleRejectStory = async (story: Story) => {
-    Alert.alert(
-      'Reject Story',
-      `Reject "${story.title}" by ${story.user_name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reject',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await rejectStory(story.id);
-              Alert.alert('Rejected', 'The story has been rejected.');
-              loadPendingStories();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to reject story');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      console.log('Rejecting story:', story.id);
+      await rejectStory(story.id);
+      console.log('Story rejected successfully');
+      Alert.alert('Rejected', 'The story has been rejected.');
+      loadPendingStories();
+    } catch (error: any) {
+      console.error('Error rejecting story:', error);
+      Alert.alert('Error', error.response?.data?.detail || 'Failed to reject story');
+    }
   };
 
   const updateReportStatus = async (reportId: string, status: string) => {
