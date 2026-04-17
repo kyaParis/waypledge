@@ -504,6 +504,15 @@ export default function ProfileScreen() {
                 </View>
               )}
             </TouchableOpacity>
+            
+            {/* Pending Stories Button */}
+            <TouchableOpacity
+              style={styles.adminStoriesButton}
+              onPress={() => router.push('/admin')}
+            >
+              <MaterialIcons name="auto-stories" size={24} color="#fff" />
+              <Text style={styles.adminButtonText}>Review Stories</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -1198,6 +1207,15 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     gap: 12,
+  },
+  adminStoriesButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+    marginTop: 12,
   },
   adminButtonText: {
     flex: 1,
