@@ -1533,8 +1533,8 @@ async def decline_gratitude(gratitude_id: str, current_user = Depends(get_curren
 @api_router.post("/stories", response_model=StoryResponse)
 async def create_story(story: StoryCreate, current_user = Depends(get_current_user)):
     """Submit a success story - requires admin approval"""
-    if len(story.content) < 50:
-        raise HTTPException(status_code=400, detail="Story must be at least 50 characters")
+    if len(story.content) < 20:
+        raise HTTPException(status_code=400, detail="Story must be at least 20 characters")
     if len(story.title) < 5:
         raise HTTPException(status_code=400, detail="Title must be at least 5 characters")
     

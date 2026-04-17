@@ -74,8 +74,8 @@ export default function GratitudeWallScreen() {
       Alert.alert('Title too short', 'Please enter a title with at least 5 characters');
       return;
     }
-    if (storyContent.trim().length < 50) {
-      Alert.alert('Story too short', 'Please share more of your story (at least 50 characters)');
+    if (storyContent.trim().length < 20) {
+      Alert.alert('Story too short', 'Please write at least 20 characters');
       return;
     }
 
@@ -279,7 +279,7 @@ export default function GratitudeWallScreen() {
             <Text style={styles.inputLabel}>Your Story</Text>
             <TextInput
               style={styles.storyInput}
-              placeholder="Share your experience..."
+              placeholder="Share your experience... (min 20 characters)"
               placeholderTextColor={Colors.textSecondary}
               value={storyContent}
               onChangeText={setStoryContent}
@@ -288,7 +288,12 @@ export default function GratitudeWallScreen() {
               textAlignVertical="top"
               maxLength={2000}
             />
-            <Text style={styles.charCount}>{storyContent.length}/2000</Text>
+            <Text style={[
+              styles.charCount,
+              storyContent.length > 0 && storyContent.length < 20 && { color: Colors.error }
+            ]}>
+              {storyContent.length}/2000 {storyContent.length > 0 && storyContent.length < 20 ? '(min 20)' : ''}
+            </Text>
 
             <TouchableOpacity
               style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
