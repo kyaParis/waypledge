@@ -4,28 +4,34 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { useAuthStore } from '../../store/authStore';
 import { useEffect, useState } from 'react';
-import api from '../../utils/api';
+import api, { getPendingGratitude } from '../../utils/api';
 
 export default function TabsLayout() {
   const user = useAuthStore((state) => state.user);
   const isAdmin = user?.is_admin || false;
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingGratitudeCount, setPendingGratitudeCount] = useState(0);
 
-  // Check for unread messages periodically
+  // Check for unread messages and pending gratitude periodically
   useEffect(() => {
-    const checkUnread = async () => {
+    const checkNotifications = async () => {
       if (!user) return;
       try {
-        const response = await api.get('/connections/unread-count');
-        setUnreadCount(response.data.count || 0);
+        // Check unread messages
+        const unreadResponse = await api.get('/connections/unread-count');
+        setUnreadCount(unreadResponse.data.count || 0);
+        
+        // Check pending gratitude
+        const pendingGratitude = await getPendingGratitude();
+        setPendingGratitudeCount(pendingGratitude.length || 0);
       } catch (error) {
-        // Silently fail - endpoint might not exist yet
+        // Silently fail - endpoints might not exist yet
       }
     };
 
-    checkUnread();
+    checkNotifications();
     // Check every 30 seconds
-    const interval = setInterval(checkUnread, 30000);
+    const interval = setInterval(checkNotifications, 30000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -102,7 +108,16 @@ export default function TabsLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="person" size={size} color={color} />
+            <View>
+              <MaterialIcons name="person" size={size} color={color} />
+              {pendingGratitudeCount > 0 && (
+                <View style={[styles.badge, styles.gratitudeBadge]}>
+                  <Text style={styles.badgeText}>
+                    {pendingGratitudeCount > 9 ? '9+' : pendingGratitudeCount}
+                  </Text>
+                </View>
+              )}
+            </View>
           ),
         }}
       />
@@ -141,6 +156,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 4,
+  },
+  gratitudeBadge: {
+    backgroundColor: Colors.accent, // Gold color for gratitude
   },
   badgeText: {
     color: 'white',
