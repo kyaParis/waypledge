@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   Image,
   AppState,
+  Linking,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -17,6 +18,8 @@ import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
 import api, { Pledge, Wish } from '../../utils/api';
 import WelcomeModal from '../../components/WelcomeModal';
+
+const OPEN_COLLECTIVE_URL = 'https://opencollective.com/waypledge';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -222,19 +225,45 @@ export default function HomeScreen() {
         </View>
 
         {/* Gratitude Section - Thank people & Support WayPledge */}
-        <TouchableOpacity 
-          style={styles.wallLink}
-          onPress={() => router.push('/wall')}
-        >
-          <View style={styles.wallLinkLeft}>
+        {/* Gratitude Section */}
+        <View style={styles.gratitudeSection}>
+          <View style={styles.gratitudeSectionHeader}>
             <MaterialIcons name="favorite" size={24} color={Colors.accent} />
-            <View>
-              <Text style={styles.wallLinkTitle}>Gratitude</Text>
-              <Text style={styles.wallLinkSubtitle}>Thank someone or support WayPledge</Text>
-            </View>
+            <Text style={styles.gratitudeSectionTitle}>Gratitude</Text>
           </View>
-          <MaterialIcons name="chevron-right" size={24} color={Colors.textSecondary} />
-        </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.gratitudeButton}
+            onPress={() => router.push('/gratitude')}
+          >
+            <MaterialIcons name="volunteer-activism" size={22} color={Colors.accent} />
+            <View style={styles.gratitudeButtonText}>
+              <Text style={styles.gratitudeButtonTitle}>Say Thank You</Text>
+              <Text style={styles.gratitudeButtonSubtitle}>Thank someone in the community</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color={Colors.textSecondary} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.gratitudeButton}
+            onPress={() => Linking.openURL(OPEN_COLLECTIVE_URL)}
+          >
+            <MaterialIcons name="favorite-border" size={22} color={Colors.accent} />
+            <View style={styles.gratitudeButtonText}>
+              <Text style={styles.gratitudeButtonTitle}>Support WayPledge</Text>
+              <Text style={styles.gratitudeButtonSubtitle}>Help keep the community running</Text>
+            </View>
+            <MaterialIcons name="open-in-new" size={20} color={Colors.textSecondary} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.wallLinkSmall}
+            onPress={() => router.push('/wall')}
+          >
+            <Text style={styles.wallLinkSmallText}>View Gratitude Wall & Stories</Text>
+            <MaterialIcons name="chevron-right" size={18} color={Colors.primary} />
+          </TouchableOpacity>
+        </View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -483,31 +512,57 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     paddingVertical: 20,
   },
-  wallLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.card,
+  gratitudeSection: {
     marginHorizontal: 20,
     marginTop: 8,
-    padding: 16,
+    backgroundColor: Colors.card,
     borderRadius: 12,
+    padding: 16,
     borderLeftWidth: 4,
     borderLeftColor: Colors.accent,
   },
-  wallLinkLeft: {
+  gratitudeSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
+    marginBottom: 12,
   },
-  wallLinkTitle: {
-    fontSize: 16,
+  gratitudeSectionTitle: {
+    fontSize: 18,
     fontWeight: '600',
     color: Colors.text,
   },
-  wallLinkSubtitle: {
-    fontSize: 13,
+  gratitudeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  gratitudeButtonText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  gratitudeButtonTitle: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: Colors.text,
+  },
+  gratitudeButtonSubtitle: {
+    fontSize: 12,
     color: Colors.textSecondary,
     marginTop: 2,
+  },
+  wallLinkSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 12,
+    gap: 4,
+  },
+  wallLinkSmallText: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '500',
   },
 });

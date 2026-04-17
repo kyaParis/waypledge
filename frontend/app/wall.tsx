@@ -13,11 +13,14 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import api, { Gratitude, Story, getApprovedStories, submitStory } from '../utils/api';
+
+const OPEN_COLLECTIVE_URL = 'https://opencollective.com/waypledge';
 
 type TabType = 'thanks' | 'stories';
 
@@ -161,6 +164,21 @@ export default function GratitudeWallScreen() {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Support WayPledge Card */}
+      <TouchableOpacity 
+        style={styles.supportCard}
+        onPress={() => Linking.openURL(OPEN_COLLECTIVE_URL)}
+      >
+        <View style={styles.supportCardContent}>
+          <MaterialIcons name="favorite" size={28} color={Colors.accent} />
+          <View style={styles.supportCardText}>
+            <Text style={styles.supportCardTitle}>Support WayPledge</Text>
+            <Text style={styles.supportCardSubtitle}>Help keep this community running</Text>
+          </View>
+        </View>
+        <MaterialIcons name="open-in-new" size={20} color={Colors.textSecondary} />
+      </TouchableOpacity>
 
       {/* Content */}
       <ScrollView
@@ -544,5 +562,36 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
     fontStyle: 'italic',
+  },
+  supportCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.card,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.accent,
+  },
+  supportCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  supportCardText: {
+    flex: 1,
+  },
+  supportCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  supportCardSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
 });
