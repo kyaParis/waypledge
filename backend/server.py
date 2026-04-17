@@ -835,7 +835,9 @@ async def get_pledges(
     hive_id: Optional[str] = None,
     lat: Optional[float] = None,
     lng: Optional[float] = None,
-    radius_km: Optional[float] = 50  # Default 50km radius
+    radius_km: Optional[float] = 50,  # Default 50km radius
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100)
 ):
     query = {"status": "active"}
     if category:
@@ -875,7 +877,7 @@ async def get_pledges(
                 {"tags": {"$regex": search, "$options": "i"}}
             ]
     
-    pledges = await db.pledges.find(query).sort("created_at", -1).to_list(100)
+    pledges = await db.pledges.find(query).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
     
     # Batch get all hive names to avoid N+1 queries
     hive_ids = list(set([p.get("hive_id") for p in pledges if p.get("hive_id")]))
@@ -1092,7 +1094,14 @@ async def create_wish(wish: WishCreate, current_user = Depends(get_current_user)
     )
 
 @api_router.get("/wishes", response_model=List[WishResponse])
-async def get_wishes(category: Optional[str] = None, search: Optional[str] = None, location: Optional[str] = None, urgency: Optional[str] = None):
+async def get_wishes(
+    category: Optional[str] = None, 
+    search: Optional[str] = None, 
+    location: Optional[str] = None, 
+    urgency: Optional[str] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100)
+):
     query = {"status": "active"}
     if category:
         query["category"] = category
@@ -1108,7 +1117,7 @@ async def get_wishes(category: Optional[str] = None, search: Optional[str] = Non
         ]
     
     # Sort by urgency (urgent first), then by date
-    wishes = await db.wishes.find(query).to_list(100)
+    wishes = await db.wishes.find(query).skip(skip).limit(limit).to_list(limit)
     # Custom sort: urgent > normal > flexible, then by created_at
     urgency_order = {"urgent": 0, "normal": 1, "flexible": 2}
     wishes.sort(key=lambda x: (urgency_order.get(x.get("urgency", "normal"), 1), -x["created_at"].timestamp()))
@@ -1254,11 +1263,15 @@ async def create_connection(conn: ConnectionCreate, current_user = Depends(get_c
     )
 
 @api_router.get("/connections", response_model=List[ConnectionResponse])
-async def get_connections(current_user = Depends(get_current_user)):
+async def get_connections(
+    current_user = Depends(get_current_user),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100)
+):
     user_id = str(current_user["_id"])
     connections = await db.connections.find({
         "$or": [{"pledger_id": user_id}, {"wisher_id": user_id}]
-    }).sort("created_at", -1).to_list(100)
+    }).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
     
     result = []
     for c in connections:
@@ -1329,8 +1342,13 @@ async def send_message(msg: MessageCreate, current_user = Depends(get_current_us
     )
 
 @api_router.get("/messages/{connection_id}", response_model=List[MessageResponse])
-async def get_messages(connection_id: str, current_user = Depends(get_current_user)):
-    messages = await db.messages.find({"connection_id": connection_id}).sort("created_at", 1).to_list(1000)
+async def get_messages(
+    connection_id: str, 
+    current_user = Depends(get_current_user),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500)
+):
+    messages = await db.messages.find({"connection_id": connection_id}).sort("created_at", 1).skip(skip).limit(limit).to_list(limit)
     
     # Mark messages as read
     await db.messages.update_many(
@@ -1397,9 +1415,12 @@ async def create_gratitude(gratitude: GratitudeCreate, current_user = Depends(ge
     )
 
 @api_router.get("/gratitude/wall", response_model=List[GratitudeResponse])
-async def get_gratitude_wall():
+async def get_gratitude_wall(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100)
+):
     """Get public gratitude wall - only APPROVED gratitude"""
-    gratitudes = await db.gratitude.find({"status": "approved"}).sort("created_at", -1).to_list(100)
+    gratitudes = await db.gratitude.find({"status": "approved"}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
     return [GratitudeResponse(
         id=str(g["_id"]),
         from_user_id=g["from_user_id"],
@@ -3111,6 +3132,59 @@ logger = logging.getLogger(__name__)
 @app.get("/")
 async def root_health_check():
     return {"status": "ok", "app": "WayPledge", "message": "The honeycomb is alive"}
+
+@app.on_event("startup")
+async def create_indexes():
+    """Create database indexes for better query performance"""
+    try:
+        # User indexes
+        await db.users.create_index("email", unique=True)
+        await db.users.create_index("is_admin")
+        await db.users.create_index("is_suspended")
+        
+        # Pledges indexes
+        await db.pledges.create_index("user_id")
+        await db.pledges.create_index("category")
+        await db.pledges.create_index("status")
+        await db.pledges.create_index("created_at")
+        await db.pledges.create_index([("location_geo", "2dsphere")])
+        
+        # Wishes indexes
+        await db.wishes.create_index("user_id")
+        await db.wishes.create_index("category")
+        await db.wishes.create_index("status")
+        await db.wishes.create_index("created_at")
+        await db.wishes.create_index([("location_geo", "2dsphere")])
+        
+        # Connections indexes
+        await db.connections.create_index("pledger_id")
+        await db.connections.create_index("requester_id")
+        await db.connections.create_index("pledge_id")
+        await db.connections.create_index("wish_id")
+        await db.connections.create_index("status")
+        
+        # Messages indexes
+        await db.messages.create_index("conversation_id")
+        await db.messages.create_index("sender_id")
+        await db.messages.create_index("created_at")
+        
+        # Gratitude indexes
+        await db.gratitude.create_index("from_user_id")
+        await db.gratitude.create_index("to_user_id")
+        await db.gratitude.create_index("status")
+        
+        # Stories indexes
+        await db.stories.create_index("user_id")
+        await db.stories.create_index("status")
+        
+        # Hives indexes
+        await db.hives.create_index("name")
+        await db.hives.create_index("admin_id")
+        await db.hives.create_index([("location_geo", "2dsphere")])
+        
+        logger.info("Database indexes created successfully")
+    except Exception as e:
+        logger.error(f"Error creating indexes: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
