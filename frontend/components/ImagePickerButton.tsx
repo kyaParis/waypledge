@@ -101,13 +101,15 @@ export default function ImagePickerButton({
   };
 
   const uploadImage = async (uri: string) => {
+    console.log('Starting image upload:', uri);
     setIsUploading(true);
     try {
       const imageUrl = await uploadImageToCloudinary(uri, folder);
+      console.log('Image uploaded successfully:', imageUrl);
       onImageUploaded(imageUrl);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading image:', error);
-      Alert.alert('Upload Failed', 'Failed to upload image. Please try again.');
+      Alert.alert('Upload Failed', error.message || 'Failed to upload image. Please try again.');
       setImageUri(null);
     } finally {
       setIsUploading(false);
