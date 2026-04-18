@@ -184,33 +184,18 @@ export default function ImagePickerButton({
           )}
         </View>
       ) : (
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity 
-            style={styles.photoOptionButton} 
-            onPress={() => {
-              console.log('Take Photo pressed');
-              takePhoto();
-            }} 
-            disabled={isUploading}
-            activeOpacity={0.7}
-          >
-            <MaterialIcons name="camera-alt" size={28} color={Colors.primary} />
-            <Text style={styles.photoOptionText}>Take Photo</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.photoOptionButton} 
-            onPress={() => {
-              console.log('Choose from Library pressed');
-              pickImage();
-            }} 
-            disabled={isUploading}
-            activeOpacity={0.7}
-          >
-            <MaterialIcons name="photo-library" size={28} color={Colors.primary} />
-            <Text style={styles.photoOptionText}>Library</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity 
+          style={styles.addButton} 
+          onPress={() => {
+            pickImage();
+          }} 
+          disabled={isUploading}
+          activeOpacity={0.7}
+        >
+          <MaterialIcons name="add-a-photo" size={32} color={Colors.primary} />
+          <Text style={styles.addButtonText}>{label}</Text>
+          <Text style={styles.addButtonHint}>Tap to add a photo</Text>
+        </TouchableOpacity>
       )}
     </View>
   );
