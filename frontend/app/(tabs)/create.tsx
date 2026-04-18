@@ -193,10 +193,8 @@ export default function CreateScreen() {
       setNeededBy('');
       setUrgency('normal');
       
-      // Show success message after a brief delay
-      setTimeout(() => {
-        Alert.alert('Success ✓', `Your ${type} has been created!`);
-      }, 300);
+      // Navigate to browse page to show success
+      router.push('/browse');
       
     } catch (error: any) {
       const status = error.response?.status;
