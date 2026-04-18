@@ -181,27 +181,23 @@ export default function CreateScreen() {
       const response = await api.post(endpoint, data);
       console.log('Success! Response:', response.data);
 
-      Alert.alert(
-        'Success',
-        `Your ${type} has been created!`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setTitle('');
-              setDescription('');
-              setCategory('');
-              setTags('');
-              setLocation('');
-              setImage(null);
-              setAvailableUntil('');
-              setDateRanges([]);
-              setNeededBy('');
-              setUrgency('normal');
-            },
-          },
-        ]
-      );
+      // Clear form immediately
+      setTitle('');
+      setDescription('');
+      setCategory('');
+      setTags('');
+      setLocation('');
+      setImage(null);
+      setAvailableUntil('');
+      setDateRanges([]);
+      setNeededBy('');
+      setUrgency('normal');
+      
+      // Show success message after a brief delay
+      setTimeout(() => {
+        Alert.alert('Success ✓', `Your ${type} has been created!`);
+      }, 300);
+      
     } catch (error: any) {
       const status = error.response?.status;
       const detail = error.response?.data?.detail;
