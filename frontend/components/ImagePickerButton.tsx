@@ -184,20 +184,33 @@ export default function ImagePickerButton({
           )}
         </View>
       ) : (
-        <TouchableOpacity 
-          style={styles.addButton} 
-          onPress={() => {
-            console.log('Add Photo button pressed!');
-            // Go directly to photo library instead of showing options
-            pickImage();
-          }} 
-          disabled={isUploading}
-          activeOpacity={0.7}
-        >
-          <MaterialIcons name="add-a-photo" size={32} color={Colors.primary} />
-          <Text style={styles.addButtonText}>{label}</Text>
-          <Text style={styles.addButtonHint}>Tap to select from your photos</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity 
+            style={styles.photoOptionButton} 
+            onPress={() => {
+              console.log('Take Photo pressed');
+              takePhoto();
+            }} 
+            disabled={isUploading}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="camera-alt" size={28} color={Colors.primary} />
+            <Text style={styles.photoOptionText}>Take Photo</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.photoOptionButton} 
+            onPress={() => {
+              console.log('Choose from Library pressed');
+              pickImage();
+            }} 
+            disabled={isUploading}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="photo-library" size={28} color={Colors.primary} />
+            <Text style={styles.photoOptionText}>Library</Text>
+          </TouchableOpacity>
+        </View>
       )}
     </View>
   );
@@ -206,6 +219,28 @@ export default function ImagePickerButton({
 const styles = StyleSheet.create({
   container: {
     marginBottom: 16,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  photoOptionButton: {
+    flex: 1,
+    borderWidth: 2,
+    borderColor: Colors.primary + '40',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary + '08',
+  },
+  photoOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primary,
+    marginTop: 8,
   },
   addButton: {
     borderWidth: 2,
