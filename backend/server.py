@@ -3195,6 +3195,68 @@ async def create_indexes():
     except Exception as e:
         logger.error(f"Error creating indexes: {e}")
 
+    # Run initial cleanup
+    await cleanup_old_items()
+
+async def cleanup_old_items():
+    """Auto-archive old pledges and wishes"""
+    try:
+        now = datetime.utcnow()
+        thirty_days_ago = now - timedelta(days=30)
+        
+        # Archive pledges WITHOUT dates that are older than 30 days
+        pledges_no_date = await db.pledges.update_many(
+            {
+                "status": "active",
+                "available_until": {"$in": [None, ""]},
+                "created_at": {"$lt": thirty_days_ago}
+            },
+            {"$set": {"status": "archived", "archived_reason": "auto_30_days"}}
+        )
+        
+        # Archive pledges WITH dates that have passed
+        pledges_expired = await db.pledges.update_many(
+            {
+                "status": "active",
+                "available_until": {"$exists": True, "$ne": None, "$ne": ""},
+                "available_until": {"$lt": now.isoformat()}
+            },
+            {"$set": {"status": "archived", "archived_reason": "date_passed"}}
+        )
+        
+        # Archive wishes WITHOUT dates that are older than 30 days
+        wishes_no_date = await db.wishes.update_many(
+            {
+                "status": "active",
+                "needed_by": None,
+                "created_at": {"$lt": thirty_days_ago}
+            },
+            {"$set": {"status": "archived", "archived_reason": "auto_30_days"}}
+        )
+        
+        # Archive wishes WITH dates that have passed
+        wishes_expired = await db.wishes.update_many(
+            {
+                "status": "active",
+                "needed_by": {"$exists": True, "$ne": None},
+                "needed_by": {"$lt": now}
+            },
+            {"$set": {"status": "archived", "archived_reason": "date_passed"}}
+        )
+        
+        total_archived = (
+            pledges_no_date.modified_count + 
+            pledges_expired.modified_count + 
+            wishes_no_date.modified_count + 
+            wishes_expired.modified_count
+        )
+        
+        if total_archived > 0:
+            logger.info(f"Auto-archived {total_archived} items (pledges: {pledges_no_date.modified_count + pledges_expired.modified_count}, wishes: {wishes_no_date.modified_count + wishes_expired.modified_count})")
+        
+    except Exception as e:
+        logger.error(f"Error during cleanup: {e}")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()

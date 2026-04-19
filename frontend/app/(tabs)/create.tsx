@@ -507,6 +507,12 @@ export default function CreateScreen() {
                 Add one or more date ranges when you're available
               </Text>
               
+              {dateRanges.length === 0 && (
+                <Text style={styles.autoArchiveNote}>
+                  Note: Pledges without dates are automatically removed after 30 days
+                </Text>
+              )}
+              
               {/* Show temp "From" date while selecting "To" */}
               {tempFromDate && (
                 <View style={styles.tempDateDisplay}>
@@ -675,6 +681,9 @@ export default function CreateScreen() {
                     />
                     <Text style={styles.helpText}>
                       Leave empty if no specific deadline
+                    </Text>
+                    <Text style={styles.autoArchiveNote}>
+                      Note: Wishes without a date are automatically removed after 30 days
                     </Text>
                   </>
                 )}
@@ -1062,5 +1071,11 @@ const styles = StyleSheet.create({
     color: Colors.text,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  autoArchiveNote: {
+    fontSize: 12,
+    color: Colors.warning,
+    fontStyle: 'italic',
+    marginTop: 8,
   },
 });
