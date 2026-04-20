@@ -30,7 +30,7 @@ export default function HomeScreen() {
   const [showWelcome, setShowWelcome] = useState(false);
   
   // Auto-refresh state
-  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isFocusedRef = useRef(true);
 
   const loadData = useCallback(async () => {

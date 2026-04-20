@@ -63,7 +63,7 @@ export default function RegisterScreen() {
           </Text>
           
           <TouchableOpacity
-            style={styles.backButton}
+            style={styles.backLinkButton}
             onPress={() => router.back()}
           >
             <MaterialIcons name="arrow-back" size={20} color={Colors.primary} />
@@ -593,7 +593,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 20,
   },
-  backButton: {
+  backLinkButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,

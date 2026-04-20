@@ -19,6 +19,7 @@ export const Colors = {
   pledgeLight: '#E8F8F5',
   pledgeMedium: '#4ECDC4',
   pledgeDark: '#3BB5AC',
+  pledgeAccent: '#27AE60',
   
   // Wish colors (blue theme)
   wishLight: '#EBF5FB',

@@ -73,7 +73,7 @@ export default function BrowseScreen() {
   
   // Auto-refresh state
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isFocusedRef = useRef(true);
   
   // Location search state

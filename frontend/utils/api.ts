@@ -42,6 +42,7 @@ export interface Wish {
   tags: string[];
   location: string;
   status: string;
+  image?: string;
   fulfilled_by?: string;
   needed_by?: string;
   urgency?: 'urgent' | 'normal' | 'flexible';

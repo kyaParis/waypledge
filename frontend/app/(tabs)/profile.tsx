@@ -433,7 +433,7 @@ export default function ProfileScreen() {
           {myGratitude.length > 0 ? (
             myGratitude.map((gratitude) => (
               <View key={gratitude.id} style={styles.gratitudeCard}>
-                <Text style={styles.gratitudeMessage}>&quot;{gratitude.message}&quot;</Text>
+                <Text style={styles.gratitudeCardMessage}>&quot;{gratitude.message}&quot;</Text>
                 <Text style={styles.gratitudeAuthor}>from {gratitude.from_user_name}</Text>
               </View>
             ))
@@ -556,7 +556,7 @@ export default function ProfileScreen() {
                     </View>
                     <View style={styles.pendingActions}>
                       <TouchableOpacity
-                        style={styles.approveButton}
+                        style={styles.pendingApproveButton}
                         onPress={() => handleApproveUser(pendingUser.id, pendingUser.name)}
                       >
                         <MaterialIcons name="check" size={24} color={Colors.surface} />
@@ -980,7 +980,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: Colors.accent,
   },
-  gratitudeMessage: {
+  gratitudeCardMessage: {
     fontSize: 14,
     color: Colors.text,
     fontStyle: 'italic',
@@ -1283,7 +1283,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  approveButton: {
+  pendingApproveButton: {
     backgroundColor: Colors.success,
     width: 44,
     height: 44,

@@ -529,8 +529,6 @@ export default function CreateScreen() {
                 onConfirm={handleFromDateConfirm}
                 onCancel={() => setShowFromPicker(false)}
                 minimumDate={new Date()}
-                headerTextIOS="Select START date"
-                confirmTextIOS="Select Start Date"
               />
               
               {/* To Date Picker */}
@@ -543,8 +541,6 @@ export default function CreateScreen() {
                   setTempFromDate(null);
                 }}
                 minimumDate={tempFromDate || new Date()}
-                headerTextIOS="Select END date"
-                confirmTextIOS="Select End Date"
               />
             </View>
           )}
