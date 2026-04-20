@@ -11,6 +11,7 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Share,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
@@ -258,6 +259,17 @@ export default function ProfileScreen() {
       router.replace('/(auth)/welcome');
     } catch (error) {
       console.error('Logout error:', error);
+    }
+  };
+
+  const handleShareApp = async () => {
+    try {
+      await Share.share({
+        message: `Join me on WayPledge - a community where we help each other, no money needed. It's about giving, sharing, and knowing when it's your turn, you only need ask. 🐝\n\nhttps://waypledge.me`,
+        title: 'Join WayPledge',
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
     }
   };
 
@@ -620,6 +632,15 @@ export default function ProfileScreen() {
         {/* Quick Links Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Links</Text>
+          
+          <TouchableOpacity 
+            style={styles.shareButton}
+            onPress={handleShareApp}
+          >
+            <MaterialIcons name="share" size={22} color={Colors.surface} />
+            <Text style={styles.shareButtonText}>Invite Friends to WayPledge</Text>
+            <MaterialIcons name="chevron-right" size={22} color={Colors.surface} />
+          </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.quickLinkButton}
@@ -1290,6 +1311,21 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: Colors.text,
+    marginLeft: 12,
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  shareButtonText: {
+    flex: 1,
+    fontSize: 16,
+    color: Colors.surface,
+    fontWeight: '600',
     marginLeft: 12,
   },
   // Pending Gratitude styles
