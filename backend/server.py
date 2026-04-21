@@ -2254,6 +2254,42 @@ async def delete_account(deletion_request: AccountDeletionRequest, current_user 
     if deletion_request.reason:
         logger.info(f"Account deletion requested by {user_email}: {deletion_request.reason}")
     
+    # Check for any reports involving this user (as reporter or reported)
+    reports_involving_user = await db.reports.find({
+        "$or": [
+            {"reporter_id": user_id},
+            {"reported_user_id": user_id}
+        ]
+    }).to_list(None)
+    
+    # Get connection IDs from reports for message archival
+    reported_connection_ids = set()
+    for report in reports_involving_user:
+        if report.get("connection_id"):
+            reported_connection_ids.add(report["connection_id"])
+    
+    # Archive messages from reported conversations (retain for 90 days)
+    if reported_connection_ids:
+        messages_to_archive = await db.messages.find({
+            "connection_id": {"$in": list(reported_connection_ids)}
+        }).to_list(None)
+        
+        if messages_to_archive:
+            # Add archival metadata
+            archive_time = datetime.utcnow()
+            retention_until = archive_time + timedelta(days=90)
+            
+            for msg in messages_to_archive:
+                msg["archived_at"] = archive_time
+                msg["retention_until"] = retention_until
+                msg["deleted_user_id"] = user_id
+                msg["deleted_user_email"] = user_email
+                msg["original_id"] = str(msg.pop("_id"))
+            
+            # Store in archived_messages collection
+            await db.archived_messages.insert_many(messages_to_archive)
+            logger.info(f"Archived {len(messages_to_archive)} messages from reported conversations for user {user_email}")
+    
     # Delete all user data
     # 1. Delete user's pledges
     await db.pledges.delete_many({"user_id": user_id})
@@ -2276,7 +2312,8 @@ async def delete_account(deletion_request: AccountDeletionRequest, current_user 
     # 7. Delete blocked users records (both directions)
     await db.blocked_users.delete_many({"$or": [{"blocker_id": user_id}, {"blocked_id": user_id}]})
     
-    # 8. Delete reports made by user (keep reports against user for admin review)
+    # 8. Keep reports for admin review (don't delete reports against this user)
+    # Only delete reports made BY the user
     await db.reports.delete_many({"reporter_id": user_id})
     
     # 9. Finally, delete the user account
@@ -3199,7 +3236,7 @@ async def create_indexes():
     await cleanup_old_items()
 
 async def cleanup_old_items():
-    """Auto-archive old pledges and wishes"""
+    """Auto-archive old pledges and wishes, and delete expired archived messages"""
     try:
         now = datetime.utcnow()
         thirty_days_ago = now - timedelta(days=30)
@@ -3253,6 +3290,14 @@ async def cleanup_old_items():
         
         if total_archived > 0:
             logger.info(f"Auto-archived {total_archived} items (pledges: {pledges_no_date.modified_count + pledges_expired.modified_count}, wishes: {wishes_no_date.modified_count + wishes_expired.modified_count})")
+        
+        # Delete archived messages that have passed their 90-day retention period
+        expired_messages = await db.archived_messages.delete_many({
+            "retention_until": {"$lt": now}
+        })
+        
+        if expired_messages.deleted_count > 0:
+            logger.info(f"Permanently deleted {expired_messages.deleted_count} archived messages (90-day retention expired)")
         
     except Exception as e:
         logger.error(f"Error during cleanup: {e}")

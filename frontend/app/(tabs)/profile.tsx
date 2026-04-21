@@ -729,6 +729,10 @@ export default function ProfileScreen() {
                 <Text style={styles.deleteListItem}>• All gratitude posts</Text>
               </View>
               
+              <Text style={styles.deleteNote}>
+                Note: If any conversations have been reported for safety review, those messages may be retained for up to 90 days.
+              </Text>
+              
               <Text style={styles.deleteLabel}>Enter your password to confirm:</Text>
               <TextInput
                 style={styles.deleteInput}
@@ -1174,6 +1178,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     marginBottom: 8,
+  },
+  deleteNote: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+    marginBottom: 16,
+    paddingHorizontal: 8,
+    lineHeight: 18,
   },
   deleteLabel: {
     fontSize: 14,
