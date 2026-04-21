@@ -2237,6 +2237,99 @@ async def admin_delete_user(user_id: str, current_user = Depends(get_current_use
     return {"success": True, "message": f"{user_name} has been permanently deleted"}
 
 # ==========================================
+# ARCHIVED MESSAGES ENDPOINTS (Admin Only)
+# ==========================================
+
+@api_router.get("/admin/archived-messages")
+async def get_archived_messages(
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100),
+    current_user = Depends(get_current_user)
+):
+    """Get archived messages for abuse investigation (admin only)"""
+    if not await is_user_admin(current_user["email"], current_user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get total count
+    total = await db.archived_messages.count_documents({})
+    
+    # Get archived messages, sorted by most recent
+    messages = await db.archived_messages.find().sort("archived_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    # Group by connection_id for easier review
+    result = []
+    for msg in messages:
+        result.append({
+            "id": msg.get("original_id", str(msg.get("_id"))),
+            "connection_id": msg.get("connection_id"),
+            "content": msg.get("content"),
+            "sender_id": msg.get("sender_id"),
+            "sender_name": msg.get("sender_name", "Unknown"),
+            "created_at": msg.get("created_at"),
+            "archived_at": msg.get("archived_at"),
+            "retention_until": msg.get("retention_until"),
+            "deleted_user_id": msg.get("deleted_user_id"),
+            "deleted_user_email": msg.get("deleted_user_email"),
+        })
+    
+    logger.info(f"Admin {current_user['email']} accessed archived messages")
+    
+    return {
+        "messages": result,
+        "total": total,
+        "skip": skip,
+        "limit": limit
+    }
+
+@api_router.get("/admin/archived-messages/by-report/{report_id}")
+async def get_archived_messages_by_report(
+    report_id: str,
+    current_user = Depends(get_current_user)
+):
+    """Get archived messages for a specific report (admin only)"""
+    if not await is_user_admin(current_user["email"], current_user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get the report to find connection_id
+    report = await db.reports.find_one({"_id": ObjectId(report_id)})
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    connection_id = report.get("connection_id")
+    if not connection_id:
+        return {"messages": [], "report": report, "note": "No connection associated with this report"}
+    
+    # Get archived messages for this connection
+    messages = await db.archived_messages.find({
+        "connection_id": connection_id
+    }).sort("created_at", 1).to_list(500)
+    
+    result = []
+    for msg in messages:
+        result.append({
+            "id": msg.get("original_id", str(msg.get("_id"))),
+            "content": msg.get("content"),
+            "sender_id": msg.get("sender_id"),
+            "sender_name": msg.get("sender_name", "Unknown"),
+            "created_at": msg.get("created_at"),
+            "archived_at": msg.get("archived_at"),
+            "retention_until": msg.get("retention_until"),
+        })
+    
+    logger.info(f"Admin {current_user['email']} accessed archived messages for report {report_id}")
+    
+    return {
+        "messages": result,
+        "report": {
+            "id": str(report["_id"]),
+            "reporter_name": report.get("reporter_name", "Unknown"),
+            "reason": report.get("reason"),
+            "description": report.get("description"),
+            "created_at": report.get("created_at"),
+        }
+    }
+
+# ==========================================
 # ACCOUNT DELETION ENDPOINTS
 # ==========================================
 

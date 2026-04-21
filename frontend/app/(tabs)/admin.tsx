@@ -41,11 +41,26 @@ interface User {
   created_at: string;
 }
 
+interface ArchivedMessage {
+  id: string;
+  connection_id: string;
+  content: string;
+  sender_id: string;
+  sender_name: string;
+  created_at: string;
+  archived_at: string;
+  retention_until: string;
+  deleted_user_id: string;
+  deleted_user_email: string;
+}
+
 export default function AdminScreen() {
-  const [activeTab, setActiveTab] = useState<'reports' | 'users' | 'stories'>('reports');
+  const [activeTab, setActiveTab] = useState<'reports' | 'users' | 'stories' | 'archive'>('reports');
   const [reports, setReports] = useState<Report[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [pendingStories, setPendingStories] = useState<Story[]>([]);
+  const [archivedMessages, setArchivedMessages] = useState<ArchivedMessage[]>([]);
+  const [archiveTotal, setArchiveTotal] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'reviewed' | 'resolved'>('all');
@@ -56,6 +71,8 @@ export default function AdminScreen() {
       loadReports();
     } else if (activeTab === 'users') {
       loadUsers();
+    } else if (activeTab === 'archive') {
+      loadArchivedMessages();
     } else {
       loadPendingStories();
     }
@@ -85,6 +102,8 @@ export default function AdminScreen() {
       await loadReports();
     } else if (activeTab === 'users') {
       await loadUsers();
+    } else if (activeTab === 'archive') {
+      await loadArchivedMessages();
     } else {
       await loadPendingStories();
     }
@@ -97,6 +116,16 @@ export default function AdminScreen() {
       setPendingStories(stories);
     } catch (error) {
       console.error('Error loading pending stories:', error);
+    }
+  };
+
+  const loadArchivedMessages = async () => {
+    try {
+      const response = await api.get('/admin/archived-messages');
+      setArchivedMessages(response.data.messages || []);
+      setArchiveTotal(response.data.total || 0);
+    } catch (error) {
+      console.error('Error loading archived messages:', error);
     }
   };
 
@@ -286,6 +315,18 @@ export default function AdminScreen() {
           {pendingStories.length > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{pendingStories.length}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'archive' && styles.tabActive]}
+          onPress={() => setActiveTab('archive')}
+        >
+          <MaterialIcons name="archive" size={20} color={activeTab === 'archive' ? Colors.primary : Colors.textSecondary} />
+          <Text style={[styles.tabText, activeTab === 'archive' && styles.tabTextActive]}>Archive</Text>
+          {archiveTotal > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{archiveTotal}</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -539,6 +580,65 @@ export default function AdminScreen() {
               <MaterialIcons name="auto-stories" size={64} color={Colors.textSecondary} />
               <Text style={styles.emptyText}>No pending stories</Text>
               <Text style={styles.emptySubtext}>All stories have been reviewed!</Text>
+            </View>
+          )}
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      ) : activeTab === 'archive' ? (
+        /* Archive Tab */
+        <ScrollView
+          style={styles.scrollView}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
+          <View style={styles.archiveHeader}>
+            <MaterialIcons name="shield" size={24} color={Colors.warning} />
+            <Text style={styles.archiveHeaderText}>
+              Messages from reported conversations are retained for 90 days for safety investigations.
+            </Text>
+          </View>
+          
+          <Text style={styles.sectionLabel}>
+            Archived Messages ({archiveTotal})
+          </Text>
+          
+          {archivedMessages.length > 0 ? (
+            archivedMessages.map((msg, index) => (
+              <View key={msg.id || index} style={styles.archiveCard}>
+                <View style={styles.archiveCardHeader}>
+                  <View style={styles.archiveSender}>
+                    <MaterialIcons name="person" size={16} color={Colors.primary} />
+                    <Text style={styles.archiveSenderName}>{msg.sender_name}</Text>
+                  </View>
+                  <Text style={styles.archiveDate}>
+                    {msg.created_at ? formatDistanceToNow(new Date(msg.created_at), { addSuffix: true }) : 'Unknown date'}
+                  </Text>
+                </View>
+                
+                <Text style={styles.archiveContent}>{msg.content}</Text>
+                
+                <View style={styles.archiveMeta}>
+                  <View style={styles.archiveMetaItem}>
+                    <MaterialIcons name="delete" size={14} color={Colors.error} />
+                    <Text style={styles.archiveMetaText}>
+                      Deleted by: {msg.deleted_user_email || 'Unknown'}
+                    </Text>
+                  </View>
+                  <View style={styles.archiveMetaItem}>
+                    <MaterialIcons name="schedule" size={14} color={Colors.textSecondary} />
+                    <Text style={styles.archiveMetaText}>
+                      Expires: {msg.retention_until ? new Date(msg.retention_until).toLocaleDateString() : 'Unknown'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ))
+          ) : (
+            <View style={styles.emptyContainer}>
+              <MaterialIcons name="archive" size={64} color={Colors.textSecondary} />
+              <Text style={styles.emptyText}>No archived messages</Text>
+              <Text style={styles.emptySubtext}>
+                Messages are only archived when a user with reported conversations deletes their account.
+              </Text>
             </View>
           )}
           <View style={{ height: 40 }} />
@@ -953,5 +1053,72 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  // Archive tab styles
+  archiveHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.warning + '15',
+    padding: 12,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 10,
+    gap: 10,
+  },
+  archiveHeaderText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.text,
+    lineHeight: 18,
+  },
+  archiveCard: {
+    backgroundColor: Colors.surface,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    padding: 14,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.warning,
+  },
+  archiveCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  archiveSender: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  archiveSenderName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  archiveDate: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  archiveContent: {
+    fontSize: 14,
+    color: Colors.text,
+    lineHeight: 20,
+    marginBottom: 12,
+    padding: 10,
+    backgroundColor: Colors.background,
+    borderRadius: 8,
+  },
+  archiveMeta: {
+    gap: 6,
+  },
+  archiveMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  archiveMetaText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
   },
 });
