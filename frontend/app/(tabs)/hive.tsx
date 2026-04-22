@@ -49,14 +49,20 @@ export default function HiveScreen() {
   const [locationFilter, setLocationFilter] = useState<string | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
   
-  // Create hive form
+  // Create hive form - simplified hierarchy
   const [newHiveName, setNewHiveName] = useState('');
   const [newHiveDescription, setNewHiveDescription] = useState('');
-  const [newHiveLocation, setNewHiveLocation] = useState('');
   const [newHiveVision, setNewHiveVision] = useState('');
   const [newHiveParentId, setNewHiveParentId] = useState<string | null>(null);
   const [showParentPicker, setShowParentPicker] = useState(false);
   const [creating, setCreating] = useState(false);
+  
+  // Hierarchy fields
+  const [hierarchyCountry, setHierarchyCountry] = useState('');
+  const [hierarchyCity, setHierarchyCity] = useState('');
+  const [hierarchyTown, setHierarchyTown] = useState('');
+  const [hierarchyNeighborhood, setHierarchyNeighborhood] = useState('');
+  const [communityType, setCommunityType] = useState<'country' | 'city' | 'town' | 'neighborhood' | 'street'>('neighborhood');
 
   const loadHives = useCallback(async () => {
     try {
@@ -135,48 +141,86 @@ export default function HiveScreen() {
 
   const handleJoinHive = async (hiveId: string) => {
     if (!isAuthenticated) {
-      alert('Please log in to join a hive');
+      alert('Please log in to join this community');
       return;
     }
     try {
       await api.post(`/hives/${hiveId}/join`);
-      alert('Welcome to the hive!');
+      alert('Welcome to the community!');
       await loadMyHives();
       await loadHives();
     } catch (error: any) {
-      alert(error.response?.data?.detail || 'Failed to join hive');
+      alert(error.response?.data?.detail || 'Failed to join community');
     }
   };
 
   const handleLeaveHive = async (hiveId: string) => {
     try {
       await api.post(`/hives/${hiveId}/leave`);
-      alert('You have left the hive');
+      alert('You have left the community');
       await loadMyHives();
       await loadHives();
     } catch (error: any) {
-      alert(error.response?.data?.detail || 'Failed to leave hive');
+      alert(error.response?.data?.detail || 'Failed to leave community');
     }
   };
 
   const [similarHives, setSimilarHives] = useState<any[]>([]);
   const [showSimilarWarning, setShowSimilarWarning] = useState(false);
 
+  const resetCreateForm = () => {
+    setNewHiveName('');
+    setNewHiveDescription('');
+    setNewHiveVision('');
+    setNewHiveParentId(null);
+    setHierarchyCountry('');
+    setHierarchyCity('');
+    setHierarchyTown('');
+    setHierarchyNeighborhood('');
+    setCommunityType('neighborhood');
+    setShowSimilarWarning(false);
+    setSimilarHives([]);
+  };
+
+  // Build location string from hierarchy
+  const buildLocationString = () => {
+    const parts = [];
+    if (hierarchyNeighborhood) parts.push(hierarchyNeighborhood);
+    if (hierarchyTown) parts.push(hierarchyTown);
+    if (hierarchyCity) parts.push(hierarchyCity);
+    if (hierarchyCountry) parts.push(hierarchyCountry);
+    return parts.join(', ');
+  };
+
   const handleCreateHive = async (force: boolean = false) => {
-    if (!newHiveName.trim() || !newHiveDescription.trim() || !newHiveLocation.trim()) {
-      alert('Please fill in name, description, and location');
+    if (!newHiveName.trim() || !newHiveDescription.trim()) {
+      alert('Please fill in name and description');
+      return;
+    }
+    
+    if (!hierarchyCountry.trim()) {
+      alert('Please select or enter your country');
       return;
     }
 
     try {
       setCreating(true);
       
+      const locationString = buildLocationString();
+      
       const params = force ? '?force=true' : '';
       const payload: any = {
         name: newHiveName.trim(),
         description: newHiveDescription.trim(),
-        location: newHiveLocation.trim(),
+        location: locationString,
         vision: newHiveVision.trim(),
+        community_type: communityType,
+        hierarchy: {
+          country: hierarchyCountry.trim(),
+          city: hierarchyCity.trim() || null,
+          town: hierarchyTown.trim() || null,
+          neighborhood: hierarchyNeighborhood.trim() || null,
+        }
       };
       if (newHiveParentId) {
         payload.parent_hive_id = newHiveParentId;
@@ -185,16 +229,10 @@ export default function HiveScreen() {
       await api.post(`/hives${params}`, payload);
       
       // Reset form
-      setNewHiveName('');
-      setNewHiveDescription('');
-      setNewHiveLocation('');
-      setNewHiveVision('');
-      setNewHiveParentId(null);
+      resetCreateForm();
       setShowCreateModal(false);
-      setShowSimilarWarning(false);
-      setSimilarHives([]);
       
-      alert('Hive created! You are the founder. Note: Your hive will need admin verification to appear prominently.');
+      alert('Community created! You are now the founder and will automatically be part of all parent communities.');
       await Promise.all([loadHives(), loadMyHives()]);
     } catch (error: any) {
       // Check if it's a "similar hives exist" warning (409 Conflict)
@@ -467,62 +505,197 @@ export default function HiveScreen() {
         </TouchableOpacity>
       )}
 
-      {/* Create Hive Modal */}
+      {/* Create Community Modal */}
       <Modal
         visible={showCreateModal}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setShowCreateModal(false)}
+        onRequestClose={() => { resetCreateForm(); setShowCreateModal(false); }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Create a New Community</Text>
-              <TouchableOpacity onPress={() => setShowCreateModal(false)}>
+              <Text style={styles.modalTitle}>Create a Community</Text>
+              <TouchableOpacity onPress={() => { resetCreateForm(); setShowCreateModal(false); }}>
                 <MaterialIcons name="close" size={24} color={Colors.text} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalScroll}>
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
               <Text style={styles.modalSubtitle}>
-                Start a local community and grow your network
+                Communities nest automatically - your street is part of your town, city, and country
               </Text>
 
+              {/* Community Type Selector */}
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>What type of community?</Text>
+                <View style={styles.typeSelector}>
+                  {[
+                    { key: 'street', label: 'Street/Block', icon: 'home' },
+                    { key: 'neighborhood', label: 'Neighborhood', icon: 'holiday-village' },
+                    { key: 'town', label: 'Town/Area', icon: 'location-city' },
+                    { key: 'city', label: 'City', icon: 'apartment' },
+                  ].map((type) => (
+                    <TouchableOpacity
+                      key={type.key}
+                      style={[
+                        styles.typeOption,
+                        communityType === type.key && styles.typeOptionSelected
+                      ]}
+                      onPress={() => setCommunityType(type.key as any)}
+                    >
+                      <MaterialIcons 
+                        name={type.icon as any} 
+                        size={20} 
+                        color={communityType === type.key ? Colors.surface : Colors.textSecondary} 
+                      />
+                      <Text style={[
+                        styles.typeOptionText,
+                        communityType === type.key && styles.typeOptionTextSelected
+                      ]}>
+                        {type.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Community Name */}
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Community Name *</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="e.g., Street 246/247, Altaona"
+                  placeholder={
+                    communityType === 'street' ? "e.g., Street 246/247" :
+                    communityType === 'neighborhood' ? "e.g., Altaona Golf Resort" :
+                    communityType === 'town' ? "e.g., Banos y Mendigo" :
+                    "e.g., Murcia"
+                  }
                   placeholderTextColor={Colors.textSecondary}
                   value={newHiveName}
                   onChangeText={setNewHiveName}
                 />
               </View>
 
+              {/* Description */}
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Description *</Text>
                 <TextInput
                   style={[styles.input, styles.textArea]}
-                  placeholder="What is this community about?"
+                  placeholder="What brings this community together?"
                   placeholderTextColor={Colors.textSecondary}
                   value={newHiveDescription}
                   onChangeText={setNewHiveDescription}
                   multiline
-                  numberOfLines={3}
+                  numberOfLines={2}
                 />
               </View>
 
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Location *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g., Murcia, Spain"
-                  placeholderTextColor={Colors.textSecondary}
-                  value={newHiveLocation}
-                  onChangeText={setNewHiveLocation}
-                />
+              {/* Hierarchy Section */}
+              <View style={styles.hierarchySection}>
+                <View style={styles.hierarchyHeader}>
+                  <MaterialIcons name="account-tree" size={20} color={Colors.primary} />
+                  <Text style={styles.hierarchyTitle}>Where is this community?</Text>
+                </View>
+                <Text style={styles.hierarchyHint}>
+                  Fill in from largest to smallest. You'll automatically join all parent communities.
+                </Text>
+
+                {/* Country */}
+                <View style={styles.hierarchyField}>
+                  <View style={styles.hierarchyIcon}>
+                    <MaterialIcons name="public" size={18} color={Colors.primary} />
+                  </View>
+                  <View style={styles.hierarchyInput}>
+                    <Text style={styles.hierarchyLabel}>Country *</Text>
+                    <TextInput
+                      style={styles.hierarchyTextInput}
+                      placeholder="e.g., Spain"
+                      placeholderTextColor={Colors.textSecondary}
+                      value={hierarchyCountry}
+                      onChangeText={setHierarchyCountry}
+                    />
+                  </View>
+                </View>
+
+                {/* City */}
+                <View style={styles.hierarchyField}>
+                  <View style={styles.hierarchyIcon}>
+                    <MaterialIcons name="apartment" size={18} color={communityType !== 'city' ? Colors.primary : Colors.textSecondary} />
+                  </View>
+                  <View style={styles.hierarchyInput}>
+                    <Text style={styles.hierarchyLabel}>City/Region {communityType !== 'city' ? '' : '(this is your community)'}</Text>
+                    <TextInput
+                      style={styles.hierarchyTextInput}
+                      placeholder="e.g., Murcia"
+                      placeholderTextColor={Colors.textSecondary}
+                      value={hierarchyCity}
+                      onChangeText={setHierarchyCity}
+                      editable={communityType !== 'city'}
+                    />
+                  </View>
+                </View>
+
+                {/* Town - only show for town, neighborhood, street */}
+                {['town', 'neighborhood', 'street'].includes(communityType) && (
+                  <View style={styles.hierarchyField}>
+                    <View style={styles.hierarchyIcon}>
+                      <MaterialIcons name="location-city" size={18} color={communityType !== 'town' ? Colors.primary : Colors.textSecondary} />
+                    </View>
+                    <View style={styles.hierarchyInput}>
+                      <Text style={styles.hierarchyLabel}>Town/Area {communityType === 'town' ? '(this is your community)' : '(optional)'}</Text>
+                      <TextInput
+                        style={styles.hierarchyTextInput}
+                        placeholder="e.g., Banos y Mendigo"
+                        placeholderTextColor={Colors.textSecondary}
+                        value={hierarchyTown}
+                        onChangeText={setHierarchyTown}
+                        editable={communityType !== 'town'}
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {/* Neighborhood - only show for neighborhood, street */}
+                {['neighborhood', 'street'].includes(communityType) && (
+                  <View style={styles.hierarchyField}>
+                    <View style={styles.hierarchyIcon}>
+                      <MaterialIcons name="holiday-village" size={18} color={communityType !== 'neighborhood' ? Colors.primary : Colors.textSecondary} />
+                    </View>
+                    <View style={styles.hierarchyInput}>
+                      <Text style={styles.hierarchyLabel}>Neighborhood/Resort {communityType === 'neighborhood' ? '(this is your community)' : '(optional)'}</Text>
+                      <TextInput
+                        style={styles.hierarchyTextInput}
+                        placeholder="e.g., Altaona Golf Resort"
+                        placeholderTextColor={Colors.textSecondary}
+                        value={hierarchyNeighborhood}
+                        onChangeText={setHierarchyNeighborhood}
+                        editable={communityType !== 'neighborhood'}
+                      />
+                    </View>
+                  </View>
+                )}
               </View>
 
+              {/* Preview */}
+              {hierarchyCountry && (
+                <View style={styles.previewSection}>
+                  <Text style={styles.previewTitle}>Your community path:</Text>
+                  <View style={styles.previewPath}>
+                    <Text style={styles.previewItem}>🇪🇸 {hierarchyCountry}</Text>
+                    {hierarchyCity && <Text style={styles.previewArrow}>↳</Text>}
+                    {hierarchyCity && <Text style={styles.previewItem}>🏙️ {hierarchyCity}</Text>}
+                    {hierarchyTown && <Text style={styles.previewArrow}>↳</Text>}
+                    {hierarchyTown && <Text style={styles.previewItem}>🏘️ {hierarchyTown}</Text>}
+                    {hierarchyNeighborhood && <Text style={styles.previewArrow}>↳</Text>}
+                    {hierarchyNeighborhood && <Text style={styles.previewItem}>🏡 {hierarchyNeighborhood}</Text>}
+                    <Text style={styles.previewArrow}>↳</Text>
+                    <Text style={styles.previewItemHighlight}>✨ {newHiveName || 'Your Community'}</Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Vision (optional) */}
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Vision (optional)</Text>
                 <TextInput
@@ -534,73 +707,22 @@ export default function HiveScreen() {
                 />
               </View>
 
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Part of Country/Region *</Text>
-                <TouchableOpacity 
-                  style={styles.parentPickerButton}
-                  onPress={() => setShowParentPicker(!showParentPicker)}
-                >
-                  <MaterialIcons name="public" size={20} color={Colors.primary} />
-                  <Text style={newHiveParentId ? styles.parentPickerText : styles.parentPickerPlaceholder}>
-                    {newHiveParentId 
-                      ? countryHives.find(h => h.id === newHiveParentId)?.name || 'Select country'
-                      : 'Select the country this community belongs to'}
-                  </Text>
-                  <MaterialIcons 
-                    name={showParentPicker ? "expand-less" : "expand-more"} 
-                    size={24} 
-                    color={Colors.textSecondary} 
-                  />
-                </TouchableOpacity>
-                
-                {showParentPicker && (
-                  <View style={styles.parentPickerList}>
-                    {countryHives.map((country) => (
-                      <TouchableOpacity
-                        key={country.id}
-                        style={[
-                          styles.parentPickerItem,
-                          newHiveParentId === country.id && styles.parentPickerItemSelected
-                        ]}
-                        onPress={() => {
-                          setNewHiveParentId(country.id);
-                          setShowParentPicker(false);
-                        }}
-                      >
-                        <Text style={[
-                          styles.parentPickerItemText,
-                          newHiveParentId === country.id && styles.parentPickerItemTextSelected
-                        ]}>
-                          {country.name.replace('WayPledge ', '')}
-                        </Text>
-                        {newHiveParentId === country.id && (
-                          <MaterialIcons name="check" size={20} color={Colors.primary} />
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-                <Text style={styles.parentHint}>
-                  Your local hive (e.g., "Altaona") will appear under the selected country hive
-                </Text>
-              </View>
-
               <View style={styles.pledgeReminder}>
                 <MaterialIcons name="shield" size={20} color={Colors.primary} />
                 <Text style={styles.pledgeText}>
-                  By creating a hive, you commit to upholding the Do No Harm Pledge
+                  By creating a community, you commit to the Do No Harm Pledge
                 </Text>
               </View>
 
-              {/* Similar Hives Warning */}
+              {/* Similar Communities Warning */}
               {showSimilarWarning && similarHives.length > 0 && (
                 <View style={styles.warningBox}>
                   <View style={styles.warningHeader}>
                     <MaterialIcons name="warning" size={24} color={Colors.accent} />
-                    <Text style={styles.warningTitle}>Similar Hives Exist</Text>
+                    <Text style={styles.warningTitle}>Similar Communities Exist</Text>
                   </View>
                   <Text style={styles.warningText}>
-                    We found existing hives in this area. Consider joining one instead:
+                    We found existing communities in this area. Consider joining one instead:
                   </Text>
                   {similarHives.map((name, index) => (
                     <Text key={index} style={styles.similarHiveName}>• {name}</Text>
@@ -640,8 +762,8 @@ export default function HiveScreen() {
                     <ActivityIndicator color={Colors.surface} />
                   ) : (
                     <>
-                      <MaterialIcons name="hexagon" size={20} color={Colors.surface} />
-                      <Text style={styles.submitButtonText}>Create Hive</Text>
+                      <MaterialIcons name="groups" size={20} color={Colors.surface} />
+                      <Text style={styles.submitButtonText}>Create Community</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -650,7 +772,7 @@ export default function HiveScreen() {
               <View style={styles.verificationNote}>
                 <MaterialIcons name="info-outline" size={16} color={Colors.textSecondary} />
                 <Text style={styles.verificationNoteText}>
-                  New hives require admin verification to appear prominently in search results.
+                  New communities may need verification to appear in search results.
                 </Text>
               </View>
             </ScrollView>
@@ -1167,5 +1289,123 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 8,
     fontStyle: 'italic',
+  },
+  // Hierarchy form styles
+  typeSelector: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  typeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 6,
+  },
+  typeOptionSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  typeOptionText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  typeOptionTextSelected: {
+    color: Colors.surface,
+  },
+  hierarchySection: {
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  hierarchyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  hierarchyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  hierarchyHint: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  hierarchyField: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  hierarchyIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    marginTop: 4,
+  },
+  hierarchyInput: {
+    flex: 1,
+  },
+  hierarchyLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+  hierarchyTextInput: {
+    fontSize: 15,
+    color: Colors.text,
+    backgroundColor: Colors.background,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  previewSection: {
+    backgroundColor: Colors.primary + '10',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+  },
+  previewTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.primary,
+    marginBottom: 10,
+  },
+  previewPath: {
+    paddingLeft: 4,
+  },
+  previewItem: {
+    fontSize: 14,
+    color: Colors.text,
+    marginBottom: 4,
+    marginLeft: 8,
+  },
+  previewArrow: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginLeft: 16,
+    marginBottom: 2,
+  },
+  previewItemHighlight: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primary,
+    marginLeft: 8,
   },
 });
