@@ -479,6 +479,24 @@ class HiveMemberResponse(BaseModel):
     role: str  # "founder", "guardian", "member"
     joined_at: datetime
 
+# Community Link Models - for connecting neighboring communities
+class CommunityLinkRequest(BaseModel):
+    target_hive_id: str
+    message: Optional[str] = ""
+
+class CommunityLinkResponse(BaseModel):
+    id: str
+    requester_hive_id: str
+    requester_hive_name: str
+    target_hive_id: str
+    target_hive_name: str
+    status: str  # "pending", "accepted", "rejected"
+    message: Optional[str] = None
+    requested_by_user_id: str
+    requested_by_user_name: str
+    created_at: datetime
+    responded_at: Optional[datetime] = None
+
 # Auth endpoints
 @api_router.post("/auth/register", response_model=TokenResponse)
 async def register(user_data: UserRegister):
@@ -2959,6 +2977,214 @@ async def get_my_hives(current_user = Depends(get_current_user)):
     
     # Use batch function to avoid N+1 queries
     return await batch_build_hive_responses(hives)
+
+# ==========================================
+# COMMUNITY LINKS - Connect Neighboring Communities
+# ==========================================
+
+async def is_hive_admin(user_id: str, hive_id: str) -> bool:
+    """Check if user is founder or guardian of a hive"""
+    membership = await db.hive_members.find_one({
+        "user_id": user_id,
+        "hive_id": hive_id,
+        "role": {"$in": ["founder", "guardian"]}
+    })
+    return membership is not None
+
+@api_router.post("/hives/{hive_id}/link-request")
+async def request_community_link(
+    hive_id: str, 
+    link_request: CommunityLinkRequest, 
+    current_user = Depends(get_current_user)
+):
+    """Request to link this community with another neighboring community"""
+    user_id = str(current_user["_id"])
+    
+    # Check user is admin of the requesting hive
+    if not await is_hive_admin(user_id, hive_id):
+        raise HTTPException(status_code=403, detail="Only community founders/guardians can request links")
+    
+    # Check both hives exist
+    requester_hive = await db.hives.find_one({"_id": ObjectId(hive_id)})
+    target_hive = await db.hives.find_one({"_id": ObjectId(link_request.target_hive_id)})
+    
+    if not requester_hive:
+        raise HTTPException(status_code=404, detail="Your community not found")
+    if not target_hive:
+        raise HTTPException(status_code=404, detail="Target community not found")
+    
+    # Check they're not the same
+    if hive_id == link_request.target_hive_id:
+        raise HTTPException(status_code=400, detail="Cannot link a community to itself")
+    
+    # Check link doesn't already exist (in either direction)
+    existing_link = await db.community_links.find_one({
+        "$or": [
+            {"requester_hive_id": hive_id, "target_hive_id": link_request.target_hive_id},
+            {"requester_hive_id": link_request.target_hive_id, "target_hive_id": hive_id}
+        ]
+    })
+    if existing_link:
+        if existing_link["status"] == "accepted":
+            raise HTTPException(status_code=400, detail="These communities are already linked")
+        elif existing_link["status"] == "pending":
+            raise HTTPException(status_code=400, detail="A link request is already pending")
+    
+    # Create link request
+    link_dict = {
+        "requester_hive_id": hive_id,
+        "requester_hive_name": requester_hive["name"],
+        "target_hive_id": link_request.target_hive_id,
+        "target_hive_name": target_hive["name"],
+        "status": "pending",
+        "message": link_request.message,
+        "requested_by_user_id": user_id,
+        "requested_by_user_name": current_user.get("display_name") or current_user.get("name"),
+        "created_at": datetime.utcnow(),
+        "responded_at": None
+    }
+    
+    result = await db.community_links.insert_one(link_dict)
+    link_dict["id"] = str(result.inserted_id)
+    
+    logger.info(f"Community link requested: {requester_hive['name']} -> {target_hive['name']}")
+    
+    return {"success": True, "message": f"Link request sent to {target_hive['name']}", "link_id": str(result.inserted_id)}
+
+@api_router.get("/hives/{hive_id}/links")
+async def get_community_links(hive_id: str, current_user = Depends(get_current_user)):
+    """Get all linked communities and pending requests for a hive"""
+    # Get accepted links (both directions)
+    links = await db.community_links.find({
+        "$or": [
+            {"requester_hive_id": hive_id, "status": "accepted"},
+            {"target_hive_id": hive_id, "status": "accepted"}
+        ]
+    }).to_list(50)
+    
+    # Get pending requests sent by this hive
+    pending_outgoing = await db.community_links.find({
+        "requester_hive_id": hive_id,
+        "status": "pending"
+    }).to_list(20)
+    
+    # Get pending requests received by this hive (only if user is admin)
+    pending_incoming = []
+    user_id = str(current_user["_id"])
+    if await is_hive_admin(user_id, hive_id):
+        pending_incoming = await db.community_links.find({
+            "target_hive_id": hive_id,
+            "status": "pending"
+        }).to_list(20)
+    
+    # Format linked communities - get the "other" hive in each link
+    linked_communities = []
+    for link in links:
+        other_hive_id = link["target_hive_id"] if link["requester_hive_id"] == hive_id else link["requester_hive_id"]
+        other_hive_name = link["target_hive_name"] if link["requester_hive_id"] == hive_id else link["requester_hive_name"]
+        linked_communities.append({
+            "link_id": str(link["_id"]),
+            "hive_id": other_hive_id,
+            "hive_name": other_hive_name,
+            "linked_at": link.get("responded_at") or link["created_at"]
+        })
+    
+    # Format outgoing requests
+    outgoing = [{
+        "link_id": str(r["_id"]),
+        "target_hive_id": r["target_hive_id"],
+        "target_hive_name": r["target_hive_name"],
+        "message": r.get("message"),
+        "created_at": r["created_at"]
+    } for r in pending_outgoing]
+    
+    # Format incoming requests
+    incoming = [{
+        "link_id": str(r["_id"]),
+        "requester_hive_id": r["requester_hive_id"],
+        "requester_hive_name": r["requester_hive_name"],
+        "requested_by": r["requested_by_user_name"],
+        "message": r.get("message"),
+        "created_at": r["created_at"]
+    } for r in pending_incoming]
+    
+    return {
+        "linked": linked_communities,
+        "pending_outgoing": outgoing,
+        "pending_incoming": incoming
+    }
+
+@api_router.post("/hives/{hive_id}/links/{link_id}/respond")
+async def respond_to_link_request(
+    hive_id: str,
+    link_id: str,
+    accept: bool = True,
+    current_user = Depends(get_current_user)
+):
+    """Accept or reject a community link request"""
+    user_id = str(current_user["_id"])
+    
+    # Check user is admin of this hive
+    if not await is_hive_admin(user_id, hive_id):
+        raise HTTPException(status_code=403, detail="Only community founders/guardians can respond to link requests")
+    
+    # Get the link request
+    link = await db.community_links.find_one({"_id": ObjectId(link_id)})
+    if not link:
+        raise HTTPException(status_code=404, detail="Link request not found")
+    
+    # Verify this hive is the target
+    if link["target_hive_id"] != hive_id:
+        raise HTTPException(status_code=403, detail="This request is not for your community")
+    
+    if link["status"] != "pending":
+        raise HTTPException(status_code=400, detail="This request has already been responded to")
+    
+    # Update the link
+    new_status = "accepted" if accept else "rejected"
+    await db.community_links.update_one(
+        {"_id": ObjectId(link_id)},
+        {"$set": {"status": new_status, "responded_at": datetime.utcnow()}}
+    )
+    
+    action = "accepted" if accept else "declined"
+    logger.info(f"Community link {action}: {link['requester_hive_name']} <-> {link['target_hive_name']}")
+    
+    return {
+        "success": True, 
+        "message": f"Link request {action}",
+        "linked_with": link["requester_hive_name"] if accept else None
+    }
+
+@api_router.delete("/hives/{hive_id}/links/{link_id}")
+async def remove_community_link(
+    hive_id: str,
+    link_id: str,
+    current_user = Depends(get_current_user)
+):
+    """Remove a community link (unlink from a neighbor)"""
+    user_id = str(current_user["_id"])
+    
+    # Check user is admin of this hive
+    if not await is_hive_admin(user_id, hive_id):
+        raise HTTPException(status_code=403, detail="Only community founders/guardians can remove links")
+    
+    # Get the link
+    link = await db.community_links.find_one({"_id": ObjectId(link_id)})
+    if not link:
+        raise HTTPException(status_code=404, detail="Link not found")
+    
+    # Verify this hive is part of the link
+    if link["requester_hive_id"] != hive_id and link["target_hive_id"] != hive_id:
+        raise HTTPException(status_code=403, detail="Your community is not part of this link")
+    
+    # Delete the link
+    await db.community_links.delete_one({"_id": ObjectId(link_id)})
+    
+    other_hive = link["target_hive_name"] if link["requester_hive_id"] == hive_id else link["requester_hive_name"]
+    logger.info(f"Community link removed: {hive_id} <-> {other_hive}")
+    
+    return {"success": True, "message": f"Unlinked from {other_hive}"}
 
 # ==========================================
 # FEDERATION ENDPOINTS - Connect The Network

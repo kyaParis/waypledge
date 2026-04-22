@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
   TextInput,
+  Modal,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -73,12 +74,34 @@ export default function HiveDetailScreen() {
   const [activeTab, setActiveTab] = useState<'about' | 'communities' | 'pledges' | 'wishes' | 'members'>('about');
   const [isMember, setIsMember] = useState(false);
   const [myRole, setMyRole] = useState<string | null>(null);
+  
+  // Link With state
+  const [linkedCommunities, setLinkedCommunities] = useState<any[]>([]);
+  const [pendingIncoming, setPendingIncoming] = useState<any[]>([]);
+  const [pendingOutgoing, setPendingOutgoing] = useState<any[]>([]);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkSearchQuery, setLinkSearchQuery] = useState('');
+  const [linkSearchResults, setLinkSearchResults] = useState<Hive[]>([]);
+  const [linkMessage, setLinkMessage] = useState('');
+  const [selectedLinkTarget, setSelectedLinkTarget] = useState<Hive | null>(null);
 
   // Filter child hives by search
   const filteredChildHives = childHives.filter(child => 
     child.name.toLowerCase().includes(childSearch.toLowerCase()) ||
     child.location.toLowerCase().includes(childSearch.toLowerCase())
   );
+
+  const loadLinks = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const res = await api.get(`/hives/${id}/links`);
+      setLinkedCommunities(res.data.linked || []);
+      setPendingIncoming(res.data.pending_incoming || []);
+      setPendingOutgoing(res.data.pending_outgoing || []);
+    } catch (error) {
+      console.error('Error loading links:', error);
+    }
+  }, [id, isAuthenticated]);
 
   const loadData = useCallback(async () => {
     try {
@@ -111,7 +134,8 @@ export default function HiveDetailScreen() {
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+    loadLinks();
+  }, [loadData, loadLinks]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -146,6 +170,66 @@ export default function HiveDetailScreen() {
       await loadData(); // Also refresh from server
     } catch (error: any) {
       alert(error.response?.data?.detail || 'Failed to leave');
+    }
+  };
+
+  // Link With functions
+  const isAdmin = myRole === 'founder' || myRole === 'guardian';
+
+  const searchCommunitiesToLink = async (query: string) => {
+    if (query.length < 2) {
+      setLinkSearchResults([]);
+      return;
+    }
+    try {
+      const res = await api.get(`/hives?search=${encodeURIComponent(query)}&limit=10`);
+      // Filter out current hive and already linked communities
+      const linkedIds = linkedCommunities.map(l => l.hive_id);
+      const filtered = res.data.filter((h: Hive) => 
+        h.id !== id && !linkedIds.includes(h.id)
+      );
+      setLinkSearchResults(filtered);
+    } catch (error) {
+      console.error('Error searching communities:', error);
+    }
+  };
+
+  const handleRequestLink = async () => {
+    if (!selectedLinkTarget) return;
+    try {
+      await api.post(`/hives/${id}/link-request`, {
+        target_hive_id: selectedLinkTarget.id,
+        message: linkMessage
+      });
+      alert(`Link request sent to ${selectedLinkTarget.name}!`);
+      setShowLinkModal(false);
+      setSelectedLinkTarget(null);
+      setLinkMessage('');
+      setLinkSearchQuery('');
+      setLinkSearchResults([]);
+      await loadLinks();
+    } catch (error: any) {
+      alert(error.response?.data?.detail || 'Failed to send link request');
+    }
+  };
+
+  const handleRespondToLink = async (linkId: string, accept: boolean, requesterName: string) => {
+    try {
+      await api.post(`/hives/${id}/links/${linkId}/respond?accept=${accept}`);
+      alert(accept ? `Now linked with ${requesterName}!` : 'Link request declined');
+      await loadLinks();
+    } catch (error: any) {
+      alert(error.response?.data?.detail || 'Failed to respond');
+    }
+  };
+
+  const handleUnlink = async (linkId: string, communityName: string) => {
+    try {
+      await api.delete(`/hives/${id}/links/${linkId}`);
+      alert(`Unlinked from ${communityName}`);
+      await loadLinks();
+    } catch (error: any) {
+      alert(error.response?.data?.detail || 'Failed to unlink');
     }
   };
 
@@ -295,6 +379,100 @@ export default function HiveDetailScreen() {
                   <Text style={styles.founderName}>{hive.founder_name}</Text>
                 </View>
               </View>
+
+              {/* Linked Communities Section */}
+              {isAuthenticated && (
+                <View style={styles.linksSection}>
+                  <View style={styles.linksSectionHeader}>
+                    <View style={styles.linksTitleRow}>
+                      <MaterialIcons name="link" size={20} color={Colors.primary} />
+                      <Text style={styles.linksSectionTitle}>Linked Communities</Text>
+                    </View>
+                    {isAdmin && (
+                      <TouchableOpacity 
+                        style={styles.linkWithButton}
+                        onPress={() => setShowLinkModal(true)}
+                      >
+                        <MaterialIcons name="add-link" size={18} color={Colors.surface} />
+                        <Text style={styles.linkWithButtonText}>Link With</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {/* Pending Incoming Requests (only for admins) */}
+                  {isAdmin && pendingIncoming.length > 0 && (
+                    <View style={styles.pendingSection}>
+                      <Text style={styles.pendingLabel}>Pending Link Requests</Text>
+                      {pendingIncoming.map((req) => (
+                        <View key={req.link_id} style={styles.pendingCard}>
+                          <View style={styles.pendingInfo}>
+                            <Text style={styles.pendingName}>{req.requester_hive_name}</Text>
+                            <Text style={styles.pendingBy}>Requested by {req.requested_by}</Text>
+                            {req.message && <Text style={styles.pendingMessage}>"{req.message}"</Text>}
+                          </View>
+                          <View style={styles.pendingActions}>
+                            <TouchableOpacity 
+                              style={styles.acceptButton}
+                              onPress={() => handleRespondToLink(req.link_id, true, req.requester_hive_name)}
+                            >
+                              <MaterialIcons name="check" size={20} color={Colors.surface} />
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                              style={styles.declineButton}
+                              onPress={() => handleRespondToLink(req.link_id, false, req.requester_hive_name)}
+                            >
+                              <MaterialIcons name="close" size={20} color={Colors.surface} />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Linked Communities List */}
+                  {linkedCommunities.length > 0 ? (
+                    <View style={styles.linkedList}>
+                      {linkedCommunities.map((link) => (
+                        <View key={link.link_id} style={styles.linkedCard}>
+                          <TouchableOpacity 
+                            style={styles.linkedInfo}
+                            onPress={() => router.push(`/hive/${link.hive_id}`)}
+                          >
+                            <MaterialIcons name="groups" size={20} color={Colors.primary} />
+                            <Text style={styles.linkedName}>{link.hive_name}</Text>
+                            <MaterialIcons name="chevron-right" size={18} color={Colors.textSecondary} />
+                          </TouchableOpacity>
+                          {isAdmin && (
+                            <TouchableOpacity 
+                              style={styles.unlinkButton}
+                              onPress={() => handleUnlink(link.link_id, link.hive_name)}
+                            >
+                              <MaterialIcons name="link-off" size={16} color={Colors.error} />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={styles.noLinksText}>
+                      No linked communities yet. {isAdmin ? 'Use "Link With" to connect with neighboring communities.' : ''}
+                    </Text>
+                  )}
+
+                  {/* Pending Outgoing */}
+                  {pendingOutgoing.length > 0 && (
+                    <View style={styles.outgoingSection}>
+                      <Text style={styles.outgoingLabel}>Awaiting Response</Text>
+                      {pendingOutgoing.map((req) => (
+                        <View key={req.link_id} style={styles.outgoingCard}>
+                          <MaterialIcons name="schedule" size={16} color={Colors.textSecondary} />
+                          <Text style={styles.outgoingName}>{req.target_hive_name}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
           )}
 
@@ -436,6 +614,107 @@ export default function HiveDetailScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Link With Modal */}
+      <Modal
+        visible={showLinkModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowLinkModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Link With Community</Text>
+              <TouchableOpacity onPress={() => {
+                setShowLinkModal(false);
+                setSelectedLinkTarget(null);
+                setLinkSearchQuery('');
+                setLinkSearchResults([]);
+                setLinkMessage('');
+              }}>
+                <MaterialIcons name="close" size={24} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSubtitle}>
+              Connect with a neighboring community to share pledges and wishes
+            </Text>
+
+            {!selectedLinkTarget ? (
+              <>
+                <View style={styles.searchContainer}>
+                  <MaterialIcons name="search" size={20} color={Colors.textSecondary} />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search communities by name..."
+                    placeholderTextColor={Colors.textSecondary}
+                    value={linkSearchQuery}
+                    onChangeText={(text) => {
+                      setLinkSearchQuery(text);
+                      searchCommunitiesToLink(text);
+                    }}
+                  />
+                </View>
+
+                <ScrollView style={styles.searchResults}>
+                  {linkSearchResults.map((community) => (
+                    <TouchableOpacity
+                      key={community.id}
+                      style={styles.searchResultItem}
+                      onPress={() => setSelectedLinkTarget(community)}
+                    >
+                      <View style={styles.searchResultInfo}>
+                        <Text style={styles.searchResultName}>{community.name}</Text>
+                        <Text style={styles.searchResultLocation}>{community.location}</Text>
+                      </View>
+                      <MaterialIcons name="chevron-right" size={20} color={Colors.textSecondary} />
+                    </TouchableOpacity>
+                  ))}
+                  {linkSearchQuery.length >= 2 && linkSearchResults.length === 0 && (
+                    <Text style={styles.noResultsText}>No communities found</Text>
+                  )}
+                </ScrollView>
+              </>
+            ) : (
+              <View style={styles.selectedTarget}>
+                <View style={styles.selectedHeader}>
+                  <Text style={styles.selectedLabel}>Send link request to:</Text>
+                  <TouchableOpacity onPress={() => setSelectedLinkTarget(null)}>
+                    <Text style={styles.changeLink}>Change</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.selectedCard}>
+                  <MaterialIcons name="groups" size={24} color={Colors.primary} />
+                  <View style={styles.selectedInfo}>
+                    <Text style={styles.selectedName}>{selectedLinkTarget.name}</Text>
+                    <Text style={styles.selectedLocation}>{selectedLinkTarget.location}</Text>
+                  </View>
+                </View>
+
+                <Text style={styles.messageLabel}>Message (optional)</Text>
+                <TextInput
+                  style={styles.messageInput}
+                  placeholder="Why do you want to link? e.g., We're neighbors!"
+                  placeholderTextColor={Colors.textSecondary}
+                  value={linkMessage}
+                  onChangeText={setLinkMessage}
+                  multiline
+                  numberOfLines={2}
+                />
+
+                <TouchableOpacity 
+                  style={styles.sendRequestButton}
+                  onPress={handleRequestLink}
+                >
+                  <MaterialIcons name="send" size={20} color={Colors.surface} />
+                  <Text style={styles.sendRequestText}>Send Link Request</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -826,5 +1105,289 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 15,
     color: Colors.text,
+  },
+  // Link With styles
+  linksSection: {
+    marginTop: 20,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    padding: 16,
+  },
+  linksSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  linksTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  linksSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  linkWithButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    gap: 4,
+  },
+  linkWithButtonText: {
+    fontSize: 13,
+    color: Colors.surface,
+    fontWeight: '600',
+  },
+  pendingSection: {
+    marginBottom: 16,
+  },
+  pendingLabel: {
+    fontSize: 13,
+    color: Colors.accent,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  pendingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.accent + '15',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+  },
+  pendingInfo: {
+    flex: 1,
+  },
+  pendingName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  pendingBy: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  pendingMessage: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  pendingActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  acceptButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.success,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  declineButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.error,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  linkedList: {
+    gap: 8,
+  },
+  linkedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+    borderRadius: 10,
+    padding: 12,
+  },
+  linkedInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  linkedName: {
+    flex: 1,
+    fontSize: 15,
+    color: Colors.text,
+  },
+  unlinkButton: {
+    padding: 8,
+  },
+  noLinksText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    paddingVertical: 12,
+  },
+  outgoingSection: {
+    marginTop: 12,
+  },
+  outgoingLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 6,
+  },
+  outgoingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+  },
+  outgoingName: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: Colors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 16,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: Colors.text,
+  },
+  searchResults: {
+    maxHeight: 300,
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  searchResultInfo: {
+    flex: 1,
+  },
+  searchResultName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  searchResultLocation: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  noResultsText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  selectedTarget: {
+    marginTop: 8,
+  },
+  selectedHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  selectedLabel: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  changeLink: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  selectedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary + '15',
+    borderRadius: 12,
+    padding: 14,
+    gap: 12,
+    marginBottom: 16,
+  },
+  selectedInfo: {
+    flex: 1,
+  },
+  selectedName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  selectedLocation: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  messageLabel: {
+    fontSize: 14,
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  messageInput: {
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 15,
+    color: Colors.text,
+    minHeight: 60,
+    textAlignVertical: 'top',
+    marginBottom: 16,
+  },
+  sendRequestButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+    paddingVertical: 14,
+    borderRadius: 10,
+    gap: 8,
+  },
+  sendRequestText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.surface,
   },
 });
