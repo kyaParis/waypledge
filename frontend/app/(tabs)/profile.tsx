@@ -646,8 +646,8 @@ export default function ProfileScreen() {
             style={styles.quickLinkButton}
             onPress={() => router.push('/(tabs)/hive')}
           >
-            <MaterialIcons name="hexagon" size={22} color={Colors.primary} />
-            <Text style={styles.quickLinkText}>My Hive</Text>
+            <MaterialIcons name="groups" size={22} color={Colors.primary} />
+            <Text style={styles.quickLinkText}>My Communities</Text>
             <MaterialIcons name="chevron-right" size={22} color={Colors.textSecondary} />
           </TouchableOpacity>
           

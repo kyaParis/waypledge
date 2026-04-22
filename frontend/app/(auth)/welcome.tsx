@@ -71,7 +71,7 @@ export default function WelcomeScreen() {
               <MaterialIcons name="hexagon" size={28} color={Colors.accent} />
             </View>
             <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>Join a Hive</Text>
+              <Text style={styles.featureTitle}>Join a Community</Text>
               <Text style={styles.featureText}>Connect with local communities who share your values</Text>
             </View>
           </View>

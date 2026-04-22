@@ -121,7 +121,7 @@ export default function HiveDetailScreen() {
 
   const handleJoin = async () => {
     if (!isAuthenticated) {
-      alert('Please log in to join this hive');
+      alert('Please log in to join this community');
       return;
     }
     try {
@@ -129,7 +129,7 @@ export default function HiveDetailScreen() {
       // Immediately update local state
       setIsMember(true);
       setMyRole('member');
-      alert('Welcome to the hive!');
+      alert('Welcome to the community!');
       await loadData(); // Also refresh from server
     } catch (error: any) {
       alert(error.response?.data?.detail || 'Failed to join');
@@ -142,7 +142,7 @@ export default function HiveDetailScreen() {
       // Immediately update local state
       setIsMember(false);
       setMyRole(null);
-      alert('You have left the hive');
+      alert('You have left the community');
       await loadData(); // Also refresh from server
     } catch (error: any) {
       alert(error.response?.data?.detail || 'Failed to leave');
@@ -163,7 +163,7 @@ export default function HiveDetailScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Hive not found</Text>
+          <Text style={styles.errorText}>Community not found</Text>
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={styles.backLink}>Go back</Text>
           </TouchableOpacity>
@@ -248,7 +248,7 @@ export default function HiveDetailScreen() {
               ) : (
                 <TouchableOpacity style={styles.joinButton} onPress={handleJoin}>
                   <MaterialIcons name="add" size={20} color={Colors.surface} />
-                  <Text style={styles.joinButtonText}>Join This Hive</Text>
+                  <Text style={styles.joinButtonText}>Join This Community</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -274,7 +274,7 @@ export default function HiveDetailScreen() {
         <View style={styles.tabContent}>
           {activeTab === 'about' && (
             <View>
-              <Text style={styles.sectionTitle}>About This Hive</Text>
+              <Text style={styles.sectionTitle}>About This Community</Text>
               <Text style={styles.description}>{hive.description}</Text>
               
               {hive.parent_hive_name && (
@@ -416,7 +416,7 @@ export default function HiveDetailScreen() {
 
           {activeTab === 'members' && (
             <View>
-              <Text style={styles.sectionTitle}>Hive Members ({members.length})</Text>
+              <Text style={styles.sectionTitle}>Community Members ({members.length})</Text>
               {members.map((member) => (
                 <View key={member.id} style={styles.memberCard}>
                   <View style={styles.memberAvatar}>

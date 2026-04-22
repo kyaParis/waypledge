@@ -76,7 +76,7 @@ export default function TermsScreen() {
           • A platform for freely giving and receiving{'\n'}
           • A community based on trust and generosity{'\n'}
           • A space to share skills, items, time, and support{'\n'}
-          • A network of connected local communities (Hives)
+          • A network of connected local communities
         </Text>
         
         <Text style={styles.subTitle}>WayPledge is NOT:</Text>
@@ -152,10 +152,10 @@ export default function TermsScreen() {
           <Text style={styles.bold}>WayPledge is not responsible for interactions between users.</Text> We provide tools to connect; you are responsible for your own safety.
         </Text>
 
-        <Text style={styles.sectionTitle}>7. Hive Communities</Text>
+        <Text style={styles.sectionTitle}>7. Local Communities</Text>
         <Text style={styles.text}>
-          Hives are local communities within WayPledge. Each Hive may have additional guidelines set by its administrators. Hive admins can:{'\n'}
-          • Moderate content within their Hive{'\n'}
+          Communities are local groups within WayPledge. Each community may have additional guidelines set by its administrators. Community admins can:{'\n'}
+          • Moderate content within their community{'\n'}
           • Remove members who violate community standards{'\n'}
           • Set local guidelines (within WayPledge's overall terms)
         </Text>

@@ -26,7 +26,7 @@ interface Message {
 
 const QUICK_QUESTIONS = [
   "How do I create a pledge?",
-  "How do I join a hive?",
+  "How do I join a community?",
   "How do I find help near me?",
   "How do I message someone?",
   "I have a problem with another user",
@@ -37,7 +37,7 @@ export default function HelpScreen() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Hi! I'm your WayPledge assistant. I can help you with:\n\n• How to use the app\n• Creating pledges and wishes\n• Joining hives\n• Any issues or concerns\n\nWhat would you like help with?",
+      text: "Hi! I'm your WayPledge assistant. I can help you with:\n\n• How to use the app\n• Creating pledges and wishes\n• Joining communities\n• Any issues or concerns\n\nWhat would you like help with?",
       isUser: false,
       timestamp: new Date(),
     }

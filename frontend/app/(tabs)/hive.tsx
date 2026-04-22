@@ -290,7 +290,7 @@ export default function HiveScreen() {
                 }}
               >
                 <MaterialIcons name="add" size={18} color={Colors.surface} />
-                <Text style={styles.joinButtonText}>Join Hive</Text>
+                <Text style={styles.joinButtonText}>Join Community</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -304,7 +304,7 @@ export default function HiveScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading the Honeycomb...</Text>
+          <Text style={styles.loadingText}>Loading communities...</Text>
         </View>
       </SafeAreaView>
     );
@@ -313,8 +313,8 @@ export default function HiveScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>The Hive</Text>
-        <Text style={styles.subtitle}>Connected Communities</Text>
+        <Text style={styles.title}>Communities</Text>
+        <Text style={styles.subtitle}>Connected Local Networks</Text>
       </View>
 
       <View style={styles.tabContainer}>
@@ -341,7 +341,7 @@ export default function HiveScreen() {
             color={activeTab === 'my-hives' ? Colors.primary : Colors.textSecondary} 
           />
           <Text style={[styles.tabText, activeTab === 'my-hives' && styles.activeTabText]}>
-            My Hives ({myHives.length})
+            My Communities ({myHives.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -352,7 +352,7 @@ export default function HiveScreen() {
             <MaterialIcons name="search" size={20} color={Colors.textSecondary} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search hives by name or location..."
+              placeholder="Search communities by name or location..."
               placeholderTextColor={Colors.textSecondary}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -389,7 +389,7 @@ export default function HiveScreen() {
                 onPress={() => setShowCreateModal(true)}
               >
                 <MaterialIcons name="add" size={18} color={Colors.surface} />
-                <Text style={styles.createHiveButtonText}>Create Hive</Text>
+                <Text style={styles.createHiveButtonText}>Create Community</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -410,11 +410,11 @@ export default function HiveScreen() {
             ) : (
               <View style={styles.emptyState}>
                 <MaterialIcons name="hexagon" size={64} color={Colors.border} />
-                <Text style={styles.emptyTitle}>No Hives Found</Text>
+                <Text style={styles.emptyTitle}>No Communities Found</Text>
                 <Text style={styles.emptyText}>
                   {locationFilter 
-                    ? `No hives found near ${locationFilter}. Be the first to create one!`
-                    : 'Be the first to create a local hive and start building your community!'
+                    ? `No communities found near ${locationFilter}. Be the first to create one!`
+                    : 'Be the first to create a local community and start building your network!'
                   }
                 </Text>
                 {isAuthenticated && (
@@ -423,7 +423,7 @@ export default function HiveScreen() {
                     onPress={() => setShowCreateModal(true)}
                   >
                     <MaterialIcons name="add" size={20} color={Colors.surface} />
-                    <Text style={styles.emptyCreateButtonText}>Create a Hive</Text>
+                    <Text style={styles.emptyCreateButtonText}>Create a Community</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -436,9 +436,9 @@ export default function HiveScreen() {
             ) : (
               <View style={styles.emptyState}>
                 <MaterialIcons name="group-add" size={64} color={Colors.border} />
-                <Text style={styles.emptyTitle}>No Hives Joined</Text>
+                <Text style={styles.emptyTitle}>No Communities Joined</Text>
                 <Text style={styles.emptyText}>
-                  Discover and join hives to connect with like-minded communities!
+                  Discover and join communities to connect with like-minded people!
                 </Text>
               </View>
             )}
@@ -477,7 +477,7 @@ export default function HiveScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Create a New Hive</Text>
+              <Text style={styles.modalTitle}>Create a New Community</Text>
               <TouchableOpacity onPress={() => setShowCreateModal(false)}>
                 <MaterialIcons name="close" size={24} color={Colors.text} />
               </TouchableOpacity>
@@ -485,14 +485,14 @@ export default function HiveScreen() {
 
             <ScrollView style={styles.modalScroll}>
               <Text style={styles.modalSubtitle}>
-                Start a local chapter and grow the honeycomb network
+                Start a local community and grow your network
               </Text>
 
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Hive Name *</Text>
+                <Text style={styles.label}>Community Name *</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="e.g., WayPledge Murcia"
+                  placeholder="e.g., Street 246/247, Altaona"
                   placeholderTextColor={Colors.textSecondary}
                   value={newHiveName}
                   onChangeText={setNewHiveName}
@@ -503,7 +503,7 @@ export default function HiveScreen() {
                 <Text style={styles.label}>Description *</Text>
                 <TextInput
                   style={[styles.input, styles.textArea]}
-                  placeholder="What is this hive about?"
+                  placeholder="What is this community about?"
                   placeholderTextColor={Colors.textSecondary}
                   value={newHiveDescription}
                   onChangeText={setNewHiveDescription}
@@ -527,7 +527,7 @@ export default function HiveScreen() {
                 <Text style={styles.label}>Vision (optional)</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="What does this hive stand for?"
+                  placeholder="What does this community stand for?"
                   placeholderTextColor={Colors.textSecondary}
                   value={newHiveVision}
                   onChangeText={setNewHiveVision}
@@ -544,7 +544,7 @@ export default function HiveScreen() {
                   <Text style={newHiveParentId ? styles.parentPickerText : styles.parentPickerPlaceholder}>
                     {newHiveParentId 
                       ? countryHives.find(h => h.id === newHiveParentId)?.name || 'Select country'
-                      : 'Select the country this hive belongs to'}
+                      : 'Select the country this community belongs to'}
                   </Text>
                   <MaterialIcons 
                     name={showParentPicker ? "expand-less" : "expand-more"} 
