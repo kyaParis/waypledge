@@ -63,6 +63,11 @@ export default function HiveScreen() {
   const [hierarchyTown, setHierarchyTown] = useState('');
   const [hierarchyNeighborhood, setHierarchyNeighborhood] = useState('');
   const [communityType, setCommunityType] = useState<'country' | 'city' | 'town' | 'neighborhood' | 'street'>('neighborhood');
+  
+  // Real-time duplicate checking
+  const [existingMatches, setExistingMatches] = useState<any[]>([]);
+  const [checkingName, setCheckingName] = useState(false);
+  const nameCheckTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadHives = useCallback(async () => {
     try {
@@ -180,6 +185,64 @@ export default function HiveScreen() {
     setCommunityType('neighborhood');
     setShowSimilarWarning(false);
     setSimilarHives([]);
+    setExistingMatches([]);
+  };
+
+  // Real-time check for existing communities as user types
+  const checkForExistingCommunities = async (name: string) => {
+    if (name.length < 3) {
+      setExistingMatches([]);
+      return;
+    }
+    
+    try {
+      setCheckingName(true);
+      const res = await api.get(`/hives?search=${encodeURIComponent(name)}&limit=5`);
+      
+      // Filter for close matches (case-insensitive partial match)
+      const matches = res.data.filter((h: any) => {
+        const hiveName = h.name.toLowerCase();
+        const searchName = name.toLowerCase();
+        // Match if names contain each other or have significant overlap
+        return hiveName.includes(searchName) || 
+               searchName.includes(hiveName) ||
+               hiveName.split(' ').some((word: string) => searchName.includes(word) && word.length > 3);
+      });
+      
+      setExistingMatches(matches);
+    } catch (error) {
+      console.error('Error checking for existing communities:', error);
+    } finally {
+      setCheckingName(false);
+    }
+  };
+
+  // Debounced name change handler
+  const handleNameChange = (text: string) => {
+    setNewHiveName(text);
+    
+    // Clear previous timeout
+    if (nameCheckTimeout.current) {
+      clearTimeout(nameCheckTimeout.current);
+    }
+    
+    // Set new timeout for debounced search
+    nameCheckTimeout.current = setTimeout(() => {
+      checkForExistingCommunities(text);
+    }, 500);
+  };
+
+  // Join existing community from the matches
+  const handleJoinExisting = async (hiveId: string, hiveName: string) => {
+    try {
+      await api.post(`/hives/${hiveId}/join`);
+      alert(`You've joined ${hiveName}!`);
+      setShowCreateModal(false);
+      resetCreateForm();
+      await Promise.all([loadHives(), loadMyHives()]);
+    } catch (error: any) {
+      alert(error.response?.data?.detail || 'Failed to join');
+    }
   };
 
   // Build location string from hierarchy
@@ -563,18 +626,53 @@ export default function HiveScreen() {
               {/* Community Name */}
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Community Name *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder={
-                    communityType === 'street' ? "e.g., Street 246/247" :
-                    communityType === 'neighborhood' ? "e.g., Altaona Golf Resort" :
-                    communityType === 'town' ? "e.g., Banos y Mendigo" :
-                    "e.g., Murcia"
-                  }
-                  placeholderTextColor={Colors.textSecondary}
-                  value={newHiveName}
-                  onChangeText={setNewHiveName}
-                />
+                <View style={styles.nameInputContainer}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder={
+                      communityType === 'street' ? "e.g., Street 246/247" :
+                      communityType === 'neighborhood' ? "e.g., Altaona Golf Resort" :
+                      communityType === 'town' ? "e.g., Banos y Mendigo" :
+                      "e.g., Murcia"
+                    }
+                    placeholderTextColor={Colors.textSecondary}
+                    value={newHiveName}
+                    onChangeText={handleNameChange}
+                  />
+                  {checkingName && (
+                    <ActivityIndicator size="small" color={Colors.primary} style={styles.nameCheckIndicator} />
+                  )}
+                </View>
+                
+                {/* Existing Matches Warning */}
+                {existingMatches.length > 0 && (
+                  <View style={styles.existingMatchesBox}>
+                    <View style={styles.existingMatchesHeader}>
+                      <MaterialIcons name="info" size={18} color={Colors.accent} />
+                      <Text style={styles.existingMatchesTitle}>Similar communities exist!</Text>
+                    </View>
+                    <Text style={styles.existingMatchesHint}>
+                      Consider joining an existing community instead of creating a duplicate:
+                    </Text>
+                    {existingMatches.map((match) => (
+                      <View key={match.id} style={styles.existingMatchCard}>
+                        <View style={styles.existingMatchInfo}>
+                          <Text style={styles.existingMatchName}>{match.name}</Text>
+                          <Text style={styles.existingMatchLocation}>{match.location}</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.joinExistingButton}
+                          onPress={() => handleJoinExisting(match.id, match.name)}
+                        >
+                          <Text style={styles.joinExistingText}>Join</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                    <Text style={styles.orContinueText}>
+                      Or continue below if this is truly a new community
+                    </Text>
+                  </View>
+                )}
               </View>
 
               {/* Description */}
@@ -1407,5 +1505,78 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.primary,
     marginLeft: 8,
+  },
+  // Real-time name checking styles
+  nameInputContainer: {
+    position: 'relative',
+  },
+  nameCheckIndicator: {
+    position: 'absolute',
+    right: 12,
+    top: 14,
+  },
+  existingMatchesBox: {
+    backgroundColor: Colors.accent + '15',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.accent,
+  },
+  existingMatchesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  existingMatchesTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.accent,
+  },
+  existingMatchesHint: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 10,
+    lineHeight: 18,
+  },
+  existingMatchCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+  },
+  existingMatchInfo: {
+    flex: 1,
+  },
+  existingMatchName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  existingMatchLocation: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  joinExistingButton: {
+    backgroundColor: Colors.success,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+  },
+  joinExistingText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.surface,
+  },
+  orContinueText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 4,
   },
 });
