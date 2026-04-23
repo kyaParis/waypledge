@@ -12,6 +12,7 @@ import {
   Alert,
   ActivityIndicator,
   Share,
+  Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
@@ -21,11 +22,13 @@ import { MaterialIcons } from '@expo/vector-icons';
 import api, { Pledge, Wish, Gratitude, deleteAccount, getBlockedUsers, unblockUser, BlockedUser, getPendingUsers, approveUser, rejectUser, PendingUser, getPendingGratitude, approveGratitude, declineGratitude } from '../../utils/api';
 import { useTranslation } from 'react-i18next';
 import { languages, setLanguage, getCurrentLanguage } from '../../i18n';
+import { useNotifications } from '../../hooks/useNotifications';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const { t, i18n } = useTranslation();
+  const { notificationsEnabled, toggleNotifications, initializeNotifications } = useNotifications();
   const [myPledges, setMyPledges] = useState<Pledge[]>([]);
   const [myWishes, setMyWishes] = useState<Wish[]>([]);
   const [myGratitude, setMyGratitude] = useState<Gratitude[]>([]);
@@ -455,6 +458,28 @@ export default function ProfileScreen() {
             <Text style={styles.languageButtonText}>{getCurrentLanguageDisplay()}</Text>
             <MaterialIcons name="chevron-right" size={24} color={Colors.textSecondary} />
           </TouchableOpacity>
+        </View>
+
+        {/* Notifications Settings */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{t('profile.notifications')}</Text>
+            <MaterialIcons name="notifications" size={24} color={Colors.primary} />
+          </View>
+          <View style={styles.notificationRow}>
+            <View style={styles.notificationInfo}>
+              <Text style={styles.notificationLabel}>Push Notifications</Text>
+              <Text style={styles.notificationHint}>
+                Get notified when you receive messages
+              </Text>
+            </View>
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={toggleNotifications}
+              trackColor={{ false: Colors.border, true: Colors.primary + '60' }}
+              thumbColor={notificationsEnabled ? Colors.primary : Colors.textSecondary}
+            />
+          </View>
         </View>
 
         {/* Language Modal */}
@@ -1464,5 +1489,28 @@ const styles = StyleSheet.create({
     color: Colors.error,
     fontSize: 14,
     fontWeight: '600',
+  },
+  // Notification styles
+  notificationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderRadius: 12,
+  },
+  notificationInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
+  notificationLabel: {
+    fontSize: 16,
+    color: Colors.text,
+    fontWeight: '500',
+  },
+  notificationHint: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 4,
   },
 });

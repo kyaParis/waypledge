@@ -20,6 +20,7 @@ import resend
 import cloudinary
 import cloudinary.utils
 import time
+import httpx
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 ROOT_DIR = Path(__file__).parent
@@ -221,6 +222,9 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str
     user: UserResponse
+
+class PushTokenRequest(BaseModel):
+    push_token: str
 
 class PledgeCreate(BaseModel):
     title: str
@@ -748,6 +752,97 @@ async def get_me(current_user = Depends(get_current_user)):
         is_admin=current_user.get("is_admin", False) or current_user["email"].lower() in ADMIN_EMAILS,
         email_verified=current_user.get("email_verified", False)
     )
+
+# ==========================================
+# PUSH NOTIFICATIONS
+# ==========================================
+
+EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
+
+async def send_push_notification(push_token: str, title: str, body: str, data: dict = None):
+    """Send a push notification via Expo's push service"""
+    if not push_token or push_token.startswith("ExponentPushToken[simulator"):
+        return False
+    
+    message = {
+        "to": push_token,
+        "sound": "default",
+        "title": title,
+        "body": body,
+        "data": data or {},
+    }
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                EXPO_PUSH_URL,
+                json=message,
+                headers={"Content-Type": "application/json"}
+            )
+            if response.status_code == 200:
+                logger.info(f"Push notification sent: {title}")
+                return True
+            else:
+                logger.error(f"Push notification failed: {response.text}")
+                return False
+    except Exception as e:
+        logger.error(f"Error sending push notification: {e}")
+        return False
+
+async def send_notification_to_user(user_id: str, title: str, body: str, data: dict = None):
+    """Send notification to a user by their ID"""
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        return False
+    
+    push_token = user.get("push_token")
+    notifications_enabled = user.get("notifications_enabled", True)
+    
+    if not push_token or not notifications_enabled:
+        return False
+    
+    return await send_push_notification(push_token, title, body, data)
+
+@api_router.post("/users/push-token")
+async def register_push_token(request: PushTokenRequest, current_user = Depends(get_current_user)):
+    """Register or update push notification token for current user"""
+    await db.users.update_one(
+        {"_id": current_user["_id"]},
+        {"$set": {
+            "push_token": request.push_token,
+            "notifications_enabled": True,
+            "push_token_updated_at": datetime.utcnow()
+        }}
+    )
+    logger.info(f"Push token registered for user {current_user['email']}")
+    return {"success": True, "message": "Push token registered"}
+
+@api_router.delete("/users/push-token")
+async def remove_push_token(current_user = Depends(get_current_user)):
+    """Remove push token (disable notifications)"""
+    await db.users.update_one(
+        {"_id": current_user["_id"]},
+        {"$set": {"notifications_enabled": False}}
+    )
+    logger.info(f"Notifications disabled for user {current_user['email']}")
+    return {"success": True, "message": "Notifications disabled"}
+
+@api_router.get("/users/notification-settings")
+async def get_notification_settings(current_user = Depends(get_current_user)):
+    """Get current notification settings"""
+    return {
+        "notifications_enabled": current_user.get("notifications_enabled", True),
+        "has_push_token": bool(current_user.get("push_token"))
+    }
+
+@api_router.put("/users/notification-settings")
+async def update_notification_settings(enabled: bool, current_user = Depends(get_current_user)):
+    """Update notification settings"""
+    await db.users.update_one(
+        {"_id": current_user["_id"]},
+        {"$set": {"notifications_enabled": enabled}}
+    )
+    return {"success": True, "notifications_enabled": enabled}
 
 # Pledge endpoints
 async def get_hive_name(hive_id: Optional[str]) -> Optional[str]:
@@ -1347,6 +1442,17 @@ async def send_message(msg: MessageCreate, current_user = Depends(get_current_us
         "created_at": datetime.utcnow()
     }
     result = await db.messages.insert_one(message_dict)
+    
+    # Send push notification to receiver
+    sender_display = current_user.get("display_name") or current_user["name"].split()[0]
+    # Truncate message for notification preview
+    preview = msg.content[:50] + "..." if len(msg.content) > 50 else msg.content
+    await send_notification_to_user(
+        receiver_id,
+        f"Message from {sender_display}",
+        preview,
+        {"type": "message", "connection_id": msg.connection_id}
+    )
     
     return MessageResponse(
         id=str(result.inserted_id),
