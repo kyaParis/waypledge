@@ -71,6 +71,7 @@ export default function HiveScreen() {
   
   // Existing parent communities to auto-join
   const [existingParents, setExistingParents] = useState<any[]>([]);
+  const [parentsToJoin, setParentsToJoin] = useState<Set<string>>(new Set());
   const [checkingParents, setCheckingParents] = useState(false);
   const parentCheckTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -192,6 +193,7 @@ export default function HiveScreen() {
     setSimilarHives([]);
     setExistingMatches([]);
     setExistingParents([]);
+    setParentsToJoin(new Set());
   };
 
   // Check for existing parent communities as user fills in hierarchy
@@ -206,18 +208,35 @@ export default function HiveScreen() {
     // Only check if we have at least one hierarchy field filled
     if (!hierarchy.country && !hierarchy.city && !hierarchy.town && !hierarchy.neighborhood) {
       setExistingParents([]);
+      setParentsToJoin(new Set());
       return;
     }
     
     try {
       setCheckingParents(true);
       const res = await api.post('/hives/check-existing-parents', hierarchy);
-      setExistingParents(res.data.will_auto_join || []);
+      const parents = res.data.will_auto_join || [];
+      setExistingParents(parents);
+      // Default: all selected
+      setParentsToJoin(new Set(parents.map((p: any) => p.id)));
     } catch (error) {
       console.error('Error checking existing parents:', error);
     } finally {
       setCheckingParents(false);
     }
+  };
+
+  // Toggle join/don't join for a parent community
+  const toggleParentJoin = (parentId: string) => {
+    setParentsToJoin(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(parentId)) {
+        newSet.delete(parentId);
+      } else {
+        newSet.add(parentId);
+      }
+      return newSet;
+    });
   };
 
   // Debounced hierarchy change handler
@@ -336,7 +355,8 @@ export default function HiveScreen() {
           city: hierarchyCity.trim() || null,
           town: hierarchyTown.trim() || null,
           neighborhood: hierarchyNeighborhood.trim() || null,
-        }
+        },
+        join_parent_ids: Array.from(parentsToJoin), // Selected parent communities to join
       };
       if (newHiveParentId) {
         payload.parent_hive_id = newHiveParentId;
@@ -348,7 +368,9 @@ export default function HiveScreen() {
       resetCreateForm();
       setShowCreateModal(false);
       
-      alert('Community created! You are now the founder and will automatically be part of all parent communities.');
+      const joinedCount = parentsToJoin.size;
+      const joinMsg = joinedCount > 0 ? ` You've also joined ${joinedCount} parent communit${joinedCount === 1 ? 'y' : 'ies'}.` : '';
+      alert(`Community created! You are now the founder.${joinMsg}`);
       await Promise.all([loadHives(), loadMyHives()]);
     } catch (error: any) {
       // Check if it's a "similar hives exist" warning (409 Conflict)
@@ -827,24 +849,46 @@ export default function HiveScreen() {
                   </View>
                 )}
                 
-                {/* Existing Parent Communities - Will Auto Join */}
+                {/* Existing Parent Communities - Optional Join */}
                 {existingParents.length > 0 && (
                   <View style={styles.autoJoinBox}>
                     <View style={styles.autoJoinHeader}>
-                      <MaterialIcons name="check-circle" size={20} color={Colors.success} />
-                      <Text style={styles.autoJoinTitle}>You'll automatically join:</Text>
+                      <MaterialIcons name="groups" size={20} color={Colors.primary} />
+                      <Text style={styles.autoJoinTitle}>Existing communities found:</Text>
                     </View>
+                    <Text style={styles.autoJoinHint}>
+                      Choose which communities you'd like to join:
+                    </Text>
                     {existingParents.map((parent) => (
-                      <View key={parent.id} style={styles.autoJoinItem}>
-                        <MaterialIcons name="groups" size={16} color={Colors.primary} />
+                      <TouchableOpacity 
+                        key={parent.id} 
+                        style={[
+                          styles.autoJoinItem,
+                          parentsToJoin.has(parent.id) && styles.autoJoinItemSelected
+                        ]}
+                        onPress={() => toggleParentJoin(parent.id)}
+                      >
+                        <View style={[
+                          styles.autoJoinCheckbox,
+                          parentsToJoin.has(parent.id) && styles.autoJoinCheckboxSelected
+                        ]}>
+                          {parentsToJoin.has(parent.id) && (
+                            <MaterialIcons name="check" size={16} color={Colors.surface} />
+                          )}
+                        </View>
                         <View style={styles.autoJoinInfo}>
                           <Text style={styles.autoJoinName}>{parent.name}</Text>
                           <Text style={styles.autoJoinMeta}>
                             {parent.member_count} member{parent.member_count !== 1 ? 's' : ''} • {parent.level}
                           </Text>
                         </View>
-                      </View>
+                      </TouchableOpacity>
                     ))}
+                    {parentsToJoin.size > 0 && (
+                      <Text style={styles.autoJoinSummary}>
+                        Will join {parentsToJoin.size} communit{parentsToJoin.size === 1 ? 'y' : 'ies'} when created
+                      </Text>
+                    )}
                   </View>
                 )}
                 
@@ -1662,23 +1706,28 @@ const styles = StyleSheet.create({
   },
   // Auto-join styles
   autoJoinBox: {
-    backgroundColor: Colors.success + '15',
+    backgroundColor: Colors.primary + '10',
     borderRadius: 10,
     padding: 12,
     marginTop: 12,
     borderLeftWidth: 3,
-    borderLeftColor: Colors.success,
+    borderLeftColor: Colors.primary,
   },
   autoJoinHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 6,
   },
   autoJoinTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.success,
+    color: Colors.primary,
+  },
+  autoJoinHint: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 10,
   },
   autoJoinItem: {
     flexDirection: 'row',
@@ -1688,6 +1737,25 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 6,
     gap: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  autoJoinItemSelected: {
+    borderColor: Colors.success,
+    backgroundColor: Colors.success + '10',
+  },
+  autoJoinCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  autoJoinCheckboxSelected: {
+    backgroundColor: Colors.success,
+    borderColor: Colors.success,
   },
   autoJoinInfo: {
     flex: 1,
@@ -1701,6 +1769,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     marginTop: 2,
+  },
+  autoJoinSummary: {
+    fontSize: 12,
+    color: Colors.success,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: 8,
   },
   checkingParents: {
     flexDirection: 'row',
