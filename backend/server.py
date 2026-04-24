@@ -2241,6 +2241,8 @@ async def get_all_users(current_user = Depends(get_current_user)):
         "display_name": u.get("display_name", u.get("name", "User")),
         "is_admin": u.get("is_admin", False) or u.get("email", "").lower() in ADMIN_EMAILS,
         "is_approved": u.get("is_approved", False),
+        "is_suspended": u.get("is_suspended", False),
+        "suspension_reason": u.get("suspension_reason"),
         "created_at": u.get("created_at"),
     } for u in users]
 

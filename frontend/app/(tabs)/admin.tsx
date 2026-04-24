@@ -199,12 +199,12 @@ export default function AdminScreen() {
       const doUnsuspend = async () => {
         try {
           await api.post(`/admin/unsuspend/${user.id}`);
+          await loadUsers(); // Refresh list first
           if (Platform.OS === 'web') {
             alert(`${user.name} has been unsuspended`);
           } else {
             Alert.alert('Success', `${user.name} has been unsuspended`);
           }
-          loadUsers();
         } catch (error: any) {
           const msg = error.response?.data?.detail || 'Failed to unsuspend user';
           if (Platform.OS === 'web') {
@@ -234,12 +234,12 @@ export default function AdminScreen() {
       const doSuspend = async () => {
         try {
           await api.post(`/admin/suspend/${user.id}`);
+          await loadUsers(); // Refresh list first
           if (Platform.OS === 'web') {
             alert(`${user.name} has been suspended`);
           } else {
             Alert.alert('Success', `${user.name} has been suspended`);
           }
-          loadUsers();
         } catch (error: any) {
           const msg = error.response?.data?.detail || 'Failed to suspend user';
           if (Platform.OS === 'web') {
@@ -271,12 +271,12 @@ export default function AdminScreen() {
     const doDelete = async () => {
       try {
         await api.delete(`/admin/delete-user/${user.id}`);
+        await loadUsers(); // Refresh list first
         if (Platform.OS === 'web') {
           alert(`${user.name} has been permanently deleted`);
         } else {
           Alert.alert('Deleted', `${user.name} has been permanently deleted`);
         }
-        loadUsers();
       } catch (error: any) {
         const msg = error.response?.data?.detail || 'Failed to delete user';
         if (Platform.OS === 'web') {
