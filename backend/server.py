@@ -2982,30 +2982,27 @@ async def create_hive(hive: HiveCreate, force: bool = False, current_user = Depe
 
 @api_router.post("/hives/check-existing-parents")
 async def check_existing_parent_communities(hierarchy: HiveHierarchy, current_user = Depends(get_current_user)):
-    """Check which parent communities exist and can be auto-joined (with fuzzy matching)"""
+    """Check which parent communities exist and which need to be created"""
     existing_parents = []
+    missing_parents = []
     
     hierarchy_items = [
-        ('neighborhood', hierarchy.neighborhood),
-        ('town', hierarchy.town),
-        ('city', hierarchy.city),
-        ('country', hierarchy.country),
+        ('country', hierarchy.country, '🌍'),
+        ('city', hierarchy.city, '🏙️'),
+        ('town', hierarchy.town, '🏘️'),
+        ('neighborhood', hierarchy.neighborhood, '🏡'),
     ]
     
-    for level, name in hierarchy_items:
-        if name and len(name) >= 3:
-            # Search for communities that:
-            # 1. Match exactly (case-insensitive)
-            # 2. Contain the search term
-            # 3. Are contained by the search term
+    for level, name, icon in hierarchy_items:
+        if name and len(name) >= 2:
             search_name = name.strip()
             
-            # Build a more flexible search - find communities where name contains search or vice versa
+            # Build a more flexible search
             matches = await db.hives.find({
                 "$or": [
-                    {"name": {"$regex": f"^{search_name}$", "$options": "i"}},  # Exact match
-                    {"name": {"$regex": search_name, "$options": "i"}},  # Name contains search
-                    {"name": {"$regex": f".*{search_name[:4]}.*", "$options": "i"}} if len(search_name) >= 4 else {"name": search_name},  # Partial match for typos
+                    {"name": {"$regex": f"^{search_name}$", "$options": "i"}},
+                    {"name": {"$regex": search_name, "$options": "i"}},
+                    {"name": {"$regex": f".*{search_name[:4]}.*", "$options": "i"}} if len(search_name) >= 4 else {"name": search_name},
                 ]
             }).to_list(10)
             
@@ -3017,16 +3014,14 @@ async def check_existing_parent_communities(hierarchy: HiveHierarchy, current_us
                 match_name = match["name"].lower()
                 search_lower = search_name.lower()
                 
-                # Calculate similarity score
                 score = 0
                 if match_name == search_lower:
-                    score = 100  # Exact match
+                    score = 100
                 elif search_lower in match_name or match_name in search_lower:
-                    score = 80  # Contains match
+                    score = 80
                 elif any(word in match_name for word in search_lower.split() if len(word) > 3):
-                    score = 60  # Word match
+                    score = 60
                 else:
-                    # Calculate character overlap for fuzzy matching
                     common = sum(1 for c in search_lower if c in match_name)
                     score = (common / max(len(search_lower), len(match_name))) * 50
                 
@@ -3034,8 +3029,8 @@ async def check_existing_parent_communities(hierarchy: HiveHierarchy, current_us
                     best_score = score
                     best_match = match
             
-            if best_match and best_score >= 50:  # Threshold for considering a match
-                # Check if user is already a member
+            if best_match and best_score >= 50:
+                # Found existing community
                 is_member = await db.hive_members.find_one({
                     "user_id": str(current_user["_id"]),
                     "hive_id": str(best_match["_id"])
@@ -3044,15 +3039,26 @@ async def check_existing_parent_communities(hierarchy: HiveHierarchy, current_us
                     "level": level,
                     "name": best_match["name"],
                     "id": str(best_match["_id"]),
+                    "icon": icon,
                     "location": best_match.get("location", ""),
                     "member_count": await db.hive_members.count_documents({"hive_id": str(best_match["_id"])}),
                     "already_member": bool(is_member),
                     "match_score": best_score,
-                    "searched_for": search_name,  # Show what user typed vs what was found
+                    "searched_for": search_name,
+                    "exists": True,
+                })
+            else:
+                # This level doesn't exist - can be created
+                missing_parents.append({
+                    "level": level,
+                    "name": search_name,
+                    "icon": icon,
+                    "exists": False,
                 })
     
     return {
         "existing_parents": existing_parents,
+        "missing_parents": missing_parents,
         "will_auto_join": [p for p in existing_parents if not p["already_member"]]
     }
 

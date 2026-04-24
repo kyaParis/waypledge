@@ -71,7 +71,9 @@ export default function HiveScreen() {
   
   // Existing parent communities to auto-join
   const [existingParents, setExistingParents] = useState<any[]>([]);
+  const [missingParents, setMissingParents] = useState<any[]>([]);
   const [parentsToJoin, setParentsToJoin] = useState<Set<string>>(new Set());
+  const [parentsToCreate, setParentsToCreate] = useState<Set<string>>(new Set());
   const [checkingParents, setCheckingParents] = useState(false);
   const parentCheckTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
