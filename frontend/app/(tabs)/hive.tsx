@@ -195,7 +195,9 @@ export default function HiveScreen() {
     setSimilarHives([]);
     setExistingMatches([]);
     setExistingParents([]);
+    setMissingParents([]);
     setParentsToJoin(new Set());
+    setParentsToCreate(new Set());
   };
 
   // Check for existing parent communities as user fills in hierarchy
@@ -210,17 +212,23 @@ export default function HiveScreen() {
     // Only check if we have at least one hierarchy field filled
     if (!hierarchy.country && !hierarchy.city && !hierarchy.town && !hierarchy.neighborhood) {
       setExistingParents([]);
+      setMissingParents([]);
       setParentsToJoin(new Set());
+      setParentsToCreate(new Set());
       return;
     }
     
     try {
       setCheckingParents(true);
       const res = await api.post('/hives/check-existing-parents', hierarchy);
-      const parents = res.data.will_auto_join || [];
-      setExistingParents(parents);
-      // Default: all selected
-      setParentsToJoin(new Set(parents.map((p: any) => p.id)));
+      const existing = res.data.will_auto_join || [];
+      const missing = res.data.missing_parents || [];
+      setExistingParents(existing);
+      setMissingParents(missing);
+      // Default: all existing selected to join
+      setParentsToJoin(new Set(existing.map((p: any) => p.id)));
+      // Default: all missing selected to create
+      setParentsToCreate(new Set(missing.map((p: any) => `${p.level}:${p.name}`)));
     } catch (error) {
       console.error('Error checking existing parents:', error);
     } finally {
@@ -236,6 +244,19 @@ export default function HiveScreen() {
         newSet.delete(parentId);
       } else {
         newSet.add(parentId);
+      }
+      return newSet;
+    });
+  };
+
+  // Toggle create/don't create for a missing parent
+  const toggleParentCreate = (key: string) => {
+    setParentsToCreate(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
       }
       return newSet;
     });
@@ -345,6 +366,12 @@ export default function HiveScreen() {
       
       const locationString = buildLocationString();
       
+      // Convert parentsToCreate set to array of {level, name} objects
+      const parentsToCreateArray = Array.from(parentsToCreate).map(key => {
+        const [level, name] = key.split(':');
+        return { level, name };
+      });
+      
       const params = force ? '?force=true' : '';
       const payload: any = {
         name: newHiveName.trim(),
@@ -359,6 +386,7 @@ export default function HiveScreen() {
           neighborhood: hierarchyNeighborhood.trim() || null,
         },
         join_parent_ids: Array.from(parentsToJoin), // Selected parent communities to join
+        parents_to_create: parentsToCreateArray, // Missing parents to create first
       };
       if (newHiveParentId) {
         payload.parent_hive_id = newHiveParentId;
@@ -371,8 +399,15 @@ export default function HiveScreen() {
       setShowCreateModal(false);
       
       const joinedCount = parentsToJoin.size;
-      const joinMsg = joinedCount > 0 ? ` You've also joined ${joinedCount} parent communit${joinedCount === 1 ? 'y' : 'ies'}.` : '';
-      alert(`Community created! You are now the founder.${joinMsg}`);
+      const createdCount = parentsToCreate.size;
+      let msg = 'Community created! You are now the founder.';
+      if (createdCount > 0) {
+        msg += ` Also created ${createdCount} parent communit${createdCount === 1 ? 'y' : 'ies'}.`;
+      }
+      if (joinedCount > 0) {
+        msg += ` Joined ${joinedCount} existing communit${joinedCount === 1 ? 'y' : 'ies'}.`;
+      }
+      alert(msg);
       await Promise.all([loadHives(), loadMyHives()]);
     } catch (error: any) {
       // Check if it's a "similar hives exist" warning (409 Conflict)
@@ -894,6 +929,55 @@ export default function HiveScreen() {
                     {parentsToJoin.size > 0 && (
                       <Text style={styles.autoJoinSummary}>
                         Will join {parentsToJoin.size} communit{parentsToJoin.size === 1 ? 'y' : 'ies'} when created
+                      </Text>
+                    )}
+                  </View>
+                )}
+                
+                {/* Missing Parent Communities - Offer to Create */}
+                {missingParents.length > 0 && (
+                  <View style={styles.createParentsBox}>
+                    <View style={styles.createParentsHeader}>
+                      <MaterialIcons name="add-circle" size={20} color={Colors.accent} />
+                      <Text style={styles.createParentsTitle}>Create missing communities:</Text>
+                    </View>
+                    <Text style={styles.createParentsHint}>
+                      These don't exist yet. Select which ones to create along with yours:
+                    </Text>
+                    {missingParents.map((missing) => {
+                      const key = `${missing.level}:${missing.name}`;
+                      const isSelected = parentsToCreate.has(key);
+                      return (
+                        <TouchableOpacity 
+                          key={key} 
+                          style={[
+                            styles.createParentItem,
+                            isSelected && styles.createParentItemSelected
+                          ]}
+                          onPress={() => toggleParentCreate(key)}
+                        >
+                          <View style={[
+                            styles.createParentCheckbox,
+                            isSelected && styles.createParentCheckboxSelected
+                          ]}>
+                            {isSelected && (
+                              <MaterialIcons name="check" size={16} color={Colors.surface} />
+                            )}
+                          </View>
+                          <View style={styles.createParentInfo}>
+                            <Text style={styles.createParentName}>
+                              {missing.icon} {missing.name}
+                            </Text>
+                            <Text style={styles.createParentMeta}>
+                              New {missing.level} community
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                    {parentsToCreate.size > 0 && (
+                      <Text style={styles.createParentsSummary}>
+                        Will create {parentsToCreate.size} new communit{parentsToCreate.size === 1 ? 'y' : 'ies'}
                       </Text>
                     )}
                   </View>
@@ -1799,5 +1883,79 @@ const styles = StyleSheet.create({
   checkingParentsText: {
     fontSize: 13,
     color: Colors.textSecondary,
+  },
+  // Create missing parents styles
+  createParentsBox: {
+    backgroundColor: Colors.accent + '10',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.accent,
+  },
+  createParentsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  createParentsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.accent,
+  },
+  createParentsHint: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 10,
+  },
+  createParentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 6,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  createParentItemSelected: {
+    borderColor: Colors.accent,
+    backgroundColor: Colors.accent + '10',
+  },
+  createParentCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  createParentCheckboxSelected: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  },
+  createParentInfo: {
+    flex: 1,
+  },
+  createParentName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.text,
+  },
+  createParentMeta: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+    fontStyle: 'italic',
+  },
+  createParentsSummary: {
+    fontSize: 12,
+    color: Colors.accent,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: 8,
   },
 });

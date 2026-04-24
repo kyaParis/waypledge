@@ -429,6 +429,10 @@ class HiveHierarchy(BaseModel):
     town: Optional[str] = None
     neighborhood: Optional[str] = None
 
+class ParentToCreate(BaseModel):
+    level: str  # 'country', 'city', 'town', 'neighborhood'
+    name: str
+    
 class HiveCreate(BaseModel):
     name: str
     description: str
@@ -439,6 +443,7 @@ class HiveCreate(BaseModel):
     community_type: Optional[str] = None  # 'country', 'city', 'town', 'neighborhood', 'street'
     hierarchy: Optional[HiveHierarchy] = None  # For auto-joining parent communities
     join_parent_ids: Optional[List[str]] = None  # Specific parent community IDs to join
+    parents_to_create: Optional[List[ParentToCreate]] = None  # Missing parents to create first
 
 class HiveResponse(BaseModel):
     id: str
@@ -2874,13 +2879,112 @@ async def create_hive(hive: HiveCreate, force: bool = False, current_user = Depe
     if existing:
         raise HTTPException(status_code=400, detail="A hive with this name already exists")
     
-    # Validate parent hive if specified
+    # --- Create missing parent communities first (if requested) ---
+    created_parent_ids = []  # Store IDs of newly created parents
+    level_order = ['country', 'city', 'town', 'neighborhood']  # Order matters for hierarchy
+    last_created_parent_id = None
+    
+    if hive.parents_to_create and len(hive.parents_to_create) > 0:
+        # Sort parents by level to ensure proper hierarchy (country first, then city, etc.)
+        parents_sorted = sorted(
+            hive.parents_to_create, 
+            key=lambda p: level_order.index(p.level) if p.level in level_order else 99
+        )
+        
+        for parent_to_create in parents_sorted:
+            # Check if this parent already exists (avoid duplicates)
+            existing_parent = await db.hives.find_one({
+                "name": {"$regex": f"^{parent_to_create.name}$", "$options": "i"}
+            })
+            
+            if existing_parent:
+                # Already exists, just record the ID for linking
+                last_created_parent_id = str(existing_parent["_id"])
+                created_parent_ids.append(last_created_parent_id)
+                continue
+            
+            # Build location from hierarchy for this level
+            level_idx = level_order.index(parent_to_create.level) if parent_to_create.level in level_order else 0
+            location_parts = []
+            if hive.hierarchy:
+                if level_idx >= 3 and hive.hierarchy.neighborhood:
+                    location_parts.insert(0, hive.hierarchy.neighborhood)
+                if level_idx >= 2 and hive.hierarchy.town:
+                    location_parts.insert(0, hive.hierarchy.town)
+                if level_idx >= 1 and hive.hierarchy.city:
+                    location_parts.insert(0, hive.hierarchy.city)
+                if hive.hierarchy.country:
+                    location_parts.insert(0, hive.hierarchy.country)
+            
+            # For the parent level itself, use its own name at the right position
+            if parent_to_create.level == 'country':
+                location_parts = [parent_to_create.name]
+            elif parent_to_create.level == 'city':
+                location_parts = [parent_to_create.name]
+                if hive.hierarchy and hive.hierarchy.country:
+                    location_parts.append(hive.hierarchy.country)
+            elif parent_to_create.level == 'town':
+                location_parts = [parent_to_create.name]
+                if hive.hierarchy and hive.hierarchy.city:
+                    location_parts.append(hive.hierarchy.city)
+                if hive.hierarchy and hive.hierarchy.country:
+                    location_parts.append(hive.hierarchy.country)
+            elif parent_to_create.level == 'neighborhood':
+                location_parts = [parent_to_create.name]
+                if hive.hierarchy and hive.hierarchy.town:
+                    location_parts.append(hive.hierarchy.town)
+                if hive.hierarchy and hive.hierarchy.city:
+                    location_parts.append(hive.hierarchy.city)
+                if hive.hierarchy and hive.hierarchy.country:
+                    location_parts.append(hive.hierarchy.country)
+            
+            parent_location = ', '.join(location_parts)
+            
+            # Create the parent community
+            parent_dict = {
+                "name": parent_to_create.name,
+                "description": f"Community for {parent_to_create.name}",
+                "location": parent_location,
+                "vision": "",
+                "image": None,
+                "hive_type": "local",
+                "founder_id": str(current_user["_id"]),
+                "founder_name": current_user["name"],
+                "external_url": None,
+                "api_endpoint": None,
+                "is_verified": False,
+                "parent_hive_id": last_created_parent_id,  # Link to previous level
+                "created_at": datetime.utcnow()
+            }
+            result = await db.hives.insert_one(parent_dict)
+            new_parent_id = str(result.inserted_id)
+            
+            # Auto-add user as founder of this parent community
+            await db.hive_members.insert_one({
+                "user_id": str(current_user["_id"]),
+                "user_name": current_user["name"],
+                "hive_id": new_parent_id,
+                "role": "founder",
+                "joined_at": datetime.utcnow()
+            })
+            
+            logger.info(f"PARENT CREATED: {parent_to_create.name} ({parent_to_create.level}) by {current_user['name']}")
+            
+            created_parent_ids.append(new_parent_id)
+            last_created_parent_id = new_parent_id
+    
+    # --- Validate manually specified parent hive (if provided) ---
     parent_name = None
-    if hive.parent_hive_id:
-        parent = await db.hives.find_one({"_id": ObjectId(hive.parent_hive_id)})
-        if not parent:
-            raise HTTPException(status_code=404, detail="Parent hive not found")
-        parent_name = parent["name"]
+    final_parent_id = hive.parent_hive_id
+    
+    # If we created parents, link the main hive to the deepest parent level
+    if last_created_parent_id:
+        final_parent_id = last_created_parent_id
+    
+    if final_parent_id:
+        parent = await db.hives.find_one({"_id": ObjectId(final_parent_id)})
+        if parent:
+            parent_name = parent["name"]
     
     # If not forcing, check for similar hives and warn
     if not force:
@@ -2908,7 +3012,7 @@ async def create_hive(hive: HiveCreate, force: bool = False, current_user = Depe
         "external_url": None,
         "api_endpoint": None,
         "is_verified": False,  # Admins can verify hives
-        "parent_hive_id": hive.parent_hive_id,  # Link to parent country/region
+        "parent_hive_id": final_parent_id,  # Link to parent (created or specified)
         "created_at": datetime.utcnow()
     }
     result = await db.hives.insert_one(hive_dict)
@@ -2974,7 +3078,7 @@ async def create_hive(hive: HiveCreate, force: bool = False, current_user = Depe
         external_url=hive_dict["external_url"],
         api_endpoint=hive_dict["api_endpoint"],
         is_verified=hive_dict["is_verified"],
-        parent_hive_id=hive.parent_hive_id,
+        parent_hive_id=final_parent_id,
         parent_hive_name=parent_name,
         child_hive_count=0,
         created_at=hive_dict["created_at"]
