@@ -2982,7 +2982,7 @@ async def create_hive(hive: HiveCreate, force: bool = False, current_user = Depe
 
 @api_router.post("/hives/check-existing-parents")
 async def check_existing_parent_communities(hierarchy: HiveHierarchy, current_user = Depends(get_current_user)):
-    """Check which parent communities exist and can be auto-joined"""
+    """Check which parent communities exist and can be auto-joined (with fuzzy matching)"""
     existing_parents = []
     
     hierarchy_items = [
@@ -2993,23 +2993,62 @@ async def check_existing_parent_communities(hierarchy: HiveHierarchy, current_us
     ]
     
     for level, name in hierarchy_items:
-        if name:
-            existing = await db.hives.find_one({
-                "name": {"$regex": f"^{name}$", "$options": "i"}
-            })
-            if existing:
+        if name and len(name) >= 3:
+            # Search for communities that:
+            # 1. Match exactly (case-insensitive)
+            # 2. Contain the search term
+            # 3. Are contained by the search term
+            search_name = name.strip()
+            
+            # Build a more flexible search - find communities where name contains search or vice versa
+            matches = await db.hives.find({
+                "$or": [
+                    {"name": {"$regex": f"^{search_name}$", "$options": "i"}},  # Exact match
+                    {"name": {"$regex": search_name, "$options": "i"}},  # Name contains search
+                    {"name": {"$regex": f".*{search_name[:4]}.*", "$options": "i"}} if len(search_name) >= 4 else {"name": search_name},  # Partial match for typos
+                ]
+            }).to_list(10)
+            
+            # Score and rank matches
+            best_match = None
+            best_score = 0
+            
+            for match in matches:
+                match_name = match["name"].lower()
+                search_lower = search_name.lower()
+                
+                # Calculate similarity score
+                score = 0
+                if match_name == search_lower:
+                    score = 100  # Exact match
+                elif search_lower in match_name or match_name in search_lower:
+                    score = 80  # Contains match
+                elif any(word in match_name for word in search_lower.split() if len(word) > 3):
+                    score = 60  # Word match
+                else:
+                    # Calculate character overlap for fuzzy matching
+                    common = sum(1 for c in search_lower if c in match_name)
+                    score = (common / max(len(search_lower), len(match_name))) * 50
+                
+                if score > best_score:
+                    best_score = score
+                    best_match = match
+            
+            if best_match and best_score >= 50:  # Threshold for considering a match
                 # Check if user is already a member
                 is_member = await db.hive_members.find_one({
                     "user_id": str(current_user["_id"]),
-                    "hive_id": str(existing["_id"])
+                    "hive_id": str(best_match["_id"])
                 })
                 existing_parents.append({
                     "level": level,
-                    "name": existing["name"],
-                    "id": str(existing["_id"]),
-                    "location": existing.get("location", ""),
-                    "member_count": await db.hive_members.count_documents({"hive_id": str(existing["_id"])}),
-                    "already_member": bool(is_member)
+                    "name": best_match["name"],
+                    "id": str(best_match["_id"]),
+                    "location": best_match.get("location", ""),
+                    "member_count": await db.hive_members.count_documents({"hive_id": str(best_match["_id"])}),
+                    "already_member": bool(is_member),
+                    "match_score": best_score,
+                    "searched_for": search_name,  # Show what user typed vs what was found
                 })
     
     return {

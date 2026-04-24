@@ -878,6 +878,11 @@ export default function HiveScreen() {
                         </View>
                         <View style={styles.autoJoinInfo}>
                           <Text style={styles.autoJoinName}>{parent.name}</Text>
+                          {parent.searched_for && parent.searched_for.toLowerCase() !== parent.name.toLowerCase() && (
+                            <Text style={styles.autoJoinMatchHint}>
+                              (matched from "{parent.searched_for}")
+                            </Text>
+                          )}
                           <Text style={styles.autoJoinMeta}>
                             {parent.member_count} member{parent.member_count !== 1 ? 's' : ''} • {parent.level}
                           </Text>
@@ -1764,6 +1769,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: Colors.text,
+  },
+  autoJoinMatchHint: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
   },
   autoJoinMeta: {
     fontSize: 12,
