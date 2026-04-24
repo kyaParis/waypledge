@@ -2816,26 +2816,36 @@ async def build_hive_response(h: dict) -> HiveResponse:
         created_at=h["created_at"]
     )
 
-async def find_similar_hives(name: str, location: str):
-    """Find hives with similar name or in same location"""
+async def find_similar_hives(name: str, location: str, exclude_names: list = None):
+    """Find hives with similar name or in same location.
+    exclude_names: list of names to exclude (e.g., parent hierarchy names)
+    """
     # Extract key location words (city, region, country)
     location_words = [w.strip().lower() for w in location.split(',') if len(w.strip()) > 2]
+    exclude_names_lower = [n.lower() for n in (exclude_names or [])]
     
     similar = []
     
-    # Check for similar names
+    # Check for similar names (only if name is similar to what we're creating, not location parts)
+    name_lower = name.lower()
     name_matches = await db.hives.find({
         "name": {"$regex": name.split()[0] if name.split() else name, "$options": "i"}
     }).to_list(10)
-    similar.extend(name_matches)
     
-    # Check for same location
-    for word in location_words:
-        location_matches = await db.hives.find({
-            "location": {"$regex": word, "$options": "i"},
-            "_id": {"$nin": [h["_id"] for h in similar]}  # Avoid duplicates
-        }).to_list(10)
-        similar.extend(location_matches)
+    for match in name_matches:
+        match_name_lower = match["name"].lower()
+        # Skip if this is a parent/hierarchy level community
+        if match_name_lower in exclude_names_lower:
+            continue
+        # Skip if this match is just a location word (parent community)
+        if match_name_lower in location_words:
+            continue
+        # Only include if the name is actually similar to what we're creating
+        if name_lower in match_name_lower or match_name_lower in name_lower:
+            similar.append(match)
+    
+    # Only flag location-based matches if they have VERY similar names (not just in same area)
+    # This prevents flagging "Murcia" when creating "Street 246 in Murcia"
     
     return similar[:5]  # Return top 5 similar hives
 
@@ -2987,8 +2997,20 @@ async def create_hive(hive: HiveCreate, force: bool = False, current_user = Depe
             parent_name = parent["name"]
     
     # If not forcing, check for similar hives and warn
+    # Build exclusion list from hierarchy names (these are parent communities, not duplicates)
+    exclude_hierarchy_names = []
+    if hive.hierarchy:
+        if hive.hierarchy.country:
+            exclude_hierarchy_names.append(hive.hierarchy.country)
+        if hive.hierarchy.city:
+            exclude_hierarchy_names.append(hive.hierarchy.city)
+        if hive.hierarchy.town:
+            exclude_hierarchy_names.append(hive.hierarchy.town)
+        if hive.hierarchy.neighborhood:
+            exclude_hierarchy_names.append(hive.hierarchy.neighborhood)
+    
     if not force:
-        similar = await find_similar_hives(hive.name, hive.location)
+        similar = await find_similar_hives(hive.name, hive.location, exclude_names=exclude_hierarchy_names)
         if similar:
             similar_names = [h["name"] for h in similar[:3]]
             raise HTTPException(
