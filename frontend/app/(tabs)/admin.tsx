@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   TextInput,
+  Platform,
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -195,71 +196,111 @@ export default function AdminScreen() {
   const handleSuspendUser = (user: User) => {
     if (user.is_suspended) {
       // Unsuspend
-      Alert.alert(
-        'Unsuspend User',
-        `Are you sure you want to unsuspend ${user.name}?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Unsuspend',
-            onPress: async () => {
-              try {
-                await api.post(`/admin/unsuspend/${user.id}`);
-                Alert.alert('Success', `${user.name} has been unsuspended`);
-                loadUsers();
-              } catch (error: any) {
-                Alert.alert('Error', error.response?.data?.detail || 'Failed to unsuspend user');
-              }
-            },
-          },
-        ]
-      );
+      const doUnsuspend = async () => {
+        try {
+          await api.post(`/admin/unsuspend/${user.id}`);
+          if (Platform.OS === 'web') {
+            alert(`${user.name} has been unsuspended`);
+          } else {
+            Alert.alert('Success', `${user.name} has been unsuspended`);
+          }
+          loadUsers();
+        } catch (error: any) {
+          const msg = error.response?.data?.detail || 'Failed to unsuspend user';
+          if (Platform.OS === 'web') {
+            alert(msg);
+          } else {
+            Alert.alert('Error', msg);
+          }
+        }
+      };
+      
+      if (Platform.OS === 'web') {
+        if (window.confirm(`Are you sure you want to unsuspend ${user.name}?`)) {
+          doUnsuspend();
+        }
+      } else {
+        Alert.alert(
+          'Unsuspend User',
+          `Are you sure you want to unsuspend ${user.name}?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Unsuspend', onPress: doUnsuspend },
+          ]
+        );
+      }
     } else {
       // Suspend
-      Alert.alert(
-        'Suspend User',
-        `Are you sure you want to suspend ${user.name}? They will not be able to log in.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Suspend',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await api.post(`/admin/suspend/${user.id}`);
-                Alert.alert('Success', `${user.name} has been suspended`);
-                loadUsers();
-              } catch (error: any) {
-                Alert.alert('Error', error.response?.data?.detail || 'Failed to suspend user');
-              }
-            },
-          },
-        ]
-      );
+      const doSuspend = async () => {
+        try {
+          await api.post(`/admin/suspend/${user.id}`);
+          if (Platform.OS === 'web') {
+            alert(`${user.name} has been suspended`);
+          } else {
+            Alert.alert('Success', `${user.name} has been suspended`);
+          }
+          loadUsers();
+        } catch (error: any) {
+          const msg = error.response?.data?.detail || 'Failed to suspend user';
+          if (Platform.OS === 'web') {
+            alert(msg);
+          } else {
+            Alert.alert('Error', msg);
+          }
+        }
+      };
+      
+      if (Platform.OS === 'web') {
+        if (window.confirm(`Are you sure you want to suspend ${user.name}? They will not be able to log in.`)) {
+          doSuspend();
+        }
+      } else {
+        Alert.alert(
+          'Suspend User',
+          `Are you sure you want to suspend ${user.name}? They will not be able to log in.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Suspend', style: 'destructive', onPress: doSuspend },
+          ]
+        );
+      }
     }
   };
 
   const handleDeleteUser = (user: User) => {
-    Alert.alert(
-      'Delete User Permanently',
-      `Are you sure you want to PERMANENTLY DELETE ${user.name} and all their data? This cannot be undone!`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete Forever',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.delete(`/admin/delete-user/${user.id}`);
-              Alert.alert('Deleted', `${user.name} has been permanently deleted`);
-              loadUsers();
-            } catch (error: any) {
-              Alert.alert('Error', error.response?.data?.detail || 'Failed to delete user');
-            }
-          },
-        },
-      ]
-    );
+    const doDelete = async () => {
+      try {
+        await api.delete(`/admin/delete-user/${user.id}`);
+        if (Platform.OS === 'web') {
+          alert(`${user.name} has been permanently deleted`);
+        } else {
+          Alert.alert('Deleted', `${user.name} has been permanently deleted`);
+        }
+        loadUsers();
+      } catch (error: any) {
+        const msg = error.response?.data?.detail || 'Failed to delete user';
+        if (Platform.OS === 'web') {
+          alert(msg);
+        } else {
+          Alert.alert('Error', msg);
+        }
+      }
+    };
+    
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Are you sure you want to PERMANENTLY DELETE ${user.name} and all their data? This cannot be undone!`)) {
+        doDelete();
+      }
+    } else {
+      Alert.alert(
+        'Delete User Permanently',
+        `Are you sure you want to PERMANENTLY DELETE ${user.name} and all their data? This cannot be undone!`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete Forever', style: 'destructive', onPress: doDelete },
+        ]
+      );
+    }
   };
 
   const filteredReports = reports.filter((r) => filter === 'all' || r.status === filter);
