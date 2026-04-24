@@ -68,6 +68,11 @@ export default function HiveScreen() {
   const [existingMatches, setExistingMatches] = useState<any[]>([]);
   const [checkingName, setCheckingName] = useState(false);
   const nameCheckTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Existing parent communities to auto-join
+  const [existingParents, setExistingParents] = useState<any[]>([]);
+  const [checkingParents, setCheckingParents] = useState(false);
+  const parentCheckTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadHives = useCallback(async () => {
     try {
@@ -186,6 +191,54 @@ export default function HiveScreen() {
     setShowSimilarWarning(false);
     setSimilarHives([]);
     setExistingMatches([]);
+    setExistingParents([]);
+  };
+
+  // Check for existing parent communities as user fills in hierarchy
+  const checkExistingParents = async () => {
+    const hierarchy = {
+      country: hierarchyCountry.trim() || null,
+      city: hierarchyCity.trim() || null,
+      town: hierarchyTown.trim() || null,
+      neighborhood: hierarchyNeighborhood.trim() || null,
+    };
+    
+    // Only check if we have at least one hierarchy field filled
+    if (!hierarchy.country && !hierarchy.city && !hierarchy.town && !hierarchy.neighborhood) {
+      setExistingParents([]);
+      return;
+    }
+    
+    try {
+      setCheckingParents(true);
+      const res = await api.post('/hives/check-existing-parents', hierarchy);
+      setExistingParents(res.data.will_auto_join || []);
+    } catch (error) {
+      console.error('Error checking existing parents:', error);
+    } finally {
+      setCheckingParents(false);
+    }
+  };
+
+  // Debounced hierarchy change handler
+  const handleHierarchyChange = (field: string, value: string) => {
+    // Update the appropriate field
+    switch (field) {
+      case 'country': setHierarchyCountry(value); break;
+      case 'city': setHierarchyCity(value); break;
+      case 'town': setHierarchyTown(value); break;
+      case 'neighborhood': setHierarchyNeighborhood(value); break;
+    }
+    
+    // Clear previous timeout
+    if (parentCheckTimeout.current) {
+      clearTimeout(parentCheckTimeout.current);
+    }
+    
+    // Set new timeout for debounced check
+    parentCheckTimeout.current = setTimeout(() => {
+      checkExistingParents();
+    }, 800);
   };
 
   // Real-time check for existing communities as user types
@@ -711,7 +764,7 @@ export default function HiveScreen() {
                       placeholder="e.g., Spain"
                       placeholderTextColor={Colors.textSecondary}
                       value={hierarchyCountry}
-                      onChangeText={setHierarchyCountry}
+                      onChangeText={(text) => handleHierarchyChange('country', text)}
                     />
                   </View>
                 </View>
@@ -728,7 +781,7 @@ export default function HiveScreen() {
                       placeholder="e.g., Murcia"
                       placeholderTextColor={Colors.textSecondary}
                       value={hierarchyCity}
-                      onChangeText={setHierarchyCity}
+                      onChangeText={(text) => handleHierarchyChange('city', text)}
                       editable={communityType !== 'city'}
                     />
                   </View>
@@ -747,7 +800,7 @@ export default function HiveScreen() {
                         placeholder="e.g., Banos y Mendigo"
                         placeholderTextColor={Colors.textSecondary}
                         value={hierarchyTown}
-                        onChangeText={setHierarchyTown}
+                        onChangeText={(text) => handleHierarchyChange('town', text)}
                         editable={communityType !== 'town'}
                       />
                     </View>
@@ -767,10 +820,38 @@ export default function HiveScreen() {
                         placeholder="e.g., Altaona Golf Resort"
                         placeholderTextColor={Colors.textSecondary}
                         value={hierarchyNeighborhood}
-                        onChangeText={setHierarchyNeighborhood}
+                        onChangeText={(text) => handleHierarchyChange('neighborhood', text)}
                         editable={communityType !== 'neighborhood'}
                       />
                     </View>
+                  </View>
+                )}
+                
+                {/* Existing Parent Communities - Will Auto Join */}
+                {existingParents.length > 0 && (
+                  <View style={styles.autoJoinBox}>
+                    <View style={styles.autoJoinHeader}>
+                      <MaterialIcons name="check-circle" size={20} color={Colors.success} />
+                      <Text style={styles.autoJoinTitle}>You'll automatically join:</Text>
+                    </View>
+                    {existingParents.map((parent) => (
+                      <View key={parent.id} style={styles.autoJoinItem}>
+                        <MaterialIcons name="groups" size={16} color={Colors.primary} />
+                        <View style={styles.autoJoinInfo}>
+                          <Text style={styles.autoJoinName}>{parent.name}</Text>
+                          <Text style={styles.autoJoinMeta}>
+                            {parent.member_count} member{parent.member_count !== 1 ? 's' : ''} • {parent.level}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                
+                {checkingParents && (
+                  <View style={styles.checkingParents}>
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                    <Text style={styles.checkingParentsText}>Checking existing communities...</Text>
                   </View>
                 )}
               </View>
@@ -1578,5 +1659,58 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: 4,
+  },
+  // Auto-join styles
+  autoJoinBox: {
+    backgroundColor: Colors.success + '15',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.success,
+  },
+  autoJoinHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  autoJoinTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.success,
+  },
+  autoJoinItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 6,
+    gap: 10,
+  },
+  autoJoinInfo: {
+    flex: 1,
+  },
+  autoJoinName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.text,
+  },
+  autoJoinMeta: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  checkingParents: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+  },
+  checkingParentsText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
   },
 });

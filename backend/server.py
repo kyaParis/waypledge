@@ -423,6 +423,12 @@ class ResolutionResponse(BaseModel):
     updated_at: Optional[datetime] = None
 
 # Hive Models - Federation-Ready Architecture
+class HiveHierarchy(BaseModel):
+    country: Optional[str] = None
+    city: Optional[str] = None
+    town: Optional[str] = None
+    neighborhood: Optional[str] = None
+
 class HiveCreate(BaseModel):
     name: str
     description: str
@@ -430,6 +436,8 @@ class HiveCreate(BaseModel):
     vision: Optional[str] = ""  # What this hive stands for
     image: Optional[str] = None
     parent_hive_id: Optional[str] = None  # Link to parent (e.g., Spain for Altaona)
+    community_type: Optional[str] = None  # 'country', 'city', 'town', 'neighborhood', 'street'
+    hierarchy: Optional[HiveHierarchy] = None  # For auto-joining parent communities
 
 class HiveResponse(BaseModel):
     id: str
@@ -2915,6 +2923,50 @@ async def create_hive(hive: HiveCreate, force: bool = False, current_user = Depe
     }
     await db.hive_members.insert_one(member_dict)
     
+    # Auto-join parent communities in hierarchy if they exist
+    # Extract hierarchy from the hive data (if provided)
+    hierarchy = getattr(hive, 'hierarchy', None)
+    joined_parents = []
+    
+    if hierarchy:
+        # Search for existing communities matching the hierarchy levels
+        hierarchy_searches = []
+        if hierarchy.get('neighborhood'):
+            hierarchy_searches.append(hierarchy['neighborhood'])
+        if hierarchy.get('town'):
+            hierarchy_searches.append(hierarchy['town'])
+        if hierarchy.get('city'):
+            hierarchy_searches.append(hierarchy['city'])
+        if hierarchy.get('country'):
+            hierarchy_searches.append(hierarchy['country'])
+        
+        for search_name in hierarchy_searches:
+            if search_name:
+                # Find existing community with this name
+                existing_parent = await db.hives.find_one({
+                    "name": {"$regex": f"^{search_name}$", "$options": "i"}
+                })
+                if existing_parent:
+                    parent_hive_id = str(existing_parent["_id"])
+                    # Check if already a member
+                    already_member = await db.hive_members.find_one({
+                        "user_id": str(current_user["_id"]),
+                        "hive_id": parent_hive_id
+                    })
+                    if not already_member:
+                        # Auto-join this parent community
+                        await db.hive_members.insert_one({
+                            "user_id": str(current_user["_id"]),
+                            "user_name": current_user["name"],
+                            "hive_id": parent_hive_id,
+                            "role": "member",
+                            "joined_at": datetime.utcnow()
+                        })
+                        joined_parents.append(existing_parent["name"])
+    
+    if joined_parents:
+        logger.info(f"User {current_user['name']} auto-joined parent communities: {', '.join(joined_parents)}")
+    
     logger.info(f"NEW HIVE CREATED: {hive.name} in {hive.location} by {current_user['name']} (parent: {parent_name})")
     
     return HiveResponse(
@@ -2938,6 +2990,43 @@ async def create_hive(hive: HiveCreate, force: bool = False, current_user = Depe
         child_hive_count=0,
         created_at=hive_dict["created_at"]
     )
+
+@api_router.post("/hives/check-existing-parents")
+async def check_existing_parent_communities(hierarchy: HiveHierarchy, current_user = Depends(get_current_user)):
+    """Check which parent communities exist and can be auto-joined"""
+    existing_parents = []
+    
+    hierarchy_items = [
+        ('neighborhood', hierarchy.neighborhood),
+        ('town', hierarchy.town),
+        ('city', hierarchy.city),
+        ('country', hierarchy.country),
+    ]
+    
+    for level, name in hierarchy_items:
+        if name:
+            existing = await db.hives.find_one({
+                "name": {"$regex": f"^{name}$", "$options": "i"}
+            })
+            if existing:
+                # Check if user is already a member
+                is_member = await db.hive_members.find_one({
+                    "user_id": str(current_user["_id"]),
+                    "hive_id": str(existing["_id"])
+                })
+                existing_parents.append({
+                    "level": level,
+                    "name": existing["name"],
+                    "id": str(existing["_id"]),
+                    "location": existing.get("location", ""),
+                    "member_count": await db.hive_members.count_documents({"hive_id": str(existing["_id"])}),
+                    "already_member": bool(is_member)
+                })
+    
+    return {
+        "existing_parents": existing_parents,
+        "will_auto_join": [p for p in existing_parents if not p["already_member"]]
+    }
 
 @api_router.post("/hives/{hive_id}/verify")
 async def verify_hive(hive_id: str, current_user = Depends(get_current_user)):
