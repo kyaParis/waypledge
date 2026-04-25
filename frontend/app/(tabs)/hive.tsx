@@ -40,7 +40,6 @@ export default function HiveScreen() {
   const { user, isAuthenticated } = useAuthStore();
   const [hives, setHives] = useState<Hive[]>([]);
   const [myHives, setMyHives] = useState<Hive[]>([]);
-  const [countryHives, setCountryHives] = useState<Hive[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,45 +48,29 @@ export default function HiveScreen() {
   const [locationFilter, setLocationFilter] = useState<string | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
   
-  // Create hive form - simplified hierarchy
+  // Create hive form - SIMPLIFIED
   const [newHiveName, setNewHiveName] = useState('');
   const [newHiveDescription, setNewHiveDescription] = useState('');
+  const [newHiveLocation, setNewHiveLocation] = useState('');
   const [newHiveVision, setNewHiveVision] = useState('');
-  const [newHiveParentId, setNewHiveParentId] = useState<string | null>(null);
-  const [showParentPicker, setShowParentPicker] = useState(false);
   const [creating, setCreating] = useState(false);
-  
-  // Hierarchy fields
-  const [hierarchyCountry, setHierarchyCountry] = useState('');
-  const [hierarchyCity, setHierarchyCity] = useState('');
-  const [hierarchyTown, setHierarchyTown] = useState('');
-  const [hierarchyNeighborhood, setHierarchyNeighborhood] = useState('');
-  const [communityType, setCommunityType] = useState<'country' | 'city' | 'town' | 'neighborhood' | 'street'>('neighborhood');
   
   // Real-time duplicate checking
   const [existingMatches, setExistingMatches] = useState<any[]>([]);
   const [checkingName, setCheckingName] = useState(false);
   const nameCheckTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   
-  // Existing parent communities to auto-join
-  const [existingParents, setExistingParents] = useState<any[]>([]);
-  const [missingParents, setMissingParents] = useState<any[]>([]);
-  const [parentsToJoin, setParentsToJoin] = useState<Set<string>>(new Set());
-  const [parentsToCreate, setParentsToCreate] = useState<Set<string>>(new Set());
-  const [checkingParents, setCheckingParents] = useState(false);
-  const parentCheckTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Similar hives warning
+  const [similarHives, setSimilarHives] = useState<any[]>([]);
+  const [showSimilarWarning, setShowSimilarWarning] = useState(false);
 
   const loadHives = useCallback(async () => {
     try {
       const params: any = {};
       if (searchQuery) params.search = searchQuery;
       if (locationFilter) params.location = locationFilter;
-      const [hivesRes, countryRes] = await Promise.all([
-        api.get('/hives', { params }),
-        api.get('/hives', { params: { country_only: true } })
-      ]);
-      setHives(hivesRes.data);
-      setCountryHives(countryRes.data);
+      const response = await api.get('/hives', { params });
+      setHives(response.data);
     } catch (error) {
       console.error('Error loading hives:', error);
     }
@@ -178,109 +161,14 @@ export default function HiveScreen() {
     }
   };
 
-  const [similarHives, setSimilarHives] = useState<any[]>([]);
-  const [showSimilarWarning, setShowSimilarWarning] = useState(false);
-
   const resetCreateForm = () => {
     setNewHiveName('');
     setNewHiveDescription('');
+    setNewHiveLocation('');
     setNewHiveVision('');
-    setNewHiveParentId(null);
-    setHierarchyCountry('');
-    setHierarchyCity('');
-    setHierarchyTown('');
-    setHierarchyNeighborhood('');
-    setCommunityType('neighborhood');
     setShowSimilarWarning(false);
     setSimilarHives([]);
     setExistingMatches([]);
-    setExistingParents([]);
-    setMissingParents([]);
-    setParentsToJoin(new Set());
-    setParentsToCreate(new Set());
-  };
-
-  // Check for existing parent communities as user fills in hierarchy
-  const checkExistingParents = async () => {
-    const hierarchy = {
-      country: hierarchyCountry.trim() || null,
-      city: hierarchyCity.trim() || null,
-      town: hierarchyTown.trim() || null,
-      neighborhood: hierarchyNeighborhood.trim() || null,
-    };
-    
-    // Only check if we have at least one hierarchy field filled
-    if (!hierarchy.country && !hierarchy.city && !hierarchy.town && !hierarchy.neighborhood) {
-      setExistingParents([]);
-      setMissingParents([]);
-      setParentsToJoin(new Set());
-      setParentsToCreate(new Set());
-      return;
-    }
-    
-    try {
-      setCheckingParents(true);
-      const res = await api.post('/hives/check-existing-parents', hierarchy);
-      const existing = res.data.will_auto_join || [];
-      const missing = res.data.missing_parents || [];
-      setExistingParents(existing);
-      setMissingParents(missing);
-      // Default: all existing selected to join
-      setParentsToJoin(new Set(existing.map((p: any) => p.id)));
-      // Default: all missing selected to create
-      setParentsToCreate(new Set(missing.map((p: any) => `${p.level}:${p.name}`)));
-    } catch (error) {
-      console.error('Error checking existing parents:', error);
-    } finally {
-      setCheckingParents(false);
-    }
-  };
-
-  // Toggle join/don't join for a parent community
-  const toggleParentJoin = (parentId: string) => {
-    setParentsToJoin(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(parentId)) {
-        newSet.delete(parentId);
-      } else {
-        newSet.add(parentId);
-      }
-      return newSet;
-    });
-  };
-
-  // Toggle create/don't create for a missing parent
-  const toggleParentCreate = (key: string) => {
-    setParentsToCreate(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(key)) {
-        newSet.delete(key);
-      } else {
-        newSet.add(key);
-      }
-      return newSet;
-    });
-  };
-
-  // Debounced hierarchy change handler
-  const handleHierarchyChange = (field: string, value: string) => {
-    // Update the appropriate field
-    switch (field) {
-      case 'country': setHierarchyCountry(value); break;
-      case 'city': setHierarchyCity(value); break;
-      case 'town': setHierarchyTown(value); break;
-      case 'neighborhood': setHierarchyNeighborhood(value); break;
-    }
-    
-    // Clear previous timeout
-    if (parentCheckTimeout.current) {
-      clearTimeout(parentCheckTimeout.current);
-    }
-    
-    // Set new timeout for debounced check
-    parentCheckTimeout.current = setTimeout(() => {
-      checkExistingParents();
-    }, 800);
   };
 
   // Real-time check for existing communities as user types
@@ -340,57 +228,27 @@ export default function HiveScreen() {
     }
   };
 
-  // Build location string from hierarchy
-  const buildLocationString = () => {
-    const parts = [];
-    if (hierarchyNeighborhood) parts.push(hierarchyNeighborhood);
-    if (hierarchyTown) parts.push(hierarchyTown);
-    if (hierarchyCity) parts.push(hierarchyCity);
-    if (hierarchyCountry) parts.push(hierarchyCountry);
-    return parts.join(', ');
-  };
-
   const handleCreateHive = async (force: boolean = false) => {
     if (!newHiveName.trim() || !newHiveDescription.trim()) {
       alert('Please fill in name and description');
       return;
     }
     
-    if (!hierarchyCountry.trim()) {
-      alert('Please select or enter your country');
+    if (!newHiveLocation.trim()) {
+      alert('Please enter a location');
       return;
     }
 
     try {
       setCreating(true);
       
-      const locationString = buildLocationString();
-      
-      // Convert parentsToCreate set to array of {level, name} objects
-      const parentsToCreateArray = Array.from(parentsToCreate).map(key => {
-        const [level, name] = key.split(':');
-        return { level, name };
-      });
-      
       const params = force ? '?force=true' : '';
-      const payload: any = {
+      const payload = {
         name: newHiveName.trim(),
         description: newHiveDescription.trim(),
-        location: locationString,
+        location: newHiveLocation.trim(),
         vision: newHiveVision.trim(),
-        community_type: communityType,
-        hierarchy: {
-          country: hierarchyCountry.trim(),
-          city: hierarchyCity.trim() || null,
-          town: hierarchyTown.trim() || null,
-          neighborhood: hierarchyNeighborhood.trim() || null,
-        },
-        join_parent_ids: Array.from(parentsToJoin), // Selected parent communities to join
-        parents_to_create: parentsToCreateArray, // Missing parents to create first
       };
-      if (newHiveParentId) {
-        payload.parent_hive_id = newHiveParentId;
-      }
       
       await api.post(`/hives${params}`, payload);
       
@@ -398,16 +256,7 @@ export default function HiveScreen() {
       resetCreateForm();
       setShowCreateModal(false);
       
-      const joinedCount = parentsToJoin.size;
-      const createdCount = parentsToCreate.size;
-      let msg = 'Community created! You are now the founder.';
-      if (createdCount > 0) {
-        msg += ` Also created ${createdCount} parent communit${createdCount === 1 ? 'y' : 'ies'}.`;
-      }
-      if (joinedCount > 0) {
-        msg += ` Joined ${joinedCount} existing communit${joinedCount === 1 ? 'y' : 'ies'}.`;
-      }
-      alert(msg);
+      alert('Community created! You are now the founder.');
       await Promise.all([loadHives(), loadMyHives()]);
     } catch (error: any) {
       // Check if it's a "similar hives exist" warning (409 Conflict)
@@ -417,10 +266,10 @@ export default function HiveScreen() {
           setSimilarHives(detail.similar);
           setShowSimilarWarning(true);
         } else {
-          alert('Similar hives exist in this area. Please check existing hives first.');
+          alert('Similar communities exist. Please check existing communities first.');
         }
       } else {
-        alert(error.response?.data?.detail || 'Failed to create hive');
+        alert(error.response?.data?.detail || 'Failed to create community');
       }
     } finally {
       setCreating(false);
@@ -698,42 +547,8 @@ export default function HiveScreen() {
 
             <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
               <Text style={styles.modalSubtitle}>
-                Communities nest automatically - your street is part of your town, city, and country
+                Start a local community to connect with people nearby
               </Text>
-
-              {/* Community Type Selector */}
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>What type of community?</Text>
-                <View style={styles.typeSelector}>
-                  {[
-                    { key: 'street', label: 'Street/Block', icon: 'home' },
-                    { key: 'neighborhood', label: 'Neighborhood', icon: 'holiday-village' },
-                    { key: 'town', label: 'Town/Area', icon: 'location-city' },
-                    { key: 'city', label: 'City', icon: 'apartment' },
-                  ].map((type) => (
-                    <TouchableOpacity
-                      key={type.key}
-                      style={[
-                        styles.typeOption,
-                        communityType === type.key && styles.typeOptionSelected
-                      ]}
-                      onPress={() => setCommunityType(type.key as any)}
-                    >
-                      <MaterialIcons 
-                        name={type.icon as any} 
-                        size={20} 
-                        color={communityType === type.key ? Colors.surface : Colors.textSecondary} 
-                      />
-                      <Text style={[
-                        styles.typeOptionText,
-                        communityType === type.key && styles.typeOptionTextSelected
-                      ]}>
-                        {type.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
 
               {/* Community Name */}
               <View style={styles.formGroup}>
@@ -741,12 +556,7 @@ export default function HiveScreen() {
                 <View style={styles.nameInputContainer}>
                   <TextInput
                     style={styles.input}
-                    placeholder={
-                      communityType === 'street' ? "e.g., Street 246/247" :
-                      communityType === 'neighborhood' ? "e.g., Altaona Golf Resort" :
-                      communityType === 'town' ? "e.g., Banos y Mendigo" :
-                      "e.g., Murcia"
-                    }
+                    placeholder="e.g., Altaona Golf Resort, Downtown Murcia"
                     placeholderTextColor={Colors.textSecondary}
                     value={newHiveName}
                     onChangeText={handleNameChange}
@@ -764,7 +574,7 @@ export default function HiveScreen() {
                       <Text style={styles.existingMatchesTitle}>Similar communities exist!</Text>
                     </View>
                     <Text style={styles.existingMatchesHint}>
-                      Consider joining an existing community instead of creating a duplicate:
+                      Consider joining an existing community instead:
                     </Text>
                     {existingMatches.map((match) => (
                       <View key={match.id} style={styles.existingMatchCard}>
@@ -781,10 +591,22 @@ export default function HiveScreen() {
                       </View>
                     ))}
                     <Text style={styles.orContinueText}>
-                      Or continue below if this is truly a new community
+                      Or continue below to create a new one
                     </Text>
                   </View>
                 )}
+              </View>
+
+              {/* Location */}
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Location *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., Murcia, Spain"
+                  placeholderTextColor={Colors.textSecondary}
+                  value={newHiveLocation}
+                  onChangeText={setNewHiveLocation}
+                />
               </View>
 
               {/* Description */}
@@ -797,217 +619,9 @@ export default function HiveScreen() {
                   value={newHiveDescription}
                   onChangeText={setNewHiveDescription}
                   multiline
-                  numberOfLines={2}
+                  numberOfLines={3}
                 />
               </View>
-
-              {/* Hierarchy Section */}
-              <View style={styles.hierarchySection}>
-                <View style={styles.hierarchyHeader}>
-                  <MaterialIcons name="account-tree" size={20} color={Colors.primary} />
-                  <Text style={styles.hierarchyTitle}>Where is this community?</Text>
-                </View>
-                <Text style={styles.hierarchyHint}>
-                  Fill in from largest to smallest. You'll automatically join all parent communities.
-                </Text>
-
-                {/* Country */}
-                <View style={styles.hierarchyField}>
-                  <View style={styles.hierarchyIcon}>
-                    <MaterialIcons name="public" size={18} color={Colors.primary} />
-                  </View>
-                  <View style={styles.hierarchyInput}>
-                    <Text style={styles.hierarchyLabel}>Country *</Text>
-                    <TextInput
-                      style={styles.hierarchyTextInput}
-                      placeholder="e.g., Spain"
-                      placeholderTextColor={Colors.textSecondary}
-                      value={hierarchyCountry}
-                      onChangeText={(text) => handleHierarchyChange('country', text)}
-                    />
-                  </View>
-                </View>
-
-                {/* City */}
-                <View style={styles.hierarchyField}>
-                  <View style={styles.hierarchyIcon}>
-                    <MaterialIcons name="apartment" size={18} color={communityType !== 'city' ? Colors.primary : Colors.textSecondary} />
-                  </View>
-                  <View style={styles.hierarchyInput}>
-                    <Text style={styles.hierarchyLabel}>City/Region {communityType !== 'city' ? '' : '(this is your community)'}</Text>
-                    <TextInput
-                      style={styles.hierarchyTextInput}
-                      placeholder="e.g., Murcia"
-                      placeholderTextColor={Colors.textSecondary}
-                      value={hierarchyCity}
-                      onChangeText={(text) => handleHierarchyChange('city', text)}
-                      editable={communityType !== 'city'}
-                    />
-                  </View>
-                </View>
-
-                {/* Town - only show for town, neighborhood, street */}
-                {['town', 'neighborhood', 'street'].includes(communityType) && (
-                  <View style={styles.hierarchyField}>
-                    <View style={styles.hierarchyIcon}>
-                      <MaterialIcons name="location-city" size={18} color={communityType !== 'town' ? Colors.primary : Colors.textSecondary} />
-                    </View>
-                    <View style={styles.hierarchyInput}>
-                      <Text style={styles.hierarchyLabel}>Town/Area {communityType === 'town' ? '(this is your community)' : '(optional)'}</Text>
-                      <TextInput
-                        style={styles.hierarchyTextInput}
-                        placeholder="e.g., Banos y Mendigo"
-                        placeholderTextColor={Colors.textSecondary}
-                        value={hierarchyTown}
-                        onChangeText={(text) => handleHierarchyChange('town', text)}
-                        editable={communityType !== 'town'}
-                      />
-                    </View>
-                  </View>
-                )}
-
-                {/* Neighborhood - only show for neighborhood, street */}
-                {['neighborhood', 'street'].includes(communityType) && (
-                  <View style={styles.hierarchyField}>
-                    <View style={styles.hierarchyIcon}>
-                      <MaterialIcons name="holiday-village" size={18} color={communityType !== 'neighborhood' ? Colors.primary : Colors.textSecondary} />
-                    </View>
-                    <View style={styles.hierarchyInput}>
-                      <Text style={styles.hierarchyLabel}>Neighborhood/Resort {communityType === 'neighborhood' ? '(this is your community)' : '(optional)'}</Text>
-                      <TextInput
-                        style={styles.hierarchyTextInput}
-                        placeholder="e.g., Altaona Golf Resort"
-                        placeholderTextColor={Colors.textSecondary}
-                        value={hierarchyNeighborhood}
-                        onChangeText={(text) => handleHierarchyChange('neighborhood', text)}
-                        editable={communityType !== 'neighborhood'}
-                      />
-                    </View>
-                  </View>
-                )}
-                
-                {/* Existing Parent Communities - Optional Join */}
-                {existingParents.length > 0 && (
-                  <View style={styles.autoJoinBox}>
-                    <View style={styles.autoJoinHeader}>
-                      <MaterialIcons name="groups" size={20} color={Colors.primary} />
-                      <Text style={styles.autoJoinTitle}>Existing communities found:</Text>
-                    </View>
-                    <Text style={styles.autoJoinHint}>
-                      Choose which communities you'd like to join:
-                    </Text>
-                    {existingParents.map((parent) => (
-                      <TouchableOpacity 
-                        key={parent.id} 
-                        style={[
-                          styles.autoJoinItem,
-                          parentsToJoin.has(parent.id) && styles.autoJoinItemSelected
-                        ]}
-                        onPress={() => toggleParentJoin(parent.id)}
-                      >
-                        <View style={[
-                          styles.autoJoinCheckbox,
-                          parentsToJoin.has(parent.id) && styles.autoJoinCheckboxSelected
-                        ]}>
-                          {parentsToJoin.has(parent.id) && (
-                            <MaterialIcons name="check" size={16} color={Colors.surface} />
-                          )}
-                        </View>
-                        <View style={styles.autoJoinInfo}>
-                          <Text style={styles.autoJoinName}>{parent.name}</Text>
-                          {parent.searched_for && parent.searched_for.toLowerCase() !== parent.name.toLowerCase() && (
-                            <Text style={styles.autoJoinMatchHint}>
-                              (matched from "{parent.searched_for}")
-                            </Text>
-                          )}
-                          <Text style={styles.autoJoinMeta}>
-                            {parent.member_count} member{parent.member_count !== 1 ? 's' : ''} • {parent.level}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                    {parentsToJoin.size > 0 && (
-                      <Text style={styles.autoJoinSummary}>
-                        Will join {parentsToJoin.size} communit{parentsToJoin.size === 1 ? 'y' : 'ies'} when created
-                      </Text>
-                    )}
-                  </View>
-                )}
-                
-                {/* Missing Parent Communities - Offer to Create */}
-                {missingParents.length > 0 && (
-                  <View style={styles.createParentsBox}>
-                    <View style={styles.createParentsHeader}>
-                      <MaterialIcons name="add-circle" size={20} color={Colors.accent} />
-                      <Text style={styles.createParentsTitle}>Create missing communities:</Text>
-                    </View>
-                    <Text style={styles.createParentsHint}>
-                      These don't exist yet. Select which ones to create along with yours:
-                    </Text>
-                    {missingParents.map((missing) => {
-                      const key = `${missing.level}:${missing.name}`;
-                      const isSelected = parentsToCreate.has(key);
-                      return (
-                        <TouchableOpacity 
-                          key={key} 
-                          style={[
-                            styles.createParentItem,
-                            isSelected && styles.createParentItemSelected
-                          ]}
-                          onPress={() => toggleParentCreate(key)}
-                        >
-                          <View style={[
-                            styles.createParentCheckbox,
-                            isSelected && styles.createParentCheckboxSelected
-                          ]}>
-                            {isSelected && (
-                              <MaterialIcons name="check" size={16} color={Colors.surface} />
-                            )}
-                          </View>
-                          <View style={styles.createParentInfo}>
-                            <Text style={styles.createParentName}>
-                              {missing.icon} {missing.name}
-                            </Text>
-                            <Text style={styles.createParentMeta}>
-                              New {missing.level} community
-                            </Text>
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                    {parentsToCreate.size > 0 && (
-                      <Text style={styles.createParentsSummary}>
-                        Will create {parentsToCreate.size} new communit{parentsToCreate.size === 1 ? 'y' : 'ies'}
-                      </Text>
-                    )}
-                  </View>
-                )}
-                
-                {checkingParents && (
-                  <View style={styles.checkingParents}>
-                    <ActivityIndicator size="small" color={Colors.primary} />
-                    <Text style={styles.checkingParentsText}>Checking existing communities...</Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Preview */}
-              {hierarchyCountry && (
-                <View style={styles.previewSection}>
-                  <Text style={styles.previewTitle}>Your community path:</Text>
-                  <View style={styles.previewPath}>
-                    <Text style={styles.previewItem}>🇪🇸 {hierarchyCountry}</Text>
-                    {hierarchyCity && <Text style={styles.previewArrow}>↳</Text>}
-                    {hierarchyCity && <Text style={styles.previewItem}>🏙️ {hierarchyCity}</Text>}
-                    {hierarchyTown && <Text style={styles.previewArrow}>↳</Text>}
-                    {hierarchyTown && <Text style={styles.previewItem}>🏘️ {hierarchyTown}</Text>}
-                    {hierarchyNeighborhood && <Text style={styles.previewArrow}>↳</Text>}
-                    {hierarchyNeighborhood && <Text style={styles.previewItem}>🏡 {hierarchyNeighborhood}</Text>}
-                    <Text style={styles.previewArrow}>↳</Text>
-                    <Text style={styles.previewItemHighlight}>✨ {newHiveName || 'Your Community'}</Text>
-                  </View>
-                </View>
-              )}
 
               {/* Vision (optional) */}
               <View style={styles.formGroup}>
@@ -1036,7 +650,7 @@ export default function HiveScreen() {
                     <Text style={styles.warningTitle}>Similar Communities Exist</Text>
                   </View>
                   <Text style={styles.warningText}>
-                    We found existing communities in this area. Consider joining one instead:
+                    We found similar communities. Consider joining one instead:
                   </Text>
                   {similarHives.map((name, index) => (
                     <Text key={index} style={styles.similarHiveName}>• {name}</Text>
@@ -1083,12 +697,7 @@ export default function HiveScreen() {
                 </TouchableOpacity>
               )}
 
-              <View style={styles.verificationNote}>
-                <MaterialIcons name="info-outline" size={16} color={Colors.textSecondary} />
-                <Text style={styles.verificationNoteText}>
-                  New communities may need verification to appear in search results.
-                </Text>
-              </View>
+              <View style={{ height: 40 }} />
             </ScrollView>
           </View>
         </View>
