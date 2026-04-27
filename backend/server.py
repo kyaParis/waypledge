@@ -235,7 +235,8 @@ class PledgeCreate(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     image: Optional[str] = None
-    hive_id: Optional[str] = None  # Tag pledge to a hive
+    hive_id: Optional[str] = None  # Tag pledge to a single hive (legacy)
+    hive_ids: Optional[List[str]] = None  # Tag pledge to multiple communities
     available_until: Optional[str] = None  # Free-text availability description
 
 class PledgeResponse(BaseModel):
@@ -252,8 +253,10 @@ class PledgeResponse(BaseModel):
     distance_km: Optional[float] = None  # Distance from searcher
     status: str
     image: Optional[str] = None
-    hive_id: Optional[str] = None
-    hive_name: Optional[str] = None
+    hive_id: Optional[str] = None  # Legacy single hive
+    hive_ids: Optional[List[str]] = None  # Multiple communities
+    hive_name: Optional[str] = None  # Legacy single name
+    hive_names: Optional[List[str]] = None  # Multiple community names
     available_until: Optional[str] = None
     created_at: datetime
 
@@ -275,7 +278,8 @@ class WishCreate(BaseModel):
     location: Optional[str] = ""
     latitude: Optional[float] = None
     longitude: Optional[float] = None
-    hive_id: Optional[str] = None  # Tag wish to a hive
+    hive_id: Optional[str] = None  # Tag wish to a single hive (legacy)
+    hive_ids: Optional[List[str]] = None  # Tag wish to multiple communities
     needed_by: Optional[datetime] = None  # When the wish is needed by
     urgency: Optional[str] = "normal"  # "urgent", "normal", "flexible"
 
@@ -293,8 +297,10 @@ class WishResponse(BaseModel):
     distance_km: Optional[float] = None  # Distance from searcher
     status: str
     fulfilled_by: Optional[str] = None
-    hive_id: Optional[str] = None
-    hive_name: Optional[str] = None
+    hive_id: Optional[str] = None  # Legacy single hive
+    hive_ids: Optional[List[str]] = None  # Multiple communities
+    hive_name: Optional[str] = None  # Legacy single name
+    hive_names: Optional[List[str]] = None  # Multiple community names
     needed_by: Optional[datetime] = None
     urgency: Optional[str] = "normal"
     created_at: datetime
@@ -881,7 +887,12 @@ async def create_pledge(pledge: PledgeCreate, current_user = Depends(get_current
     })
     if existing:
         # Return the existing pledge instead of creating a duplicate
-        hive_name = await get_hive_name(existing.get("hive_id")) if existing.get("hive_id") else None
+        existing_hive_ids = existing.get("hive_ids") or ([existing.get("hive_id")] if existing.get("hive_id") else [])
+        existing_hive_names = []
+        for hid in existing_hive_ids:
+            name = await get_hive_name(hid)
+            if name:
+                existing_hive_names.append(name)
         return PledgeResponse(
             id=str(existing["_id"]),
             user_id=existing["user_id"],
@@ -894,21 +905,36 @@ async def create_pledge(pledge: PledgeCreate, current_user = Depends(get_current
             status=existing.get("status", "active"),
             image=existing.get("image"),
             hive_id=existing.get("hive_id"),
-            hive_name=hive_name,
+            hive_ids=existing.get("hive_ids"),
+            hive_name=existing_hive_names[0] if existing_hive_names else None,
+            hive_names=existing_hive_names if existing_hive_names else None,
             available_until=format_available_until(existing.get("available_until")),
             created_at=existing["created_at"]
         )
     
-    # Validate hive membership if hive_id provided
-    hive_name = None
-    if pledge.hive_id:
+    # Handle multiple communities (hive_ids) or single community (hive_id for legacy)
+    hive_ids_to_save = []
+    hive_names = []
+    
+    # Support both new hive_ids array and legacy single hive_id
+    if pledge.hive_ids and len(pledge.hive_ids) > 0:
+        hive_ids_to_save = pledge.hive_ids
+    elif pledge.hive_id:
+        hive_ids_to_save = [pledge.hive_id]
+    
+    # Validate membership for each community
+    for hid in hive_ids_to_save:
         member = await db.hive_members.find_one({
             "user_id": str(current_user["_id"]),
-            "hive_id": pledge.hive_id
+            "hive_id": hid
         })
         if not member:
-            raise HTTPException(status_code=403, detail="You must be a member of this hive to post here")
-        hive_name = await get_hive_name(pledge.hive_id)
+            hive = await db.hives.find_one({"_id": ObjectId(hid)})
+            hive_name_err = hive["name"] if hive else hid
+            raise HTTPException(status_code=403, detail=f"You must be a member of '{hive_name_err}' to post there")
+        name = await get_hive_name(hid)
+        if name:
+            hive_names.append(name)
     
     pledge_dict = {
         "user_id": str(current_user["_id"]),
@@ -920,7 +946,8 @@ async def create_pledge(pledge: PledgeCreate, current_user = Depends(get_current
         "location": pledge.location or "",
         "status": "active",
         "image": pledge.image,
-        "hive_id": pledge.hive_id,
+        "hive_id": hive_ids_to_save[0] if hive_ids_to_save else None,  # Legacy: first community
+        "hive_ids": hive_ids_to_save if hive_ids_to_save else None,  # New: all communities
         "available_until": pledge.available_until,
         "created_at": datetime.utcnow()
     }
@@ -939,7 +966,9 @@ async def create_pledge(pledge: PledgeCreate, current_user = Depends(get_current
         status=pledge_dict["status"],
         image=pledge_dict["image"],
         hive_id=pledge_dict["hive_id"],
-        hive_name=hive_name,
+        hive_ids=pledge_dict["hive_ids"],
+        hive_name=hive_names[0] if hive_names else None,
+        hive_names=hive_names if hive_names else None,
         available_until=format_available_until(pledge_dict.get("available_until")),
         created_at=pledge_dict["created_at"]
     )

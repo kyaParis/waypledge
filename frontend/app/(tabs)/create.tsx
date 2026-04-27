@@ -58,8 +58,8 @@ export default function CreateScreen() {
   // Date picker for wishes
   const [showNeededByPicker, setShowNeededByPicker] = useState(false);
   
-  // Community selector (optional)
-  const [selectedCommunity, setSelectedCommunity] = useState<{id: string, name: string} | null>(null);
+  // Community selector (optional) - Now supports multiple communities
+  const [selectedCommunities, setSelectedCommunities] = useState<Array<{id: string, name: string}>>([]);
   const [showCommunityPicker, setShowCommunityPicker] = useState(false);
   const [myCommunities, setMyCommunities] = useState<Array<{id: string, name: string, community_type: string}>>([]);
   const [loadingCommunities, setLoadingCommunities] = useState(false);
@@ -83,6 +83,21 @@ export default function CreateScreen() {
     } finally {
       setLoadingCommunities(false);
     }
+  };
+
+  const toggleCommunitySelection = (community: {id: string, name: string}) => {
+    setSelectedCommunities(prev => {
+      const isSelected = prev.some(c => c.id === community.id);
+      if (isSelected) {
+        return prev.filter(c => c.id !== community.id);
+      } else {
+        return [...prev, community];
+      }
+    });
+  };
+
+  const removeCommunity = (communityId: string) => {
+    setSelectedCommunities(prev => prev.filter(c => c.id !== communityId));
   };
 
   const loadCategories = async () => {
@@ -177,9 +192,9 @@ export default function CreateScreen() {
         location: location.trim(),
       };
       
-      // Add community if selected
-      if (selectedCommunity) {
-        data.hive_id = selectedCommunity.id;
+      // Add communities if selected (multiple)
+      if (selectedCommunities.length > 0) {
+        data.hive_ids = selectedCommunities.map(c => c.id);
       }
 
       if (type === 'pledge') {
@@ -220,7 +235,7 @@ export default function CreateScreen() {
       setDateRanges([]);
       setNeededBy('');
       setUrgency('normal');
-      setSelectedCommunity(null);
+      setSelectedCommunities([]);
       
       // Navigate to browse page to show success
       router.push('/browse');
@@ -474,31 +489,38 @@ export default function CreateScreen() {
             )}
           </View>
 
-          {/* Optional Community Selector */}
+          {/* Optional Community Selector - Multi-select */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Post to Community (optional)</Text>
+            <Text style={styles.label}>Post to Communities (optional)</Text>
+            
+            {/* Show selected communities as chips */}
+            {selectedCommunities.length > 0 && (
+              <View style={styles.selectedCommunitiesContainer}>
+                {selectedCommunities.map((community) => (
+                  <View key={community.id} style={styles.communityChip}>
+                    <Text style={styles.communityChipText}>{community.name}</Text>
+                    <TouchableOpacity 
+                      onPress={() => removeCommunity(community.id)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <MaterialIcons name="close" size={16} color={Colors.primary} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+            
             <TouchableOpacity
               style={styles.communitySelector}
               onPress={() => setShowCommunityPicker(!showCommunityPicker)}
             >
-              {selectedCommunity ? (
-                <View style={styles.selectedCommunity}>
-                  <MaterialIcons name="groups" size={18} color={Colors.primary} />
-                  <Text style={styles.selectedCommunityText}>{selectedCommunity.name}</Text>
-                  <TouchableOpacity 
-                    onPress={() => setSelectedCommunity(null)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <MaterialIcons name="close" size={18} color={Colors.textSecondary} />
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <View style={styles.communityPlaceholder}>
-                  <MaterialIcons name="groups" size={18} color={Colors.textSecondary} />
-                  <Text style={styles.communityPlaceholderText}>Select a community...</Text>
-                  <MaterialIcons name="arrow-drop-down" size={24} color={Colors.textSecondary} />
-                </View>
-              )}
+              <View style={styles.communityPlaceholder}>
+                <MaterialIcons name="add" size={18} color={Colors.textSecondary} />
+                <Text style={styles.communityPlaceholderText}>
+                  {selectedCommunities.length > 0 ? 'Add another community...' : 'Select communities...'}
+                </Text>
+                <MaterialIcons name={showCommunityPicker ? "arrow-drop-up" : "arrow-drop-down"} size={24} color={Colors.textSecondary} />
+              </View>
             </TouchableOpacity>
             
             {showCommunityPicker && (
@@ -523,29 +545,44 @@ export default function CreateScreen() {
                   </View>
                 ) : (
                   <>
-                    {myCommunities.map((community) => (
-                      <TouchableOpacity
-                        key={community.id}
-                        style={[
-                          styles.communityOption,
-                          selectedCommunity?.id === community.id && styles.communityOptionSelected
-                        ]}
-                        onPress={() => {
-                          setSelectedCommunity({ id: community.id, name: community.name });
-                          setShowCommunityPicker(false);
-                        }}
-                      >
-                        <Text style={styles.communityOptionName}>{community.name}</Text>
-                        <Text style={styles.communityOptionType}>{community.community_type}</Text>
-                      </TouchableOpacity>
-                    ))}
+                    <Text style={styles.communityPickerHint}>Tap to select/deselect:</Text>
+                    {myCommunities.map((community) => {
+                      const isSelected = selectedCommunities.some(c => c.id === community.id);
+                      return (
+                        <TouchableOpacity
+                          key={community.id}
+                          style={[
+                            styles.communityOption,
+                            isSelected && styles.communityOptionSelected
+                          ]}
+                          onPress={() => toggleCommunitySelection({ id: community.id, name: community.name })}
+                        >
+                          <View style={[
+                            styles.communityCheckbox,
+                            isSelected && { backgroundColor: Colors.primary }
+                          ]}>
+                            {isSelected && <MaterialIcons name="check" size={16} color={Colors.surface} />}
+                          </View>
+                          <View style={styles.communityOptionInfo}>
+                            <Text style={styles.communityOptionName}>{community.name}</Text>
+                            <Text style={styles.communityOptionType}>{community.community_type}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                    <TouchableOpacity
+                      style={styles.communityDoneBtn}
+                      onPress={() => setShowCommunityPicker(false)}
+                    >
+                      <Text style={styles.communityDoneBtnText}>Done</Text>
+                    </TouchableOpacity>
                   </>
                 )}
               </View>
             )}
             
             <Text style={styles.helpText}>
-              Your {type} will be visible to everyone, but tagging a community helps members find it.
+              Your {type} will be visible to everyone, but tagging communities helps members find it.
             </Text>
           </View>
 
@@ -1186,6 +1223,27 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     overflow: 'hidden',
   },
+  selectedCommunitiesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  communityChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary + '20',
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingLeft: 12,
+    paddingRight: 8,
+    gap: 6,
+  },
+  communityChipText: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '500',
+  },
   selectedCommunity: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1216,6 +1274,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     overflow: 'hidden',
+    maxHeight: 300,
   },
   communityLoading: {
     flexDirection: 'row',
@@ -1249,16 +1308,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  communityPickerHint: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 6,
+  },
   communityOption: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 14,
+    padding: 12,
+    paddingHorizontal: 14,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    gap: 12,
   },
   communityOptionSelected: {
     backgroundColor: Colors.primary + '15',
+  },
+  communityCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  communityOptionInfo: {
+    flex: 1,
   },
   communityOptionName: {
     fontSize: 15,
@@ -1268,5 +1348,18 @@ const styles = StyleSheet.create({
   communityOptionType: {
     fontSize: 12,
     color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  communityDoneBtn: {
+    backgroundColor: Colors.primary,
+    margin: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  communityDoneBtnText: {
+    color: Colors.surface,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
