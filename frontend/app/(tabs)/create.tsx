@@ -57,10 +57,33 @@ export default function CreateScreen() {
   
   // Date picker for wishes
   const [showNeededByPicker, setShowNeededByPicker] = useState(false);
+  
+  // Community selector (optional)
+  const [selectedCommunity, setSelectedCommunity] = useState<{id: string, name: string} | null>(null);
+  const [showCommunityPicker, setShowCommunityPicker] = useState(false);
+  const [myCommunities, setMyCommunities] = useState<Array<{id: string, name: string, community_type: string}>>([]);
+  const [loadingCommunities, setLoadingCommunities] = useState(false);
 
   useEffect(() => {
     loadCategories();
+    loadMyCommunities();
   }, []);
+
+  const loadMyCommunities = async () => {
+    try {
+      setLoadingCommunities(true);
+      const response = await api.get('/hives/my-hives');
+      setMyCommunities(response.data.map((h: any) => ({
+        id: h.id,
+        name: h.name,
+        community_type: h.community_type || 'Community'
+      })));
+    } catch (error) {
+      console.error('Error loading communities:', error);
+    } finally {
+      setLoadingCommunities(false);
+    }
+  };
 
   const loadCategories = async () => {
     try {
@@ -153,6 +176,11 @@ export default function CreateScreen() {
         tags: tagsArray,
         location: location.trim(),
       };
+      
+      // Add community if selected
+      if (selectedCommunity) {
+        data.hive_id = selectedCommunity.id;
+      }
 
       if (type === 'pledge') {
         if (image) {
@@ -192,6 +220,7 @@ export default function CreateScreen() {
       setDateRanges([]);
       setNeededBy('');
       setUrgency('normal');
+      setSelectedCommunity(null);
       
       // Navigate to browse page to show success
       router.push('/browse');
@@ -443,6 +472,81 @@ export default function CreateScreen() {
                 Perfect for virtual services, online chat, advice, or remote support! 💻
               </Text>
             )}
+          </View>
+
+          {/* Optional Community Selector */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Post to Community (optional)</Text>
+            <TouchableOpacity
+              style={styles.communitySelector}
+              onPress={() => setShowCommunityPicker(!showCommunityPicker)}
+            >
+              {selectedCommunity ? (
+                <View style={styles.selectedCommunity}>
+                  <MaterialIcons name="groups" size={18} color={Colors.primary} />
+                  <Text style={styles.selectedCommunityText}>{selectedCommunity.name}</Text>
+                  <TouchableOpacity 
+                    onPress={() => setSelectedCommunity(null)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <MaterialIcons name="close" size={18} color={Colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.communityPlaceholder}>
+                  <MaterialIcons name="groups" size={18} color={Colors.textSecondary} />
+                  <Text style={styles.communityPlaceholderText}>Select a community...</Text>
+                  <MaterialIcons name="arrow-drop-down" size={24} color={Colors.textSecondary} />
+                </View>
+              )}
+            </TouchableOpacity>
+            
+            {showCommunityPicker && (
+              <View style={styles.communityDropdown}>
+                {loadingCommunities ? (
+                  <View style={styles.communityLoading}>
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                    <Text style={styles.communityLoadingText}>Loading communities...</Text>
+                  </View>
+                ) : myCommunities.length === 0 ? (
+                  <View style={styles.noCommunities}>
+                    <Text style={styles.noCommunitiesText}>You haven't joined any communities yet</Text>
+                    <TouchableOpacity 
+                      style={styles.joinCommunitiesBtn}
+                      onPress={() => {
+                        setShowCommunityPicker(false);
+                        router.push('/hive');
+                      }}
+                    >
+                      <Text style={styles.joinCommunitiesBtnText}>Find Communities</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <>
+                    {myCommunities.map((community) => (
+                      <TouchableOpacity
+                        key={community.id}
+                        style={[
+                          styles.communityOption,
+                          selectedCommunity?.id === community.id && styles.communityOptionSelected
+                        ]}
+                        onPress={() => {
+                          setSelectedCommunity({ id: community.id, name: community.name });
+                          setShowCommunityPicker(false);
+                        }}
+                      >
+                        <Text style={styles.communityOptionName}>{community.name}</Text>
+                        <Text style={styles.communityOptionType}>{community.community_type}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </>
+                )}
+              </View>
+            )}
+            
+            <Text style={styles.helpText}>
+              Your {type} will be visible to everyone, but tagging a community helps members find it.
+            </Text>
           </View>
 
           {type === 'pledge' && (
@@ -1073,5 +1177,96 @@ const styles = StyleSheet.create({
     color: Colors.warning,
     fontStyle: 'italic',
     marginTop: 8,
+  },
+  // Community selector styles
+  communitySelector: {
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  selectedCommunity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 10,
+  },
+  selectedCommunityText: {
+    flex: 1,
+    fontSize: 15,
+    color: Colors.primary,
+    fontWeight: '500',
+  },
+  communityPlaceholder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 10,
+  },
+  communityPlaceholderText: {
+    flex: 1,
+    fontSize: 15,
+    color: Colors.textSecondary,
+  },
+  communityDropdown: {
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  communityLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    gap: 10,
+  },
+  communityLoadingText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  noCommunities: {
+    padding: 16,
+    alignItems: 'center',
+    gap: 12,
+  },
+  noCommunitiesText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+  },
+  joinCommunitiesBtn: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+  },
+  joinCommunitiesBtnText: {
+    color: Colors.surface,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  communityOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  communityOptionSelected: {
+    backgroundColor: Colors.primary + '15',
+  },
+  communityOptionName: {
+    fontSize: 15,
+    color: Colors.text,
+    fontWeight: '500',
+  },
+  communityOptionType: {
+    fontSize: 12,
+    color: Colors.textSecondary,
   },
 });
