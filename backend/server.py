@@ -423,33 +423,22 @@ class ResolutionResponse(BaseModel):
     updated_at: Optional[datetime] = None
 
 # Hive Models - Federation-Ready Architecture
-class HiveHierarchy(BaseModel):
-    country: Optional[str] = None
-    city: Optional[str] = None
-    town: Optional[str] = None
-    neighborhood: Optional[str] = None
+# Community Types as per spec
+COMMUNITY_TYPES = ['Street', 'Resort', 'Neighbourhood', 'Suburb', 'Town', 'City', 'Country', 'Club', 'Other']
 
-class ParentToCreate(BaseModel):
-    level: str  # 'country', 'city', 'town', 'neighborhood'
-    name: str
-    
 class HiveCreate(BaseModel):
-    name: str
-    description: str
-    location: str
-    vision: Optional[str] = ""  # What this hive stands for
-    image: Optional[str] = None
-    parent_hive_id: Optional[str] = None  # Link to parent (e.g., Spain for Altaona)
-    community_type: Optional[str] = None  # 'country', 'city', 'town', 'neighborhood', 'street'
-    hierarchy: Optional[HiveHierarchy] = None  # For auto-joining parent communities
-    join_parent_ids: Optional[List[str]] = None  # Specific parent community IDs to join
-    parents_to_create: Optional[List[ParentToCreate]] = None  # Missing parents to create first
+    name: str  # Required - What people call it
+    community_type: str  # Required - One of COMMUNITY_TYPES
+    parent_id: Optional[str] = None  # Required unless type is Country
+    description: Optional[str] = ""  # Optional
+    photo: Optional[str] = None  # Optional cover image
 
 class HiveResponse(BaseModel):
     id: str
     name: str
     description: str
-    location: str
+    community_type: str  # Street, Resort, Town, etc.
+    location: str  # Computed from ancestry path
     vision: str
     image: Optional[str] = None
     hive_type: str  # "local" (within WayPledge) or "federated" (external platform)
@@ -461,8 +450,9 @@ class HiveResponse(BaseModel):
     external_url: Optional[str] = None  # For federated hives
     api_endpoint: Optional[str] = None  # For future federation
     is_verified: bool
-    parent_hive_id: Optional[str] = None  # Parent hive (e.g., Spain)
+    parent_hive_id: Optional[str] = None  # Parent hive ID
     parent_hive_name: Optional[str] = None
+    ancestry_path: List[dict] = []  # Full path: [{id, name, type}, ...]
     child_hive_count: int = 0  # Number of sub-communities
     created_at: datetime
 
@@ -2764,16 +2754,20 @@ async def batch_build_hive_responses(hives: List[dict]) -> List[HiveResponse]:
         parent_id = h.get("parent_hive_id")
         parent_name = parent_names.get(parent_id) if parent_id else None
         
+        # Get ancestry path for each hive (for list view we can skip this for performance)
+        # ancestry = await get_ancestry_path(parent_id) if parent_id else []
+        
         results.append(HiveResponse(
             id=hive_id,
             name=h["name"],
-            description=h["description"],
-            location=h["location"],
+            description=h.get("description", ""),
+            community_type=h.get("community_type", "Other"),
+            location=h.get("location", ""),
             vision=h.get("vision", ""),
             image=h.get("image"),
-            hive_type=h["hive_type"],
-            founder_id=h["founder_id"],
-            founder_name=h["founder_name"],
+            hive_type=h.get("hive_type", "local"),
+            founder_id=h.get("founder_id", ""),
+            founder_name=h.get("founder_name", ""),
             member_count=hive_stats["member_count"],
             pledge_count=hive_stats["pledge_count"],
             wish_count=hive_stats["wish_count"],
@@ -2782,8 +2776,9 @@ async def batch_build_hive_responses(hives: List[dict]) -> List[HiveResponse]:
             is_verified=h.get("is_verified", False),
             parent_hive_id=parent_id,
             parent_hive_name=parent_name,
+            ancestry_path=[],  # Skipped in list view for performance
             child_hive_count=hive_stats["child_count"],
-            created_at=h["created_at"]
+            created_at=h.get("created_at", datetime.utcnow())
         ))
     
     return results
@@ -2794,16 +2789,22 @@ async def build_hive_response(h: dict) -> HiveResponse:
     member_count, pledge_count, wish_count, child_count = await get_hive_stats(hive_id)
     parent_id, parent_name = await get_parent_hive_info(h.get("parent_hive_id"))
     
+    # Get ancestry path
+    ancestry = []
+    if h.get("parent_hive_id"):
+        ancestry = await get_ancestry_path(h["parent_hive_id"])
+    
     return HiveResponse(
         id=hive_id,
         name=h["name"],
-        description=h["description"],
-        location=h["location"],
+        description=h.get("description", ""),
+        community_type=h.get("community_type", "Other"),
+        location=h.get("location", ""),
         vision=h.get("vision", ""),
         image=h.get("image"),
-        hive_type=h["hive_type"],
-        founder_id=h["founder_id"],
-        founder_name=h["founder_name"],
+        hive_type=h.get("hive_type", "local"),
+        founder_id=h.get("founder_id", ""),
+        founder_name=h.get("founder_name", ""),
         member_count=member_count,
         pledge_count=pledge_count,
         wish_count=wish_count,
@@ -2812,9 +2813,40 @@ async def build_hive_response(h: dict) -> HiveResponse:
         is_verified=h.get("is_verified", False),
         parent_hive_id=parent_id,
         parent_hive_name=parent_name,
+        ancestry_path=ancestry,
         child_hive_count=child_count,
-        created_at=h["created_at"]
+        created_at=h.get("created_at", datetime.utcnow())
     )
+
+async def get_ancestry_path(hive_id: str) -> List[dict]:
+    """Get full ancestry path for a community (from root to immediate parent)"""
+    path = []
+    current_id = hive_id
+    visited = set()  # Prevent infinite loops
+    
+    while current_id and current_id not in visited:
+        visited.add(current_id)
+        try:
+            hive = await db.hives.find_one({"_id": ObjectId(current_id)})
+            if not hive:
+                break
+            path.insert(0, {
+                "id": str(hive["_id"]),
+                "name": hive["name"],
+                "type": hive.get("community_type", "Other")
+            })
+            current_id = hive.get("parent_hive_id")
+        except:
+            break
+    
+    return path
+
+def build_location_from_path(path: List[dict]) -> str:
+    """Build location string from ancestry path"""
+    if not path:
+        return ""
+    # Reverse order: Street → Resort → Town → City → Country becomes "Street, Resort, Town, City, Country"
+    return " · ".join([p["name"] for p in reversed(path)])
 
 async def find_similar_hives(name: str, location: str, exclude_names: list = None):
     """Find hives with similar name or in same location.
@@ -2882,212 +2914,112 @@ async def check_similar_hives(hive: HiveCreate, current_user = Depends(get_curre
     }
 
 @api_router.post("/hives", response_model=HiveResponse)
-async def create_hive(hive: HiveCreate, force: bool = False, current_user = Depends(get_current_user)):
-    """Create a new local hive (chapter)"""
-    # Check if hive name already exists (exact match)
-    existing = await db.hives.find_one({"name": {"$regex": f"^{hive.name}$", "$options": "i"}})
-    if existing:
-        raise HTTPException(status_code=400, detail="A hive with this name already exists")
+async def create_hive(hive: HiveCreate, current_user = Depends(get_current_user)):
+    """Create a new community following the new spec:
+    - name (required)
+    - community_type (required): Street, Resort, Neighbourhood, Suburb, Town, City, Country, Club, Other
+    - parent_id (required unless type is Country)
+    - description (optional)
+    - photo (optional)
     
-    # --- Create missing parent communities first (if requested) ---
-    created_parent_ids = []  # Store IDs of newly created parents
-    level_order = ['country', 'city', 'town', 'neighborhood']  # Order matters for hierarchy
-    last_created_parent_id = None
-    
-    if hive.parents_to_create and len(hive.parents_to_create) > 0:
-        # Sort parents by level to ensure proper hierarchy (country first, then city, etc.)
-        parents_sorted = sorted(
-            hive.parents_to_create, 
-            key=lambda p: level_order.index(p.level) if p.level in level_order else 99
+    Duplicate check: name + community_type + parent_id must be unique
+    """
+    # Validate community_type
+    if hive.community_type not in COMMUNITY_TYPES:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invalid community type. Must be one of: {', '.join(COMMUNITY_TYPES)}"
         )
-        
-        for parent_to_create in parents_sorted:
-            # Check if this parent already exists (avoid duplicates)
-            existing_parent = await db.hives.find_one({
-                "name": {"$regex": f"^{parent_to_create.name}$", "$options": "i"}
-            })
-            
-            if existing_parent:
-                # Already exists, just record the ID for linking
-                last_created_parent_id = str(existing_parent["_id"])
-                created_parent_ids.append(last_created_parent_id)
-                continue
-            
-            # Build location from hierarchy for this level
-            level_idx = level_order.index(parent_to_create.level) if parent_to_create.level in level_order else 0
-            location_parts = []
-            if hive.hierarchy:
-                if level_idx >= 3 and hive.hierarchy.neighborhood:
-                    location_parts.insert(0, hive.hierarchy.neighborhood)
-                if level_idx >= 2 and hive.hierarchy.town:
-                    location_parts.insert(0, hive.hierarchy.town)
-                if level_idx >= 1 and hive.hierarchy.city:
-                    location_parts.insert(0, hive.hierarchy.city)
-                if hive.hierarchy.country:
-                    location_parts.insert(0, hive.hierarchy.country)
-            
-            # For the parent level itself, use its own name at the right position
-            if parent_to_create.level == 'country':
-                location_parts = [parent_to_create.name]
-            elif parent_to_create.level == 'city':
-                location_parts = [parent_to_create.name]
-                if hive.hierarchy and hive.hierarchy.country:
-                    location_parts.append(hive.hierarchy.country)
-            elif parent_to_create.level == 'town':
-                location_parts = [parent_to_create.name]
-                if hive.hierarchy and hive.hierarchy.city:
-                    location_parts.append(hive.hierarchy.city)
-                if hive.hierarchy and hive.hierarchy.country:
-                    location_parts.append(hive.hierarchy.country)
-            elif parent_to_create.level == 'neighborhood':
-                location_parts = [parent_to_create.name]
-                if hive.hierarchy and hive.hierarchy.town:
-                    location_parts.append(hive.hierarchy.town)
-                if hive.hierarchy and hive.hierarchy.city:
-                    location_parts.append(hive.hierarchy.city)
-                if hive.hierarchy and hive.hierarchy.country:
-                    location_parts.append(hive.hierarchy.country)
-            
-            parent_location = ', '.join(location_parts)
-            
-            # Create the parent community
-            parent_dict = {
-                "name": parent_to_create.name,
-                "description": f"Community for {parent_to_create.name}",
-                "location": parent_location,
-                "vision": "",
-                "image": None,
-                "hive_type": "local",
-                "founder_id": str(current_user["_id"]),
-                "founder_name": current_user["name"],
-                "external_url": None,
-                "api_endpoint": None,
-                "is_verified": False,
-                "parent_hive_id": last_created_parent_id,  # Link to previous level
-                "created_at": datetime.utcnow()
-            }
-            result = await db.hives.insert_one(parent_dict)
-            new_parent_id = str(result.inserted_id)
-            
-            # Auto-add user as founder of this parent community
-            await db.hive_members.insert_one({
-                "user_id": str(current_user["_id"]),
-                "user_name": current_user["name"],
-                "hive_id": new_parent_id,
-                "role": "founder",
-                "joined_at": datetime.utcnow()
-            })
-            
-            logger.info(f"PARENT CREATED: {parent_to_create.name} ({parent_to_create.level}) by {current_user['name']}")
-            
-            created_parent_ids.append(new_parent_id)
-            last_created_parent_id = new_parent_id
     
-    # --- Validate manually specified parent hive (if provided) ---
+    # Validate parent_id requirement (Country type doesn't need parent)
+    if hive.community_type != 'Country' and not hive.parent_id:
+        raise HTTPException(
+            status_code=400, 
+            detail="Parent community is required. Select which community this sits inside."
+        )
+    
+    # Validate parent exists (if provided)
     parent_name = None
-    final_parent_id = hive.parent_hive_id
-    
-    # If we created parents, link the main hive to the deepest parent level
-    if last_created_parent_id:
-        final_parent_id = last_created_parent_id
-    
-    if final_parent_id:
-        parent = await db.hives.find_one({"_id": ObjectId(final_parent_id)})
-        if parent:
+    if hive.parent_id:
+        try:
+            parent = await db.hives.find_one({"_id": ObjectId(hive.parent_id)})
+            if not parent:
+                raise HTTPException(status_code=404, detail="Parent community not found")
             parent_name = parent["name"]
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid parent community ID")
     
-    # If not forcing, check for similar hives and warn
-    # Build exclusion list from hierarchy names (these are parent communities, not duplicates)
-    exclude_hierarchy_names = []
-    if hive.hierarchy:
-        if hive.hierarchy.country:
-            exclude_hierarchy_names.append(hive.hierarchy.country)
-        if hive.hierarchy.city:
-            exclude_hierarchy_names.append(hive.hierarchy.city)
-        if hive.hierarchy.town:
-            exclude_hierarchy_names.append(hive.hierarchy.town)
-        if hive.hierarchy.neighborhood:
-            exclude_hierarchy_names.append(hive.hierarchy.neighborhood)
+    # Check for duplicate: same name + type + parent_id
+    duplicate_query = {
+        "name": {"$regex": f"^{hive.name.strip()}$", "$options": "i"},
+        "community_type": hive.community_type
+    }
+    if hive.parent_id:
+        duplicate_query["parent_hive_id"] = hive.parent_id
+    else:
+        duplicate_query["parent_hive_id"] = None
     
-    if not force:
-        similar = await find_similar_hives(hive.name, hive.location, exclude_names=exclude_hierarchy_names)
-        if similar:
-            similar_names = [h["name"] for h in similar[:3]]
-            raise HTTPException(
-                status_code=409,  # Conflict
-                detail={
-                    "message": "Similar hives exist in this area",
-                    "similar": similar_names,
-                    "action": "Use force=true to create anyway, or join an existing hive"
-                }
-            )
+    existing = await db.hives.find_one(duplicate_query)
+    if existing:
+        # Get ancestry path for the existing community
+        ancestry = await get_ancestry_path(str(existing["_id"]))
+        path_str = " → ".join([p["name"] for p in ancestry])
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "This community already exists",
+                "existing_id": str(existing["_id"]),
+                "existing_name": existing["name"],
+                "existing_path": path_str,
+                "action": "Join the existing community instead"
+            }
+        )
     
+    # Build location string from ancestry
+    ancestry_path = []
+    if hive.parent_id:
+        ancestry_path = await get_ancestry_path(hive.parent_id)
+    
+    # Add the new community to the path for display
+    full_path = ancestry_path + [{"id": "", "name": hive.name.strip(), "type": hive.community_type}]
+    location_str = build_location_from_path(full_path)
+    
+    # Create the community
     hive_dict = {
-        "name": hive.name,
-        "description": hive.description,
-        "location": hive.location,
-        "vision": hive.vision or "",
-        "image": hive.image,
-        "hive_type": "local",  # Local chapter within WayPledge
+        "name": hive.name.strip(),
+        "description": hive.description or "",
+        "community_type": hive.community_type,
+        "location": location_str,
+        "vision": "",
+        "image": hive.photo,
+        "hive_type": "local",
         "founder_id": str(current_user["_id"]),
         "founder_name": current_user["name"],
         "external_url": None,
         "api_endpoint": None,
-        "is_verified": False,  # Admins can verify hives
-        "parent_hive_id": final_parent_id,  # Link to parent (created or specified)
+        "is_verified": False,
+        "parent_hive_id": hive.parent_id,
         "created_at": datetime.utcnow()
     }
     result = await db.hives.insert_one(hive_dict)
     hive_id = str(result.inserted_id)
     
     # Auto-add founder as member with "founder" role
-    member_dict = {
+    await db.hive_members.insert_one({
         "user_id": str(current_user["_id"]),
         "user_name": current_user["name"],
         "hive_id": hive_id,
         "role": "founder",
         "joined_at": datetime.utcnow()
-    }
-    await db.hive_members.insert_one(member_dict)
+    })
     
-    # Join selected parent communities (if user chose to)
-    joined_parents = []
-    
-    if hive.join_parent_ids:
-        for parent_id in hive.join_parent_ids:
-            try:
-                # Verify parent exists
-                parent_hive = await db.hives.find_one({"_id": ObjectId(parent_id)})
-                if not parent_hive:
-                    continue
-                    
-                # Check if already a member
-                already_member = await db.hive_members.find_one({
-                    "user_id": str(current_user["_id"]),
-                    "hive_id": parent_id
-                })
-                if not already_member:
-                    # Join this parent community
-                    await db.hive_members.insert_one({
-                        "user_id": str(current_user["_id"]),
-                        "user_name": current_user["name"],
-                        "hive_id": parent_id,
-                        "role": "member",
-                        "joined_at": datetime.utcnow()
-                    })
-                    joined_parents.append(parent_hive["name"])
-            except Exception as e:
-                logger.error(f"Error joining parent community {parent_id}: {e}")
-    
-    if joined_parents:
-        logger.info(f"User {current_user['name']} joined selected parent communities: {', '.join(joined_parents)}")
-    
-    logger.info(f"NEW HIVE CREATED: {hive.name} in {hive.location} by {current_user['name']} (parent: {parent_name})")
+    logger.info(f"NEW COMMUNITY CREATED: {hive.name} ({hive.community_type}) by {current_user['name']} (parent: {parent_name})")
     
     return HiveResponse(
         id=hive_id,
         name=hive_dict["name"],
         description=hive_dict["description"],
+        community_type=hive_dict["community_type"],
         location=hive_dict["location"],
         vision=hive_dict["vision"],
         image=hive_dict["image"],
@@ -3100,93 +3032,12 @@ async def create_hive(hive: HiveCreate, force: bool = False, current_user = Depe
         external_url=hive_dict["external_url"],
         api_endpoint=hive_dict["api_endpoint"],
         is_verified=hive_dict["is_verified"],
-        parent_hive_id=final_parent_id,
+        parent_hive_id=hive.parent_id,
         parent_hive_name=parent_name,
+        ancestry_path=ancestry_path,
         child_hive_count=0,
         created_at=hive_dict["created_at"]
     )
-
-@api_router.post("/hives/check-existing-parents")
-async def check_existing_parent_communities(hierarchy: HiveHierarchy, current_user = Depends(get_current_user)):
-    """Check which parent communities exist and which need to be created"""
-    existing_parents = []
-    missing_parents = []
-    
-    hierarchy_items = [
-        ('country', hierarchy.country, '🌍'),
-        ('city', hierarchy.city, '🏙️'),
-        ('town', hierarchy.town, '🏘️'),
-        ('neighborhood', hierarchy.neighborhood, '🏡'),
-    ]
-    
-    for level, name, icon in hierarchy_items:
-        if name and len(name) >= 2:
-            search_name = name.strip()
-            
-            # Build a more flexible search
-            matches = await db.hives.find({
-                "$or": [
-                    {"name": {"$regex": f"^{search_name}$", "$options": "i"}},
-                    {"name": {"$regex": search_name, "$options": "i"}},
-                    {"name": {"$regex": f".*{search_name[:4]}.*", "$options": "i"}} if len(search_name) >= 4 else {"name": search_name},
-                ]
-            }).to_list(10)
-            
-            # Score and rank matches
-            best_match = None
-            best_score = 0
-            
-            for match in matches:
-                match_name = match["name"].lower()
-                search_lower = search_name.lower()
-                
-                score = 0
-                if match_name == search_lower:
-                    score = 100
-                elif search_lower in match_name or match_name in search_lower:
-                    score = 80
-                elif any(word in match_name for word in search_lower.split() if len(word) > 3):
-                    score = 60
-                else:
-                    common = sum(1 for c in search_lower if c in match_name)
-                    score = (common / max(len(search_lower), len(match_name))) * 50
-                
-                if score > best_score:
-                    best_score = score
-                    best_match = match
-            
-            if best_match and best_score >= 50:
-                # Found existing community
-                is_member = await db.hive_members.find_one({
-                    "user_id": str(current_user["_id"]),
-                    "hive_id": str(best_match["_id"])
-                })
-                existing_parents.append({
-                    "level": level,
-                    "name": best_match["name"],
-                    "id": str(best_match["_id"]),
-                    "icon": icon,
-                    "location": best_match.get("location", ""),
-                    "member_count": await db.hive_members.count_documents({"hive_id": str(best_match["_id"])}),
-                    "already_member": bool(is_member),
-                    "match_score": best_score,
-                    "searched_for": search_name,
-                    "exists": True,
-                })
-            else:
-                # This level doesn't exist - can be created
-                missing_parents.append({
-                    "level": level,
-                    "name": search_name,
-                    "icon": icon,
-                    "exists": False,
-                })
-    
-    return {
-        "existing_parents": existing_parents,
-        "missing_parents": missing_parents,
-        "will_auto_join": [p for p in existing_parents if not p["already_member"]]
-    }
 
 @api_router.post("/hives/{hive_id}/verify")
 async def verify_hive(hive_id: str, current_user = Depends(get_current_user)):
