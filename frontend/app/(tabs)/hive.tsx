@@ -82,7 +82,7 @@ export default function HiveScreen() {
   const loadMyCommunities = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
-      const response = await api.get('/hives/my-hives');
+      const response = await api.get('/hives/my/memberships');
       setMyCommunities(response.data);
     } catch (error) {
       console.error('Error loading my communities:', error);

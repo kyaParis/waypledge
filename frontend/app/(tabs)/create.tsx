@@ -72,7 +72,7 @@ export default function CreateScreen() {
   const loadMyCommunities = async () => {
     try {
       setLoadingCommunities(true);
-      const response = await api.get('/hives/my-hives');
+      const response = await api.get('/hives/my/memberships');
       setMyCommunities(response.data.map((h: any) => ({
         id: h.id,
         name: h.name,
