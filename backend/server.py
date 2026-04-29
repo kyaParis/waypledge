@@ -2579,6 +2579,34 @@ async def delete_account(deletion_request: AccountDeletionRequest, current_user 
 # CLOUDINARY IMAGE UPLOAD ENDPOINTS
 # ==========================================
 
+class ImageUploadRequest(BaseModel):
+    image: str  # Base64 encoded image data
+
+@api_router.post("/upload-image")
+async def upload_image(request: ImageUploadRequest, current_user = Depends(get_current_user)):
+    """Upload an image to Cloudinary and return the URL"""
+    import cloudinary.uploader
+    
+    try:
+        # Upload to Cloudinary
+        result = cloudinary.uploader.upload(
+            request.image,
+            folder="waypledge",
+            resource_type="image",
+            transformation=[
+                {"quality": "auto", "fetch_format": "auto"},
+                {"width": 1200, "crop": "limit"}  # Limit max width
+            ]
+        )
+        
+        return {
+            "url": result["secure_url"],
+            "public_id": result["public_id"]
+        }
+    except Exception as e:
+        logger.error(f"Cloudinary upload error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload image")
+
 @api_router.get("/cloudinary/signature")
 async def get_cloudinary_signature(
     resource_type: str = Query("image", enum=["image", "video"]),
