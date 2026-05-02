@@ -29,7 +29,10 @@
     "production": {
       "ios": {
         "resourceClass": "m-medium",
-        "autoIncrement": "buildNumber"
+        "autoIncrement": "buildNumber",
+        "capabilitiesForPayloadKey": {
+          "push-notifications": true
+        }
       },
       "android": {
         "buildType": "app-bundle",
