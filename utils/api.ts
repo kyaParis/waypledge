@@ -61,6 +61,7 @@ export interface Connection {
   item_type?: 'pledge' | 'wish';
   status: string;
   created_at: string;
+  has_unread?: boolean;
 }
 
 export interface Message {

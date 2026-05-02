@@ -215,7 +215,10 @@ export default function MessagesScreen() {
             return (
               <TouchableOpacity
                 key={connection.id}
-                style={styles.connectionCard}
+                style={[
+                  styles.connectionCard,
+                  connection.has_unread && styles.connectionCardUnread
+                ]}
                 onPress={() => setSelectedConnection(connection)}
               >
                 <View
@@ -235,9 +238,17 @@ export default function MessagesScreen() {
                   />
                 </View>
                 <View style={styles.connectionInfo}>
-                  <Text style={styles.connectionTitle} numberOfLines={1}>
-                    {connection.item_title || (itemType === 'pledge' ? 'Pledge' : 'Wish')}
-                  </Text>
+                  <View style={styles.connectionTitleRow}>
+                    <Text style={[
+                      styles.connectionTitle,
+                      connection.has_unread && styles.connectionTitleUnread
+                    ]} numberOfLines={1}>
+                      {connection.item_title || (itemType === 'pledge' ? 'Pledge' : 'Wish')}
+                    </Text>
+                    {connection.has_unread && (
+                      <View style={styles.unreadDot} />
+                    )}
+                  </View>
                   <Text style={styles.connectionPerson}>
                     with {otherPersonName || 'Unknown'}
                   </Text>
@@ -303,6 +314,11 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+  connectionCardUnread: {
+    backgroundColor: Colors.primaryLight + '15',
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.primary,
+  },
   connectionIcon: {
     width: 48,
     height: 48,
@@ -314,11 +330,26 @@ const styles = StyleSheet.create({
   connectionInfo: {
     flex: 1,
   },
+  connectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
   connectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: 2,
+    flex: 1,
+  },
+  connectionTitleUnread: {
+    fontWeight: '700',
+  },
+  unreadDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.primary,
+    marginLeft: 8,
   },
   connectionPerson: {
     fontSize: 14,
