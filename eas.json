@@ -28,8 +28,7 @@
     },
     "production": {
       "ios": {
-        "resourceClass": "m-medium",
-        "autoIncrement": "buildNumber"
+        "resourceClass": "m-medium"
       },
       "android": {
         "buildType": "app-bundle",
