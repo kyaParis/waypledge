@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "me.waypledge.app",
-      "buildNumber": "1",
+      "buildNumber": "5",
       "infoPlist": {
         "NSCameraUsageDescription": "Take photos for your pledges",
         "NSPhotoLibraryUsageDescription": "Share photos from your gallery",
@@ -33,7 +33,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "me.waypledge.app",
-      "versionCode": 1,
+      "versionCode": 10,
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
@@ -58,7 +58,8 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-localization"
+      "expo-localization",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

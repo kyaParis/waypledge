@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
+import api from '../../utils/api';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -24,6 +25,27 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isWakingServer, setIsWakingServer] = useState(true);
+
+  // Wake up server when login screen loads
+  useEffect(() => {
+    const wakeServer = async () => {
+      try {
+        await api.get('/health');
+      } catch (e) {
+        // Retry once after a short delay
+        setTimeout(async () => {
+          try {
+            await api.get('/health');
+          } catch (e2) {
+            // Server might be unavailable
+          }
+        }, 1000);
+      }
+      setIsWakingServer(false);
+    };
+    wakeServer();
+  }, []);
 
   const handleLogin = async () => {
     setErrorMessage('');
@@ -77,6 +99,8 @@ export default function LoginScreen() {
                 onChangeText={(text) => { setEmail(text); setErrorMessage(''); }}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoComplete="email"
+                textContentType="emailAddress"
                 placeholderTextColor={Colors.textSecondary}
               />
             </View>
@@ -89,6 +113,8 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={(text) => { setPassword(text); setErrorMessage(''); }}
                 secureTextEntry={!showPassword}
+                autoComplete="password"
+                textContentType="password"
                 placeholderTextColor={Colors.textSecondary}
               />
               <TouchableOpacity 
@@ -121,6 +147,13 @@ export default function LoginScreen() {
               ) : (
                 <Text style={styles.loginButtonText}>Sign In</Text>
               )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => router.push('/(auth)/forgot-password')}
+              style={styles.forgotPasswordLink}
+            >
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -239,5 +272,14 @@ const styles = StyleSheet.create({
   registerLinkTextBold: {
     color: Colors.primary,
     fontWeight: '600',
+  },
+  forgotPasswordLink: {
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  forgotPasswordText: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '500',
   },
 });

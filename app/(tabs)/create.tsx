@@ -16,9 +16,9 @@ import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
 import api, { Category } from '../../utils/api';
-import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../../store/authStore';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
+import ImagePickerButton from '../../components/ImagePickerButton';
 
 type CreateType = 'pledge' | 'wish';
 type Urgency = 'urgent' | 'normal' | 'flexible';
@@ -57,10 +57,48 @@ export default function CreateScreen() {
   
   // Date picker for wishes
   const [showNeededByPicker, setShowNeededByPicker] = useState(false);
+  
+  // Community selector (optional) - Now supports multiple communities
+  const [selectedCommunities, setSelectedCommunities] = useState<Array<{id: string, name: string}>>([]);
+  const [showCommunityPicker, setShowCommunityPicker] = useState(false);
+  const [myCommunities, setMyCommunities] = useState<Array<{id: string, name: string, community_type: string}>>([]);
+  const [loadingCommunities, setLoadingCommunities] = useState(false);
 
   useEffect(() => {
     loadCategories();
+    loadMyCommunities();
   }, []);
+
+  const loadMyCommunities = async () => {
+    try {
+      setLoadingCommunities(true);
+      const response = await api.get('/hives/my/memberships');
+      setMyCommunities(response.data.map((h: any) => ({
+        id: h.id,
+        name: h.name,
+        community_type: h.community_type || 'Community'
+      })));
+    } catch (error) {
+      console.error('Error loading communities:', error);
+    } finally {
+      setLoadingCommunities(false);
+    }
+  };
+
+  const toggleCommunitySelection = (community: {id: string, name: string}) => {
+    setSelectedCommunities(prev => {
+      const isSelected = prev.some(c => c.id === community.id);
+      if (isSelected) {
+        return prev.filter(c => c.id !== community.id);
+      } else {
+        return [...prev, community];
+      }
+    });
+  };
+
+  const removeCommunity = (communityId: string) => {
+    setSelectedCommunities(prev => prev.filter(c => c.id !== communityId));
+  };
 
   const loadCategories = async () => {
     try {
@@ -84,7 +122,10 @@ export default function CreateScreen() {
   const handleFromDateConfirm = (date: Date) => {
     setShowFromPicker(false);
     setTempFromDate(date);
-    setShowToPicker(true); // Immediately show "To" picker
+    // Add a small delay before showing "To" picker to prevent flickering
+    setTimeout(() => {
+      setShowToPicker(true);
+    }, 300);
   };
 
   // Handle "To" date selection
@@ -117,29 +158,8 @@ export default function CreateScreen() {
     ).join(', ');
   };
 
-  const pickImage = async () => {
-    if (type === 'wish') {
-      Alert.alert('Notice', 'Images are only available for pledges');
-      return;
-    }
-
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
-      Alert.alert('Permission Required', 'Please allow access to your photo library');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.5,
-      base64: true,
-    });
-
-    if (!result.canceled && result.assets[0].base64) {
-      setImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
-    }
+  const handleImageUploaded = (imageUrl: string) => {
+    setImage(imageUrl);
   };
 
   const handleCreate = async () => {
@@ -171,6 +191,11 @@ export default function CreateScreen() {
         tags: tagsArray,
         location: location.trim(),
       };
+      
+      // Add communities if selected (multiple)
+      if (selectedCommunities.length > 0) {
+        data.hive_ids = selectedCommunities.map(c => c.id);
+      }
 
       if (type === 'pledge') {
         if (image) {
@@ -184,6 +209,9 @@ export default function CreateScreen() {
       } else {
         // Wish fields
         data.urgency = urgency;
+        if (image) {
+          data.image = image;
+        }
         if (neededBy) {
           const parsed = parseDate(neededBy);
           if (parsed) {
@@ -192,31 +220,45 @@ export default function CreateScreen() {
         }
       }
 
-      await api.post(endpoint, data);
+      console.log('Submitting', type, ':', data);
+      const response = await api.post(endpoint, data);
+      console.log('Success! Response:', response.data);
 
-      Alert.alert(
-        'Success',
-        `Your ${type} has been created!`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setTitle('');
-              setDescription('');
-              setCategory('');
-              setTags('');
-              setLocation('');
-              setImage(null);
-              setAvailableUntil('');
-              setDateRanges([]);
-              setNeededBy('');
-              setUrgency('normal');
-            },
-          },
-        ]
-      );
+      // Clear form immediately
+      setTitle('');
+      setDescription('');
+      setCategory('');
+      setTags('');
+      setLocation('');
+      setImage(null);
+      setAvailableUntil('');
+      setDateRanges([]);
+      setNeededBy('');
+      setUrgency('normal');
+      setSelectedCommunities([]);
+      
+      // Navigate to browse page to show success
+      router.push('/browse');
+      
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || `Failed to create ${type}`);
+      const status = error.response?.status;
+      const detail = error.response?.data?.detail;
+      
+      if (status === 403 && detail?.includes('not approved')) {
+        Alert.alert(
+          'Account Pending Approval',
+          'Your account is waiting for admin approval before you can create pledges or wishes. This helps keep our community safe. Please check back soon!',
+          [{ text: 'OK' }]
+        );
+      } else if (status === 403) {
+        Alert.alert(
+          'Action Not Allowed',
+          detail || 'You do not have permission to perform this action.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Error', detail || `Failed to create ${type}`);
+      }
     } finally {
       setIsLoading(false);
       // Reset the ref after a short delay to allow UI to update
@@ -406,19 +448,19 @@ export default function CreateScreen() {
               <TouchableOpacity
                 style={[
                   styles.locationButton,
-                  location && location !== 'Online' && styles.locationButtonActive,
+                  location !== 'Online' && styles.locationButtonActive,
                 ]}
                 onPress={() => setLocation('')}
               >
                 <MaterialIcons
                   name="location-on"
                   size={18}
-                  color={location && location !== 'Online' ? Colors.surface : Colors.primary}
+                  color={location !== 'Online' ? Colors.surface : Colors.primary}
                 />
                 <Text
                   style={[
                     styles.locationButtonText,
-                    location && location !== 'Online' && styles.locationButtonTextActive,
+                    location !== 'Online' && styles.locationButtonTextActive,
                   ]}
                 >
                   Local
@@ -429,13 +471,14 @@ export default function CreateScreen() {
               <>
                 <TextInput
                   style={styles.input}
-                  placeholder="e.g., Frigiliana, Andalusia, Spain"
+                  placeholder="e.g., Altaona, Murcia, Spain"
                   value={location}
                   onChangeText={setLocation}
                   placeholderTextColor={Colors.textSecondary}
                 />
                 <Text style={styles.helpText}>
-                  Enter your community, city, region, or country
+                  Include your area + country so people can find you.{'\n'}
+                  Don't share your exact address - just the nearest area you're comfortable with.
                 </Text>
               </>
             )}
@@ -446,22 +489,127 @@ export default function CreateScreen() {
             )}
           </View>
 
-          {type === 'pledge' && (
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Image (optional)</Text>
-              <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
-                {image ? (
-                  <View style={styles.imagePreviewContainer}>
-                    <MaterialIcons name="check-circle" size={24} color={Colors.success} />
-                    <Text style={styles.imageButtonText}>Image Added</Text>
+          {/* Optional Community Selector - Multi-select */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Post to Communities (optional)</Text>
+            
+            {/* Show selected communities as chips */}
+            {selectedCommunities.length > 0 && (
+              <View style={styles.selectedCommunitiesContainer}>
+                {selectedCommunities.map((community) => (
+                  <View key={community.id} style={styles.communityChip}>
+                    <Text style={styles.communityChipText}>{community.name}</Text>
+                    <TouchableOpacity 
+                      onPress={() => removeCommunity(community.id)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <MaterialIcons name="close" size={16} color={Colors.primary} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+            
+            <TouchableOpacity
+              style={styles.communitySelector}
+              onPress={() => setShowCommunityPicker(!showCommunityPicker)}
+            >
+              <View style={styles.communityPlaceholder}>
+                <MaterialIcons name="add" size={18} color={Colors.textSecondary} />
+                <Text style={styles.communityPlaceholderText}>
+                  {selectedCommunities.length > 0 ? 'Add another community...' : 'Select communities...'}
+                </Text>
+                <MaterialIcons name={showCommunityPicker ? "arrow-drop-up" : "arrow-drop-down"} size={24} color={Colors.textSecondary} />
+              </View>
+            </TouchableOpacity>
+            
+            {showCommunityPicker && (
+              <View style={styles.communityDropdown}>
+                {loadingCommunities ? (
+                  <View style={styles.communityLoading}>
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                    <Text style={styles.communityLoadingText}>Loading communities...</Text>
+                  </View>
+                ) : myCommunities.length === 0 ? (
+                  <View style={styles.noCommunities}>
+                    <Text style={styles.noCommunitiesText}>You haven't joined any communities yet</Text>
+                    <TouchableOpacity 
+                      style={styles.joinCommunitiesBtn}
+                      onPress={() => {
+                        setShowCommunityPicker(false);
+                        router.push('/hive');
+                      }}
+                    >
+                      <Text style={styles.joinCommunitiesBtnText}>Find Communities</Text>
+                    </TouchableOpacity>
                   </View>
                 ) : (
                   <>
-                    <MaterialIcons name="add-photo-alternate" size={24} color={Colors.primary} />
-                    <Text style={styles.imageButtonText}>Add Image</Text>
+                    <Text style={styles.communityPickerHint}>Tap to select/deselect:</Text>
+                    {myCommunities.map((community) => {
+                      const isSelected = selectedCommunities.some(c => c.id === community.id);
+                      return (
+                        <TouchableOpacity
+                          key={community.id}
+                          style={[
+                            styles.communityOption,
+                            isSelected && styles.communityOptionSelected
+                          ]}
+                          onPress={() => toggleCommunitySelection({ id: community.id, name: community.name })}
+                        >
+                          <View style={[
+                            styles.communityCheckbox,
+                            isSelected && { backgroundColor: Colors.primary }
+                          ]}>
+                            {isSelected && <MaterialIcons name="check" size={16} color={Colors.surface} />}
+                          </View>
+                          <View style={styles.communityOptionInfo}>
+                            <Text style={styles.communityOptionName}>{community.name}</Text>
+                            <Text style={styles.communityOptionType}>{community.community_type}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                    <TouchableOpacity
+                      style={styles.communityDoneBtn}
+                      onPress={() => setShowCommunityPicker(false)}
+                    >
+                      <Text style={styles.communityDoneBtnText}>Done</Text>
+                    </TouchableOpacity>
                   </>
                 )}
-              </TouchableOpacity>
+              </View>
+            )}
+            
+            <Text style={styles.helpText}>
+              Your {type} will be visible to everyone, but tagging communities helps members find it.
+            </Text>
+          </View>
+
+          {type === 'pledge' && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Photo (optional)</Text>
+              <ImagePickerButton
+                onImageUploaded={handleImageUploaded}
+                existingImage={image || undefined}
+                folder="pledges"
+                label="Add Photo"
+              />
+            </View>
+          )}
+
+          {type === 'wish' && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Photo (optional)</Text>
+              <ImagePickerButton
+                onImageUploaded={handleImageUploaded}
+                existingImage={image || undefined}
+                folder="wishes"
+                label="Add Photo"
+              />
+              <Text style={styles.helpText}>
+                Add a photo to help explain what you need
+              </Text>
             </View>
           )}
 
@@ -499,6 +647,21 @@ export default function CreateScreen() {
               <Text style={styles.helpText}>
                 Add one or more date ranges when you're available
               </Text>
+              
+              {dateRanges.length === 0 && (
+                <Text style={styles.autoArchiveNote}>
+                  Note: Pledges without dates are automatically removed after 30 days
+                </Text>
+              )}
+              
+              {/* Show temp "From" date while selecting "To" */}
+              {tempFromDate && (
+                <View style={styles.tempDateDisplay}>
+                  <Text style={styles.tempDateText}>
+                    From: {formatDate(tempFromDate)} — Now select end date...
+                  </Text>
+                </View>
+              )}
               
               {/* From Date Picker */}
               <DateTimePickerModal
@@ -585,18 +748,82 @@ export default function CreateScreen() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Needed By (optional)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="DD/MM/YYYY (e.g., 15/06/2025)"
-                  value={neededBy}
-                  onChangeText={setNeededBy}
-                  placeholderTextColor={Colors.textSecondary}
-                  keyboardType="numbers-and-punctuation"
-                />
-                <Text style={styles.helpText}>
-                  Leave empty if no specific deadline
-                </Text>
+                <Text style={styles.label}>When do you need this? (optional)</Text>
+                <View style={styles.dateTypeSelector}>
+                  <TouchableOpacity
+                    style={[
+                      styles.dateTypeButton,
+                      !neededBy.includes(' - ') && styles.dateTypeButtonActive,
+                    ]}
+                    onPress={() => setNeededBy('')}
+                  >
+                    <Text style={[
+                      styles.dateTypeText,
+                      !neededBy.includes(' - ') && styles.dateTypeTextActive
+                    ]}>Single Date</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.dateTypeButton,
+                      neededBy.includes(' - ') && styles.dateTypeButtonActive,
+                    ]}
+                    onPress={() => setNeededBy(' - ')}
+                  >
+                    <Text style={[
+                      styles.dateTypeText,
+                      neededBy.includes(' - ') && styles.dateTypeTextActive
+                    ]}>Date Range</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                {neededBy.includes(' - ') ? (
+                  <>
+                    <View style={styles.dateRangeInputs}>
+                      <View style={styles.dateInputWrapper}>
+                        <Text style={styles.dateLabel}>From</Text>
+                        <TextInput
+                          style={styles.dateInput}
+                          placeholder="DD/MM/YYYY"
+                          value={neededBy.split(' - ')[0] || ''}
+                          onChangeText={(text) => setNeededBy(text + ' - ' + (neededBy.split(' - ')[1] || ''))}
+                          placeholderTextColor={Colors.textSecondary}
+                          keyboardType="numbers-and-punctuation"
+                        />
+                      </View>
+                      <View style={styles.dateInputWrapper}>
+                        <Text style={styles.dateLabel}>To</Text>
+                        <TextInput
+                          style={styles.dateInput}
+                          placeholder="DD/MM/YYYY"
+                          value={neededBy.split(' - ')[1] || ''}
+                          onChangeText={(text) => setNeededBy((neededBy.split(' - ')[0] || '') + ' - ' + text)}
+                          placeholderTextColor={Colors.textSecondary}
+                          keyboardType="numbers-and-punctuation"
+                        />
+                      </View>
+                    </View>
+                    <Text style={styles.helpText}>
+                      Perfect for accommodation, transport, or event-based needs
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="DD/MM/YYYY (e.g., 15/06/2025)"
+                      value={neededBy}
+                      onChangeText={setNeededBy}
+                      placeholderTextColor={Colors.textSecondary}
+                      keyboardType="numbers-and-punctuation"
+                    />
+                    <Text style={styles.helpText}>
+                      Leave empty if no specific deadline
+                    </Text>
+                    <Text style={styles.autoArchiveNote}>
+                      Note: Wishes without a date are automatically removed after 30 days
+                    </Text>
+                  </>
+                )}
               </View>
             </>
           )}
@@ -918,5 +1145,221 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.primary,
     fontWeight: '500',
+  },
+  tempDateDisplay: {
+    backgroundColor: Colors.accent + '20',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.accent,
+  },
+  tempDateText: {
+    fontSize: 14,
+    color: Colors.accent,
+    fontWeight: '500',
+  },
+  dateTypeSelector: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  dateTypeButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+  },
+  dateTypeButtonActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  dateTypeText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  dateTypeTextActive: {
+    color: Colors.surface,
+  },
+  dateRangeInputs: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  dateInputWrapper: {
+    flex: 1,
+  },
+  dateLabel: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 6,
+    fontWeight: '500',
+  },
+  dateInput: {
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: Colors.text,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  autoArchiveNote: {
+    fontSize: 12,
+    color: Colors.warning,
+    fontStyle: 'italic',
+    marginTop: 8,
+  },
+  // Community selector styles
+  communitySelector: {
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  selectedCommunitiesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  communityChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary + '20',
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingLeft: 12,
+    paddingRight: 8,
+    gap: 6,
+  },
+  communityChipText: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '500',
+  },
+  selectedCommunity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 10,
+  },
+  selectedCommunityText: {
+    flex: 1,
+    fontSize: 15,
+    color: Colors.primary,
+    fontWeight: '500',
+  },
+  communityPlaceholder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 10,
+  },
+  communityPlaceholderText: {
+    flex: 1,
+    fontSize: 15,
+    color: Colors.textSecondary,
+  },
+  communityDropdown: {
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+    maxHeight: 300,
+  },
+  communityLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    gap: 10,
+  },
+  communityLoadingText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  noCommunities: {
+    padding: 16,
+    alignItems: 'center',
+    gap: 12,
+  },
+  noCommunitiesText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+  },
+  joinCommunitiesBtn: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+  },
+  joinCommunitiesBtnText: {
+    color: Colors.surface,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  communityPickerHint: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 6,
+  },
+  communityOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    gap: 12,
+  },
+  communityOptionSelected: {
+    backgroundColor: Colors.primary + '15',
+  },
+  communityCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  communityOptionInfo: {
+    flex: 1,
+  },
+  communityOptionName: {
+    fontSize: 15,
+    color: Colors.text,
+    fontWeight: '500',
+  },
+  communityOptionType: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  communityDoneBtn: {
+    backgroundColor: Colors.primary,
+    margin: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  communityDoneBtnText: {
+    color: Colors.surface,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

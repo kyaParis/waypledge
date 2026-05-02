@@ -76,7 +76,7 @@ export default function TermsScreen() {
           • A platform for freely giving and receiving{'\n'}
           • A community based on trust and generosity{'\n'}
           • A space to share skills, items, time, and support{'\n'}
-          • A network of connected local communities (Hives)
+          • A network of connected local communities
         </Text>
         
         <Text style={styles.subTitle}>WayPledge is NOT:</Text>
@@ -127,6 +127,21 @@ export default function TermsScreen() {
           • Personal attacks or harassment
         </Text>
 
+        <View style={styles.warningBox}>
+          <MaterialIcons name="warning" size={24} color={Colors.warning} />
+          <View style={styles.warningTextContainer}>
+            <Text style={styles.warningTitle}>Age-Restricted Items Prohibited</Text>
+            <Text style={styles.warningText}>
+              The following items may NOT be pledged or requested:{'\n'}
+              • Alcohol or tobacco products{'\n'}
+              • Cannabis or controlled substances{'\n'}
+              • Weapons, ammunition, or explosives{'\n'}
+              • Adult/explicit content or services{'\n'}
+              • Gambling services or equipment
+            </Text>
+          </View>
+        </View>
+
         <Text style={styles.sectionTitle}>6. Safety & Meetings</Text>
         <Text style={styles.text}>
           When meeting other WayPledge members:{'\n'}
@@ -137,10 +152,10 @@ export default function TermsScreen() {
           <Text style={styles.bold}>WayPledge is not responsible for interactions between users.</Text> We provide tools to connect; you are responsible for your own safety.
         </Text>
 
-        <Text style={styles.sectionTitle}>7. Hive Communities</Text>
+        <Text style={styles.sectionTitle}>7. Local Communities</Text>
         <Text style={styles.text}>
-          Hives are local communities within WayPledge. Each Hive may have additional guidelines set by its administrators. Hive admins can:{'\n'}
-          • Moderate content within their Hive{'\n'}
+          Communities are local groups within WayPledge. Each community may have additional guidelines set by its administrators. Community admins can:{'\n'}
+          • Moderate content within their community{'\n'}
           • Remove members who violate community standards{'\n'}
           • Set local guidelines (within WayPledge's overall terms)
         </Text>
@@ -333,5 +348,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     fontStyle: 'italic',
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: '#FFF8E1',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#FFB300',
+  },
+  warningTextContainer: {
+    flex: 1,
+  },
+  warningTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#E65100',
+    marginBottom: 8,
+  },
+  warningText: {
+    fontSize: 14,
+    color: '#5D4037',
+    lineHeight: 22,
   },
 });

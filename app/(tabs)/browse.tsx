@@ -17,6 +17,7 @@ import {
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
+  Image,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Location from 'expo-location';
@@ -62,7 +63,7 @@ export default function BrowseScreen() {
   const [locationFilter, setLocationFilter] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [reportModalVisible, setReportModalVisible] = useState(false);
-  const [reportItem, setReportItem] = useState<{ type: 'pledge' | 'wish'; id: string; title: string } | null>(null);
+  const [reportItem, setReportItem] = useState<{ type: 'pledge' | 'wish'; id: string; title: string; userId: string; userName: string } | null>(null);
   
   // Connection modal state
   const [connectModalVisible, setConnectModalVisible] = useState(false);
@@ -72,7 +73,7 @@ export default function BrowseScreen() {
   
   // Auto-refresh state
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isFocusedRef = useRef(true);
   
   // Location search state
@@ -118,26 +119,29 @@ export default function BrowseScreen() {
     }
   };
 
-  // Search in a typed location
+  // Search in a typed location - use text matching
   const searchInLocation = async () => {
     if (!searchLocationText.trim()) {
       // Clear location filter
+      setLocationFilter('');
       setSearchLat(null);
       setSearchLng(null);
       return;
     }
     
+    // Use text-based location filtering instead of geocoding
+    setLocationFilter(searchLocationText.trim());
+    
+    // Also try geocoding for distance-based filtering (may not work on web)
     setIsGettingLocation(true);
     try {
       const results = await Location.geocodeAsync(searchLocationText);
       if (results && results.length > 0) {
         setSearchLat(results[0].latitude);
         setSearchLng(results[0].longitude);
-      } else {
-        Alert.alert('Location Not Found', 'Could not find that location. Try being more specific (e.g., "London, UK").');
       }
     } catch (error) {
-      Alert.alert('Error', 'Could not search for that location.');
+      console.log('Geocoding not available, using text filter only');
     } finally {
       setIsGettingLocation(false);
     }
@@ -146,6 +150,7 @@ export default function BrowseScreen() {
   // Clear location search
   const clearLocationSearch = () => {
     setSearchLocationText('');
+    setLocationFilter('');
     setSearchLat(null);
     setSearchLng(null);
   };
@@ -228,7 +233,7 @@ export default function BrowseScreen() {
 
   useEffect(() => {
     loadData();
-  }, [selectedCategory, searchQuery, locationFilter]);
+  }, [selectedCategory, searchQuery, locationFilter, searchLat, searchLng, searchRadius]);
 
   const onRefresh = async () => {
     await loadData(true);
@@ -283,7 +288,7 @@ export default function BrowseScreen() {
   };
 
   const handleReport = (item: Pledge | Wish, type: 'pledge' | 'wish') => {
-    setReportItem({ type, id: item.id, title: item.title });
+    setReportItem({ type, id: item.id, title: item.title, userId: item.user_id, userName: item.user_name });
     setReportModalVisible(true);
   };
 
@@ -330,12 +335,13 @@ export default function BrowseScreen() {
 
       {/* Location Search with GPS and Radius */}
       <View style={styles.locationSearchContainer}>
+        <Text style={styles.searchSectionLabel}>Filter by Location</Text>
         <View style={styles.locationInputRow}>
           <View style={styles.locationInputWrapper}>
             <MaterialIcons name="location-on" size={20} color={Colors.textSecondary} style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search location (e.g., New York, USA)"
+              placeholder="Type a city or country (e.g., London, UK)"
               value={searchLocationText}
               onChangeText={setSearchLocationText}
               onSubmitEditing={searchInLocation}
@@ -367,6 +373,19 @@ export default function BrowseScreen() {
             <MaterialIcons name="search" size={20} color={Colors.surface} />
           </TouchableOpacity>
         </View>
+        
+        {/* Show active location filter */}
+        {locationFilter && locationFilter !== 'Online' && (
+          <View style={styles.activeFilterBar}>
+            <MaterialIcons name="filter-list" size={16} color={Colors.primary} />
+            <Text style={styles.activeFilterText}>
+              Showing results matching: "{locationFilter}"
+            </Text>
+            <TouchableOpacity onPress={clearLocationSearch}>
+              <MaterialIcons name="close" size={18} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        )}
         
         {/* Radius selector */}
         <View style={styles.radiusRow}>
@@ -573,18 +592,28 @@ export default function BrowseScreen() {
 
               <Text style={styles.cardDescription}>{item.description}</Text>
 
-              {item.location && (
+              {/* Display image if available */}
+              {item.image && item.image.startsWith('http') && (
+                <Image
+                  source={{ uri: item.image }}
+                  style={styles.cardImage}
+                  resizeMode="cover"
+                />
+              )}
+
+              {/* Only show "Online" indicator, hide specific locations for privacy */}
+              {item.location === 'Online' && (
                 <View style={styles.locationContainer}>
                   <MaterialIcons
-                    name={item.location === 'Online' ? 'language' : 'location-on'}
+                    name="language"
                     size={14}
-                    color={item.location === 'Online' ? Colors.primary : Colors.textSecondary}
+                    color={Colors.primary}
                   />
                   <Text style={[
                     styles.locationText,
-                    item.location === 'Online' && { color: Colors.primary, fontWeight: '600' }
+                    { color: Colors.primary, fontWeight: '600' }
                   ]}>
-                    {item.location}
+                    Online
                   </Text>
                 </View>
               )}
@@ -681,6 +710,8 @@ export default function BrowseScreen() {
         reportType={reportItem?.type || 'pledge'}
         itemId={reportItem?.id}
         itemTitle={reportItem?.title}
+        userId={reportItem?.userId}
+        userName={reportItem?.userName}
       />
 
       {/* Connect Modal */}
@@ -690,79 +721,87 @@ export default function BrowseScreen() {
         transparent={true}
         onRequestClose={() => setConnectModalVisible(false)}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.modalOverlay}
-          >
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {connectItem?.type === 'pledge' ? 'Ask About This Pledge' : 'Offer to Help'}
-                </Text>
-                <TouchableOpacity onPress={() => setConnectModalVisible(false)}>
-                  <MaterialIcons name="close" size={24} color={Colors.text} />
-                </TouchableOpacity>
-              </View>
-              
-              {connectItem && (
-                <View style={styles.modalItemInfo}>
-                  <Text style={styles.modalItemTitle}>{connectItem.item.title}</Text>
-                  <Text style={styles.modalItemUser}>by {connectItem.item.user_name}</Text>
-                </View>
-              )}
-              
-              <Text style={styles.modalLabel}>Your message:</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder={connectItem?.type === 'pledge' 
-                  ? "Hi! I'm interested in your pledge. Could you tell me more about..."
-                  : "Hi! I'd like to help with this. I can..."
-                }
-                value={connectMessage}
-                onChangeText={setConnectMessage}
-                multiline
-                numberOfLines={4}
-                placeholderTextColor={Colors.textSecondary}
-              />
-              
-              <View style={styles.modalButtons}>
-                <Pressable 
-                  style={({ pressed }) => [
-                    styles.modalCancelButton,
-                    pressed && { opacity: 0.7 }
-                  ]}
-                  onPress={() => setConnectModalVisible(false)}
-                >
-                  <Text style={styles.modalCancelText}>Cancel</Text>
-                </Pressable>
-                
-                <Pressable 
-                  style={({ pressed }) => [
-                    styles.modalSendButton,
-                    { backgroundColor: connectItem?.type === 'pledge' ? Colors.pledgeMedium : Colors.wishMedium },
-                    (!connectMessage.trim() || sendingMessage) && { opacity: 0.5 },
-                    pressed && { opacity: 0.8 }
-                  ]}
-                  onPress={() => {
-                    console.log('Send button pressed');
-                    Keyboard.dismiss();
-                    sendConnection();
-                  }}
-                  disabled={sendingMessage || !connectMessage.trim()}
-                >
-                  {sendingMessage ? (
-                    <ActivityIndicator color={Colors.surface} size="small" />
-                  ) : (
-                    <>
-                      <MaterialIcons name="send" size={18} color={Colors.surface} />
-                      <Text style={styles.modalSendText}>Send Message</Text>
-                    </>
+        <TouchableWithoutFeedback onPress={() => {
+          Keyboard.dismiss();
+          setConnectModalVisible(false);
+        }}>
+          <View style={styles.modalOverlay}>
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={styles.keyboardAvoidContainer}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+            >
+              <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>
+                      {connectItem?.type === 'pledge' ? 'Ask About This Pledge' : 'Offer to Help'}
+                    </Text>
+                    <TouchableOpacity onPress={() => setConnectModalVisible(false)}>
+                      <MaterialIcons name="close" size={24} color={Colors.text} />
+                    </TouchableOpacity>
+                  </View>
+                  
+                  {connectItem && (
+                    <View style={styles.modalItemInfo}>
+                      <Text style={styles.modalItemTitle}>{connectItem.item.title}</Text>
+                      <Text style={styles.modalItemUser}>by {connectItem.item.user_name}</Text>
+                    </View>
                   )}
-                </Pressable>
-              </View>
-            </View>
-          </KeyboardAvoidingView>
+                  
+                  <Text style={styles.modalLabel}>Your message:</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder={connectItem?.type === 'pledge' 
+                      ? "Hi! I'm interested in your pledge..."
+                      : "Hi! I'd like to help with this..."
+                    }
+                    value={connectMessage}
+                    onChangeText={setConnectMessage}
+                    multiline
+                    numberOfLines={3}
+                    placeholderTextColor={Colors.textSecondary}
+                  />
+                  
+                  <View style={styles.modalButtons}>
+                    <Pressable 
+                      style={({ pressed }) => [
+                        styles.modalCancelButton,
+                        pressed && { opacity: 0.7 }
+                      ]}
+                      onPress={() => setConnectModalVisible(false)}
+                    >
+                      <Text style={styles.modalCancelText}>Cancel</Text>
+                    </Pressable>
+                    
+                    <Pressable 
+                      style={({ pressed }) => [
+                        styles.modalSendButton,
+                        { backgroundColor: connectItem?.type === 'pledge' ? Colors.pledgeMedium : Colors.wishMedium },
+                        (!connectMessage.trim() || sendingMessage) && { opacity: 0.5 },
+                        pressed && { opacity: 0.8 }
+                      ]}
+                      onPress={() => {
+                        console.log('Send button pressed');
+                        Keyboard.dismiss();
+                        sendConnection();
+                      }}
+                      disabled={sendingMessage || !connectMessage.trim()}
+                    >
+                      {sendingMessage ? (
+                        <ActivityIndicator color={Colors.surface} size="small" />
+                      ) : (
+                        <>
+                          <MaterialIcons name="send" size={18} color={Colors.surface} />
+                          <Text style={styles.modalSendText}>Send Message</Text>
+                        </>
+                      )}
+                    </Pressable>
+                  </View>
+                </View>
+              </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
+          </View>
         </TouchableWithoutFeedback>
       </Modal>
     </SafeAreaView>
@@ -869,6 +908,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  cardImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 8,
+    marginTop: 12,
+    marginBottom: 8,
+    backgroundColor: Colors.border,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -1043,15 +1090,19 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  keyboardAvoidContainer: {
+    width: '100%',
+    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: Colors.background,
-    borderRadius: 16,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     padding: 20,
-    width: '90%',
-    maxWidth: 400,
+    paddingBottom: 40,
+    width: '100%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1162,6 +1213,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 4,
+  },
+  searchSectionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    marginBottom: 8,
+  },
+  activeFilterBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary + '15',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    gap: 8,
+  },
+  activeFilterText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '500',
   },
   locationInputRow: {
     flexDirection: 'row',

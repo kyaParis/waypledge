@@ -10,6 +10,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Modal,
+  Platform,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
@@ -17,557 +18,610 @@ import { useAuthStore } from '../../store/authStore';
 import { router } from 'expo-router';
 import api from '../../utils/api';
 
-interface Hive {
+// Community types from spec
+const COMMUNITY_TYPES = ['Street', 'Resort', 'Neighbourhood', 'Suburb', 'Town', 'City', 'Country', 'Club', 'Other'];
+
+interface Community {
   id: string;
   name: string;
   description: string;
+  community_type: string;
   location: string;
-  vision: string;
-  image: string | null;
-  hive_type: string;
-  founder_id: string;
-  founder_name: string;
   member_count: number;
-  pledge_count: number;
-  wish_count: number;
+  parent_hive_id: string | null;
+  parent_hive_name: string | null;
+  ancestry_path: Array<{ id: string; name: string; type: string }>;
+  founder_name: string;
   is_verified: boolean;
-  created_at: string;
 }
 
 export default function HiveScreen() {
   const { user, isAuthenticated } = useAuthStore();
-  const [hives, setHives] = useState<Hive[]>([]);
-  const [myHives, setMyHives] = useState<Hive[]>([]);
-  const [countryHives, setCountryHives] = useState<Hive[]>([]);
+  const [communities, setCommunities] = useState<Community[]>([]);
+  const [myCommunities, setMyCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'discover' | 'my-hives'>('discover');
+  const [activeTab, setActiveTab] = useState<'discover' | 'my'>('discover');
   
-  // Create hive form
-  const [newHiveName, setNewHiveName] = useState('');
-  const [newHiveDescription, setNewHiveDescription] = useState('');
-  const [newHiveLocation, setNewHiveLocation] = useState('');
-  const [newHiveVision, setNewHiveVision] = useState('');
-  const [newHiveParentId, setNewHiveParentId] = useState<string | null>(null);
-  const [showParentPicker, setShowParentPicker] = useState(false);
+  // Modal state: 'closed' | 'search' | 'create'
+  const [modalState, setModalState] = useState<'closed' | 'search' | 'create'>('closed');
+  
+  // Search/Join flow
+  const [searchResults, setSearchResults] = useState<Community[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [modalSearchQuery, setModalSearchQuery] = useState('');
+  
+  // Create form
+  const [newName, setNewName] = useState('');
+  const [newType, setNewType] = useState('Neighbourhood');
+  const [newParentId, setNewParentId] = useState<string | null>(null);
+  const [newParentName, setNewParentName] = useState<string>('');
+  const [newDescription, setNewDescription] = useState('');
   const [creating, setCreating] = useState(false);
+  const [showTypePicker, setShowTypePicker] = useState(false);
+  const [showParentPicker, setShowParentPicker] = useState(false);
+  const [parentSearchQuery, setParentSearchQuery] = useState('');
+  const [parentSearchResults, setParentSearchResults] = useState<Community[]>([]);
+  const [searchingParents, setSearchingParents] = useState(false);
+  
+  // Computed ancestry path for preview
+  const [ancestryPreview, setAncestryPreview] = useState<Array<{ name: string; type: string }>>([]);
 
-  const loadHives = useCallback(async () => {
+  const loadCommunities = useCallback(async () => {
     try {
-      const params = searchQuery ? { search: searchQuery } : {};
-      const [hivesRes, countryRes] = await Promise.all([
-        api.get('/hives', { params }),
-        api.get('/hives', { params: { country_only: true } })
-      ]);
-      setHives(hivesRes.data);
-      setCountryHives(countryRes.data);
+      const params: any = {};
+      if (searchQuery) params.search = searchQuery;
+      const response = await api.get('/hives', { params });
+      setCommunities(response.data);
     } catch (error) {
-      console.error('Error loading hives:', error);
+      console.error('Error loading communities:', error);
     }
   }, [searchQuery]);
 
-  const loadMyHives = useCallback(async () => {
+  const loadMyCommunities = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
       const response = await api.get('/hives/my/memberships');
-      setMyHives(response.data);
+      setMyCommunities(response.data);
     } catch (error) {
-      console.error('Error loading my hives:', error);
+      console.error('Error loading my communities:', error);
     }
   }, [isAuthenticated]);
 
   useEffect(() => {
-    const loadData = async () => {
+    const init = async () => {
       setLoading(true);
-      await Promise.all([loadHives(), loadMyHives()]);
+      await Promise.all([loadCommunities(), loadMyCommunities()]);
       setLoading(false);
     };
-    loadData();
-  }, [loadHives, loadMyHives]);
+    init();
+  }, [loadCommunities, loadMyCommunities]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([loadHives(), loadMyHives()]);
+    await Promise.all([loadCommunities(), loadMyCommunities()]);
     setRefreshing(false);
   };
 
-  const handleJoinHive = async (hiveId: string) => {
-    if (!isAuthenticated) {
-      alert('Please log in to join a hive');
+  // Search communities in modal
+  const searchCommunities = async (query: string) => {
+    setModalSearchQuery(query);
+    if (query.length < 2) {
+      setSearchResults([]);
       return;
     }
     try {
-      await api.post(`/hives/${hiveId}/join`);
-      alert('Welcome to the hive!');
-      await loadMyHives();
-      await loadHives();
-    } catch (error: any) {
-      alert(error.response?.data?.detail || 'Failed to join hive');
+      setSearching(true);
+      const response = await api.get(`/hives?search=${encodeURIComponent(query)}&limit=10`);
+      setSearchResults(response.data);
+    } catch (error) {
+      console.error('Search error:', error);
+    } finally {
+      setSearching(false);
     }
   };
 
-  const handleLeaveHive = async (hiveId: string) => {
-    try {
-      await api.post(`/hives/${hiveId}/leave`);
-      alert('You have left the hive');
-      await loadMyHives();
-      await loadHives();
-    } catch (error: any) {
-      alert(error.response?.data?.detail || 'Failed to leave hive');
-    }
-  };
-
-  const [similarHives, setSimilarHives] = useState<any[]>([]);
-  const [showSimilarWarning, setShowSimilarWarning] = useState(false);
-
-  const handleCreateHive = async (force: boolean = false) => {
-    if (!newHiveName.trim() || !newHiveDescription.trim() || !newHiveLocation.trim()) {
-      alert('Please fill in name, description, and location');
+  // Search for parent communities
+  const searchParentCommunities = async (query: string) => {
+    setParentSearchQuery(query);
+    if (query.length < 2) {
+      setParentSearchResults([]);
       return;
     }
+    try {
+      setSearchingParents(true);
+      const response = await api.get(`/hives?search=${encodeURIComponent(query)}&limit=10`);
+      setParentSearchResults(response.data);
+    } catch (error) {
+      console.error('Parent search error:', error);
+    } finally {
+      setSearchingParents(false);
+    }
+  };
 
+  // Select a parent community
+  const selectParent = (community: Community) => {
+    setNewParentId(community.id);
+    setNewParentName(community.name);
+    // Build ancestry preview
+    const path = community.ancestry_path || [];
+    const fullPath = [...path, { name: community.name, type: community.community_type }];
+    setAncestryPreview(fullPath);
+    setShowParentPicker(false);
+    setParentSearchQuery('');
+    setParentSearchResults([]);
+  };
+
+  // Join a community
+  const handleJoin = async (communityId: string, communityName: string) => {
+    try {
+      await api.post(`/hives/${communityId}/join`);
+      alert(`Joined ${communityName}!`);
+      setModalState('closed');
+      await Promise.all([loadCommunities(), loadMyCommunities()]);
+    } catch (error: any) {
+      alert(error.response?.data?.detail || 'Failed to join');
+    }
+  };
+
+  // Create a new community
+  const handleCreate = async () => {
+    if (!newName.trim()) {
+      alert('Please enter a name');
+      return;
+    }
+    if (newType !== 'Country' && !newParentId) {
+      alert('Please select which community this sits inside');
+      return;
+    }
+    
     try {
       setCreating(true);
+      await api.post('/hives', {
+        name: newName.trim(),
+        community_type: newType,
+        parent_id: newParentId,
+        description: newDescription.trim(),
+      });
       
-      const params = force ? '?force=true' : '';
-      const payload: any = {
-        name: newHiveName.trim(),
-        description: newHiveDescription.trim(),
-        location: newHiveLocation.trim(),
-        vision: newHiveVision.trim(),
-      };
-      if (newHiveParentId) {
-        payload.parent_hive_id = newHiveParentId;
-      }
-      
-      await api.post(`/hives${params}`, payload);
-      
-      // Reset form
-      setNewHiveName('');
-      setNewHiveDescription('');
-      setNewHiveLocation('');
-      setNewHiveVision('');
-      setNewHiveParentId(null);
-      setShowCreateModal(false);
-      setShowSimilarWarning(false);
-      setSimilarHives([]);
-      
-      alert('Hive created! You are the founder. Note: Your hive will need admin verification to appear prominently.');
-      await Promise.all([loadHives(), loadMyHives()]);
+      alert('Community created! You are now the founder.');
+      resetCreateForm();
+      setModalState('closed');
+      await Promise.all([loadCommunities(), loadMyCommunities()]);
     } catch (error: any) {
-      // Check if it's a "similar hives exist" warning (409 Conflict)
-      if (error.response?.status === 409) {
-        const detail = error.response?.data?.detail;
-        if (detail?.similar) {
-          setSimilarHives(detail.similar);
-          setShowSimilarWarning(true);
+      const detail = error.response?.data?.detail;
+      if (detail?.existing_id) {
+        // Duplicate found - offer to join
+        const msg = Platform.OS === 'web' 
+          ? `This community already exists: ${detail.existing_path}. Would you like to join it instead?`
+          : `This community already exists:\n${detail.existing_path}\n\nWould you like to join it instead?`;
+        
+        if (Platform.OS === 'web') {
+          if (window.confirm(msg)) {
+            await handleJoin(detail.existing_id, detail.existing_name);
+          }
         } else {
-          alert('Similar hives exist in this area. Please check existing hives first.');
+          // For native, just show alert
+          alert(msg);
         }
       } else {
-        alert(error.response?.data?.detail || 'Failed to create hive');
+        alert(detail?.message || detail || 'Failed to create community');
       }
     } finally {
       setCreating(false);
     }
   };
 
-  const isMember = (hiveId: string) => {
-    return myHives.some(h => h.id === hiveId);
+  const resetCreateForm = () => {
+    setNewName('');
+    setNewType('Neighbourhood');
+    setNewParentId(null);
+    setNewParentName('');
+    setNewDescription('');
+    setAncestryPreview([]);
   };
 
-  const renderHiveCard = (hive: Hive, showJoinLeave: boolean = true) => {
-    const amMember = isMember(hive.id);
-    const amFounder = hive.founder_id === user?.id;
+  // Build path display string
+  const buildPathString = (community: Community) => {
+    const parts = [];
+    if (community.ancestry_path && community.ancestry_path.length > 0) {
+      parts.push(...community.ancestry_path.map(p => p.name));
+    }
+    return parts.length > 0 ? parts.join(' → ') : community.location || '';
+  };
 
-    return (
-      <TouchableOpacity 
-        key={hive.id} 
-        style={styles.hiveCard}
-        onPress={() => router.push(`/hive/${hive.id}`)}
-      >
-        <View style={styles.hiveHeader}>
-          <View style={styles.hiveIconContainer}>
-            <MaterialIcons name="hexagon" size={32} color={Colors.accent} />
-          </View>
-          <View style={styles.hiveInfo}>
-            <View style={styles.hiveTitleRow}>
-              <Text style={styles.hiveName}>{hive.name}</Text>
-              {hive.is_verified && (
-                <MaterialIcons name="verified" size={16} color={Colors.primary} />
-              )}
-            </View>
-            <View style={styles.hiveLocationRow}>
-              <MaterialIcons name="place" size={14} color={Colors.textSecondary} />
-              <Text style={styles.hiveLocation}>{hive.location}</Text>
-            </View>
-          </View>
+  // Render community card
+  const renderCommunityCard = (community: Community, showJoinButton = false) => (
+    <TouchableOpacity
+      key={community.id}
+      style={styles.card}
+      onPress={() => router.push(`/hive/${community.id}`)}
+    >
+      <View style={styles.cardHeader}>
+        <Text style={styles.cardName}>{community.name}</Text>
+        <View style={styles.typeBadge}>
+          <Text style={styles.typeBadgeText}>{community.community_type || 'Community'}</Text>
         </View>
-
-        <Text style={styles.hiveDescription} numberOfLines={2}>
-          {hive.description}
-        </Text>
-
-        {hive.vision ? (
-          <Text style={styles.hiveVision} numberOfLines={1}>
-            "{hive.vision}"
-          </Text>
-        ) : null}
-
-        <View style={styles.hiveStats}>
-          <View style={styles.statItem}>
-            <MaterialIcons name="people" size={16} color={Colors.primary} />
-            <Text style={styles.statText}>{hive.member_count}</Text>
-          </View>
-          <View style={styles.statItem}>
-            <MaterialIcons name="card-giftcard" size={16} color={Colors.pledgeDark} />
-            <Text style={styles.statText}>{hive.pledge_count}</Text>
-          </View>
-          <View style={styles.statItem}>
-            <MaterialIcons name="star" size={16} color={Colors.wishDark} />
-            <Text style={styles.statText}>{hive.wish_count}</Text>
-          </View>
-          <Text style={styles.founderText}>by {hive.founder_name}</Text>
+      </View>
+      
+      <Text style={styles.cardPath} numberOfLines={1}>
+        {buildPathString(community) || community.location}
+      </Text>
+      
+      <View style={styles.cardFooter}>
+        <View style={styles.cardStat}>
+          <MaterialIcons name="people" size={14} color={Colors.textSecondary} />
+          <Text style={styles.cardStatText}>{community.member_count} members</Text>
         </View>
-
-        {showJoinLeave && isAuthenticated && (
-          <View style={styles.hiveActions}>
-            {amMember ? (
-              <View style={styles.memberBadge}>
-                <MaterialIcons name="check-circle" size={16} color={Colors.success} />
-                <Text style={styles.memberText}>
-                  {amFounder ? 'Founder' : 'Member'}
-                </Text>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={styles.joinButton}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleJoinHive(hive.id);
-                }}
-              >
-                <MaterialIcons name="add" size={18} color={Colors.surface} />
-                <Text style={styles.joinButtonText}>Join Hive</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+        {community.is_verified && (
+          <MaterialIcons name="verified" size={16} color={Colors.primary} />
         )}
-      </TouchableOpacity>
-    );
-  };
+      </View>
+      
+      {showJoinButton && (
+        <TouchableOpacity
+          style={styles.joinButton}
+          onPress={(e) => {
+            e.stopPropagation();
+            handleJoin(community.id, community.name);
+          }}
+        >
+          <Text style={styles.joinButtonText}>Join</Text>
+        </TouchableOpacity>
+      )}
+    </TouchableOpacity>
+  );
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading the Honeycomb...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const displayedCommunities = activeTab === 'discover' ? communities : myCommunities;
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>The Hive</Text>
-        <Text style={styles.subtitle}>Connected Communities</Text>
+        <Text style={styles.title}>Communities</Text>
+        {isAuthenticated && (
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => {
+              setModalState('search');
+              setModalSearchQuery('');
+              setSearchResults([]);
+            }}
+          >
+            <MaterialIcons name="add" size={24} color={Colors.surface} />
+          </TouchableOpacity>
+        )}
       </View>
 
-      <View style={styles.tabContainer}>
+      {/* Tabs */}
+      <View style={styles.tabs}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'discover' && styles.activeTab]}
+          style={[styles.tab, activeTab === 'discover' && styles.tabActive]}
           onPress={() => setActiveTab('discover')}
         >
-          <MaterialIcons 
-            name="explore" 
-            size={20} 
-            color={activeTab === 'discover' ? Colors.primary : Colors.textSecondary} 
-          />
-          <Text style={[styles.tabText, activeTab === 'discover' && styles.activeTabText]}>
+          <Text style={[styles.tabText, activeTab === 'discover' && styles.tabTextActive]}>
             Discover
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'my-hives' && styles.activeTab]}
-          onPress={() => setActiveTab('my-hives')}
+          style={[styles.tab, activeTab === 'my' && styles.tabActive]}
+          onPress={() => setActiveTab('my')}
         >
-          <MaterialIcons 
-            name="home" 
-            size={20} 
-            color={activeTab === 'my-hives' ? Colors.primary : Colors.textSecondary} 
-          />
-          <Text style={[styles.tabText, activeTab === 'my-hives' && styles.activeTabText]}>
-            My Hives ({myHives.length})
+          <Text style={[styles.tabText, activeTab === 'my' && styles.tabTextActive]}>
+            My Communities ({myCommunities.length})
           </Text>
         </TouchableOpacity>
       </View>
 
-      {activeTab === 'discover' && (
-        <View style={styles.searchContainer}>
-          <MaterialIcons name="search" size={20} color={Colors.textSecondary} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search hives by name or location..."
-            placeholderTextColor={Colors.textSecondary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={loadHives}
-          />
-        </View>
-      )}
-
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {activeTab === 'discover' ? (
-          <>
-            {hives.length > 0 ? (
-              hives.map(hive => renderHiveCard(hive))
-            ) : (
-              <View style={styles.emptyState}>
-                <MaterialIcons name="hexagon" size={64} color={Colors.border} />
-                <Text style={styles.emptyTitle}>No Hives Yet</Text>
-                <Text style={styles.emptyText}>
-                  Be the first to create a local hive and start building your community!
-                </Text>
-              </View>
-            )}
-          </>
-        ) : (
-          <>
-            {myHives.length > 0 ? (
-              myHives.map(hive => renderHiveCard(hive, false))
-            ) : (
-              <View style={styles.emptyState}>
-                <MaterialIcons name="group-add" size={64} color={Colors.border} />
-                <Text style={styles.emptyTitle}>No Hives Joined</Text>
-                <Text style={styles.emptyText}>
-                  Discover and join hives to connect with like-minded communities!
-                </Text>
-              </View>
-            )}
-          </>
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <MaterialIcons name="search" size={20} color={Colors.textSecondary} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search communities..."
+          placeholderTextColor={Colors.textSecondary}
+          value={searchQuery}
+          onChangeText={(text) => {
+            setSearchQuery(text);
+          }}
+          onSubmitEditing={loadCommunities}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => { setSearchQuery(''); loadCommunities(); }}>
+            <MaterialIcons name="close" size={20} color={Colors.textSecondary} />
+          </TouchableOpacity>
         )}
+      </View>
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
-
-      {/* Connect Your Platform Link */}
-      <TouchableOpacity 
-        style={styles.federateLink}
-        onPress={() => router.push('/federate')}
-      >
-        <MaterialIcons name="hub" size={20} color={Colors.primary} />
-        <Text style={styles.federateLinkText}>Connect your platform to the network</Text>
-        <MaterialIcons name="arrow-forward" size={18} color={Colors.primary} />
-      </TouchableOpacity>
-
-      {isAuthenticated && (
-        <TouchableOpacity
-          style={styles.createButton}
-          onPress={() => setShowCreateModal(true)}
+      {/* Community List */}
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.list}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          showsVerticalScrollIndicator={false}
         >
-          <MaterialIcons name="add" size={28} color={Colors.surface} />
-        </TouchableOpacity>
+          {displayedCommunities.length === 0 ? (
+            <View style={styles.empty}>
+              <MaterialIcons name="groups" size={48} color={Colors.textSecondary} />
+              <Text style={styles.emptyText}>
+                {activeTab === 'discover' 
+                  ? 'No communities found' 
+                  : "You haven't joined any communities yet"}
+              </Text>
+              {activeTab === 'my' && isAuthenticated && (
+                <TouchableOpacity
+                  style={styles.emptyButton}
+                  onPress={() => setModalState('search')}
+                >
+                  <Text style={styles.emptyButtonText}>Find or Create</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : (
+            displayedCommunities.map((c) => renderCommunityCard(c))
+          )}
+          <View style={{ height: 100 }} />
+        </ScrollView>
       )}
 
-      {/* Create Hive Modal */}
+      {/* MODAL: Search First, Then Create */}
       <Modal
-        visible={showCreateModal}
+        visible={modalState !== 'closed'}
         animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowCreateModal(false)}
+        presentationStyle="pageSheet"
+        onRequestClose={() => {
+          setModalState('closed');
+          resetCreateForm();
+        }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Create a New Hive</Text>
-              <TouchableOpacity onPress={() => setShowCreateModal(false)}>
-                <MaterialIcons name="close" size={24} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
+        <SafeAreaView style={styles.modalContainer}>
+          {/* Modal Header */}
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              onPress={() => {
+                if (modalState === 'create') {
+                  setModalState('search');
+                  resetCreateForm();
+                } else {
+                  setModalState('closed');
+                }
+              }}
+            >
+              <MaterialIcons 
+                name={modalState === 'create' ? 'arrow-back' : 'close'} 
+                size={24} 
+                color={Colors.text} 
+              />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>
+              {modalState === 'search' ? 'Find Your Community' : 'Create New Community'}
+            </Text>
+            <View style={{ width: 24 }} />
+          </View>
 
-            <ScrollView style={styles.modalScroll}>
-              <Text style={styles.modalSubtitle}>
-                Start a local chapter and grow the honeycomb network
-              </Text>
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            {/* SEARCH STATE */}
+            {modalState === 'search' && (
+              <>
+                <Text style={styles.modalSubtitle}>
+                  Search for your community first. If it doesn't exist, you can create it.
+                </Text>
 
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Hive Name *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g., WayPledge Murcia"
-                  placeholderTextColor={Colors.textSecondary}
-                  value={newHiveName}
-                  onChangeText={setNewHiveName}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Description *</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  placeholder="What is this hive about?"
-                  placeholderTextColor={Colors.textSecondary}
-                  value={newHiveDescription}
-                  onChangeText={setNewHiveDescription}
-                  multiline
-                  numberOfLines={3}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Location *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g., Murcia, Spain"
-                  placeholderTextColor={Colors.textSecondary}
-                  value={newHiveLocation}
-                  onChangeText={setNewHiveLocation}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Vision (optional)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="What does this hive stand for?"
-                  placeholderTextColor={Colors.textSecondary}
-                  value={newHiveVision}
-                  onChangeText={setNewHiveVision}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Part of Country/Region *</Text>
-                <TouchableOpacity 
-                  style={styles.parentPickerButton}
-                  onPress={() => setShowParentPicker(!showParentPicker)}
-                >
-                  <MaterialIcons name="public" size={20} color={Colors.primary} />
-                  <Text style={newHiveParentId ? styles.parentPickerText : styles.parentPickerPlaceholder}>
-                    {newHiveParentId 
-                      ? countryHives.find(h => h.id === newHiveParentId)?.name || 'Select country'
-                      : 'Select the country this hive belongs to'}
-                  </Text>
-                  <MaterialIcons 
-                    name={showParentPicker ? "expand-less" : "expand-more"} 
-                    size={24} 
-                    color={Colors.textSecondary} 
+                {/* Search Input */}
+                <View style={styles.modalSearchBox}>
+                  <MaterialIcons name="search" size={20} color={Colors.textSecondary} />
+                  <TextInput
+                    style={styles.modalSearchInput}
+                    placeholder="Search by name or location..."
+                    placeholderTextColor={Colors.textSecondary}
+                    value={modalSearchQuery}
+                    onChangeText={searchCommunities}
+                    autoFocus
                   />
-                </TouchableOpacity>
-                
-                {showParentPicker && (
-                  <View style={styles.parentPickerList}>
-                    {countryHives.map((country) => (
+                  {searching && <ActivityIndicator size="small" color={Colors.primary} />}
+                </View>
+
+                {/* Search Results */}
+                {searchResults.length > 0 && (
+                  <View style={styles.resultsContainer}>
+                    {searchResults.map((community) => (
                       <TouchableOpacity
-                        key={country.id}
-                        style={[
-                          styles.parentPickerItem,
-                          newHiveParentId === country.id && styles.parentPickerItemSelected
-                        ]}
-                        onPress={() => {
-                          setNewHiveParentId(country.id);
-                          setShowParentPicker(false);
-                        }}
+                        key={community.id}
+                        style={styles.resultCard}
+                        onPress={() => handleJoin(community.id, community.name)}
                       >
-                        <Text style={[
-                          styles.parentPickerItemText,
-                          newHiveParentId === country.id && styles.parentPickerItemTextSelected
-                        ]}>
-                          {country.name.replace('WayPledge ', '')}
-                        </Text>
-                        {newHiveParentId === country.id && (
-                          <MaterialIcons name="check" size={20} color={Colors.primary} />
-                        )}
+                        <View style={styles.resultInfo}>
+                          <Text style={styles.resultName}>{community.name}</Text>
+                          <Text style={styles.resultMeta}>
+                            {community.community_type} · {buildPathString(community)}
+                          </Text>
+                        </View>
+                        <View style={styles.resultJoinBtn}>
+                          <Text style={styles.resultJoinText}>Join</Text>
+                        </View>
                       </TouchableOpacity>
                     ))}
                   </View>
                 )}
-                <Text style={styles.parentHint}>
-                  Your local hive (e.g., "Altaona") will appear under the selected country hive
-                </Text>
-              </View>
 
-              <View style={styles.pledgeReminder}>
-                <MaterialIcons name="shield" size={20} color={Colors.primary} />
-                <Text style={styles.pledgeText}>
-                  By creating a hive, you commit to upholding the Do No Harm Pledge
-                </Text>
-              </View>
+                {/* No Results / Create Button */}
+                {modalSearchQuery.length >= 2 && !searching && (
+                  <TouchableOpacity
+                    style={styles.createNewButton}
+                    onPress={() => {
+                      setNewName(modalSearchQuery);
+                      setModalState('create');
+                    }}
+                  >
+                    <MaterialIcons name="add-circle-outline" size={20} color={Colors.primary} />
+                    <Text style={styles.createNewText}>
+                      {searchResults.length === 0 
+                        ? `Create "${modalSearchQuery}"` 
+                        : "Not here — create new community"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
 
-              {/* Similar Hives Warning */}
-              {showSimilarWarning && similarHives.length > 0 && (
-                <View style={styles.warningBox}>
-                  <View style={styles.warningHeader}>
-                    <MaterialIcons name="warning" size={24} color={Colors.accent} />
-                    <Text style={styles.warningTitle}>Similar Hives Exist</Text>
-                  </View>
-                  <Text style={styles.warningText}>
-                    We found existing hives in this area. Consider joining one instead:
-                  </Text>
-                  {similarHives.map((name, index) => (
-                    <Text key={index} style={styles.similarHiveName}>• {name}</Text>
-                  ))}
-                  <View style={styles.warningButtons}>
-                    <TouchableOpacity
-                      style={styles.cancelWarningButton}
-                      onPress={() => {
-                        setShowSimilarWarning(false);
-                        setShowCreateModal(false);
-                      }}
-                    >
-                      <Text style={styles.cancelWarningText}>Browse Existing</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.forceCreateButton}
-                      onPress={() => handleCreateHive(true)}
-                      disabled={creating}
-                    >
-                      {creating ? (
-                        <ActivityIndicator color={Colors.surface} size="small" />
-                      ) : (
-                        <Text style={styles.forceCreateText}>Create Anyway</Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
+            {/* CREATE STATE */}
+            {modalState === 'create' && (
+              <>
+                <Text style={styles.modalSubtitle}>
+                  Create a new community. Choose what type and where it sits.
+                </Text>
+
+                {/* Name Field */}
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>NAME *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g., Street 245/247, Altaona Golf"
+                    placeholderTextColor={Colors.textSecondary}
+                    value={newName}
+                    onChangeText={setNewName}
+                  />
                 </View>
-              )}
 
-              {!showSimilarWarning && (
+                {/* Type Selector */}
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>TYPE *</Text>
+                  <TouchableOpacity
+                    style={styles.selector}
+                    onPress={() => setShowTypePicker(!showTypePicker)}
+                  >
+                    <Text style={styles.selectorText}>{newType}</Text>
+                    <MaterialIcons name="arrow-drop-down" size={24} color={Colors.textSecondary} />
+                  </TouchableOpacity>
+                  
+                  {showTypePicker && (
+                    <View style={styles.pickerDropdown}>
+                      {COMMUNITY_TYPES.map((type) => (
+                        <TouchableOpacity
+                          key={type}
+                          style={[styles.pickerOption, newType === type && styles.pickerOptionSelected]}
+                          onPress={() => {
+                            setNewType(type);
+                            setShowTypePicker(false);
+                            // Clear parent if Country selected
+                            if (type === 'Country') {
+                              setNewParentId(null);
+                              setNewParentName('');
+                              setAncestryPreview([]);
+                            }
+                          }}
+                        >
+                          <Text style={[
+                            styles.pickerOptionText,
+                            newType === type && styles.pickerOptionTextSelected
+                          ]}>
+                            {type}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                {/* Parent Selector (not for Country) */}
+                {newType !== 'Country' && (
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>SITS INSIDE *</Text>
+                    <TouchableOpacity
+                      style={styles.selector}
+                      onPress={() => setShowParentPicker(!showParentPicker)}
+                    >
+                      <Text style={[
+                        styles.selectorText,
+                        !newParentName && styles.selectorPlaceholder
+                      ]}>
+                        {newParentName || 'Select parent community...'}
+                      </Text>
+                      <MaterialIcons name="arrow-drop-down" size={24} color={Colors.textSecondary} />
+                    </TouchableOpacity>
+
+                    {showParentPicker && (
+                      <View style={styles.parentPickerContainer}>
+                        <View style={styles.parentSearchBox}>
+                          <MaterialIcons name="search" size={18} color={Colors.textSecondary} />
+                          <TextInput
+                            style={styles.parentSearchInput}
+                            placeholder="Search for parent..."
+                            placeholderTextColor={Colors.textSecondary}
+                            value={parentSearchQuery}
+                            onChangeText={searchParentCommunities}
+                            autoFocus
+                          />
+                          {searchingParents && <ActivityIndicator size="small" color={Colors.primary} />}
+                        </View>
+                        
+                        {parentSearchResults.map((community) => (
+                          <TouchableOpacity
+                            key={community.id}
+                            style={styles.parentOption}
+                            onPress={() => selectParent(community)}
+                          >
+                            <Text style={styles.parentOptionName}>{community.name}</Text>
+                            <Text style={styles.parentOptionType}>{community.community_type}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                {/* Ancestry Path Preview */}
+                {(ancestryPreview.length > 0 || newType === 'Country') && (
+                  <View style={styles.pathPreview}>
+                    <Text style={styles.pathPreviewLabel}>FULL PATH</Text>
+                    <Text style={styles.pathPreviewText}>
+                      {newType === 'Country' 
+                        ? newName || 'Your Country'
+                        : [...ancestryPreview.map(p => p.name), newName || 'Your Community'].join(' → ')}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Description (optional) */}
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>DESCRIPTION (optional)</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    placeholder="What brings this community together?"
+                    placeholderTextColor={Colors.textSecondary}
+                    value={newDescription}
+                    onChangeText={setNewDescription}
+                    multiline
+                    numberOfLines={3}
+                  />
+                </View>
+
+                {/* Create Button */}
                 <TouchableOpacity
-                  style={styles.submitButton}
-                  onPress={() => handleCreateHive(false)}
+                  style={[styles.createButton, creating && styles.createButtonDisabled]}
+                  onPress={handleCreate}
                   disabled={creating}
                 >
                   {creating ? (
                     <ActivityIndicator color={Colors.surface} />
                   ) : (
                     <>
-                      <MaterialIcons name="hexagon" size={20} color={Colors.surface} />
-                      <Text style={styles.submitButtonText}>Create Hive</Text>
+                      <MaterialIcons name="add" size={20} color={Colors.surface} />
+                      <Text style={styles.createButtonText}>Create & Join</Text>
                     </>
                   )}
                 </TouchableOpacity>
-              )}
+              </>
+            )}
 
-              <View style={styles.verificationNote}>
-                <MaterialIcons name="info-outline" size={16} color={Colors.textSecondary} />
-                <Text style={styles.verificationNoteText}>
-                  New hives require admin verification to appear prominently in search results.
-                </Text>
-              </View>
-            </ScrollView>
-          </View>
-        </View>
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </SafeAreaView>
       </Modal>
     </SafeAreaView>
   );
@@ -578,448 +632,392 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: Colors.textSecondary,
-  },
   header: {
-    padding: 20,
-    paddingBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   title: {
     fontSize: 28,
     fontWeight: '700',
     color: Colors.text,
   },
-  subtitle: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginTop: 4,
+  addButton: {
+    backgroundColor: Colors.primary,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  tabContainer: {
+  tabs: {
     flexDirection: 'row',
     paddingHorizontal: 20,
     marginBottom: 12,
     gap: 12,
   },
   tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
     backgroundColor: Colors.surface,
-    gap: 6,
   },
-  activeTab: {
-    backgroundColor: Colors.primary + '15',
-    borderWidth: 1,
-    borderColor: Colors.primary,
+  tabActive: {
+    backgroundColor: Colors.primary,
   },
   tabText: {
     fontSize: 14,
-    fontWeight: '600',
     color: Colors.textSecondary,
+    fontWeight: '500',
   },
-  activeTabText: {
-    color: Colors.primary,
+  tabTextActive: {
+    color: Colors.surface,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.surface,
-    borderRadius: 12,
-    paddingHorizontal: 16,
     marginHorizontal: 20,
-    marginBottom: 12,
+    marginBottom: 16,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    height: 44,
     gap: 8,
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.text,
   },
-  scrollView: {
+  list: {
     flex: 1,
-  },
-  content: {
     paddingHorizontal: 20,
   },
-  hiveCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.accent,
-  },
-  hiveHeader: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  hiveIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.accent + '20',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  hiveInfo: {
+  centered: {
     flex: 1,
     justifyContent: 'center',
-  },
-  hiveTitleRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
   },
-  hiveName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  hiveLocationRow: {
-    flexDirection: 'row',
+  empty: {
     alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
+    paddingVertical: 60,
+    gap: 12,
   },
-  hiveLocation: {
-    fontSize: 13,
+  emptyText: {
+    fontSize: 16,
     color: Colors.textSecondary,
+    textAlign: 'center',
   },
-  hiveDescription: {
-    fontSize: 14,
-    color: Colors.text,
-    lineHeight: 20,
-    marginBottom: 8,
+  emptyButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 8,
   },
-  hiveVision: {
-    fontSize: 13,
-    color: Colors.primary,
-    fontStyle: 'italic',
+  emptyButtonText: {
+    color: Colors.surface,
+    fontWeight: '600',
+  },
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 12,
   },
-  hiveStats: {
+  cardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
   },
-  statItem: {
+  cardName: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: Colors.text,
+    flex: 1,
+  },
+  typeBadge: {
+    backgroundColor: Colors.primary + '15',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  typeBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.primary,
+    textTransform: 'uppercase',
+  },
+  cardPath: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardStat: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  statText: {
+  cardStatText: {
     fontSize: 13,
     color: Colors.textSecondary,
-    fontWeight: '600',
-  },
-  founderText: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginLeft: 'auto',
-  },
-  hiveActions: {
-    marginTop: 12,
-  },
-  memberBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  memberText: {
-    fontSize: 14,
-    color: Colors.success,
-    fontWeight: '600',
   },
   joinButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.accent,
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 6,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginTop: 12,
+    alignSelf: 'flex-end',
   },
   joinButtonText: {
     color: Colors.surface,
-    fontSize: 14,
     fontWeight: '600',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: Colors.text,
-    marginTop: 16,
-  },
-  emptyText: {
     fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 8,
-    paddingHorizontal: 40,
   },
-  createButton: {
-    position: 'absolute',
-    bottom: 90,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.accent,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  federateLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary + '10',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 8,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  federateLinkText: {
-    fontSize: 14,
-    color: Colors.primary,
-    fontWeight: '500',
-  },
-  modalOverlay: {
+  // Modal Styles
+  modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
     backgroundColor: Colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 20,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '600',
     color: Colors.text,
   },
-  modalScroll: {
-    padding: 20,
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
   },
   modalSubtitle: {
     fontSize: 14,
     color: Colors.textSecondary,
-    marginBottom: 24,
+    marginBottom: 20,
+    lineHeight: 20,
   },
-  formGroup: {
+  modalSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 48,
+    gap: 8,
     marginBottom: 16,
   },
-  label: {
-    fontSize: 14,
+  modalSearchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: Colors.text,
+  },
+  resultsContainer: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  resultCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    padding: 14,
+  },
+  resultInfo: {
+    flex: 1,
+  },
+  resultName: {
+    fontSize: 15,
     fontWeight: '600',
     color: Colors.text,
+    marginBottom: 2,
+  },
+  resultMeta: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  resultJoinBtn: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  resultJoinText: {
+    color: Colors.surface,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  createNewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    borderRadius: 10,
+    borderStyle: 'dashed',
+  },
+  createNewText: {
+    color: Colors.primary,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  formGroup: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    letterSpacing: 0.5,
     marginBottom: 8,
   },
   input: {
     backgroundColor: Colors.surface,
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
     color: Colors.text,
-    borderWidth: 1,
-    borderColor: Colors.border,
   },
   textArea: {
     minHeight: 80,
     textAlignVertical: 'top',
   },
-  pledgeReminder: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primary + '10',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 20,
-    gap: 10,
-  },
-  pledgeText: {
-    flex: 1,
-    fontSize: 13,
-    color: Colors.primary,
-  },
-  submitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.accent,
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
-    marginBottom: 20,
-  },
-  submitButtonText: {
-    color: Colors.surface,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  warningBox: {
-    backgroundColor: Colors.accent + '15',
-    borderWidth: 2,
-    borderColor: Colors.accent,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-  },
-  warningHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  warningTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  warningText: {
-    fontSize: 14,
-    color: Colors.text,
-    marginBottom: 12,
-  },
-  similarHiveName: {
-    fontSize: 14,
-    color: Colors.primary,
-    fontWeight: '600',
-    marginLeft: 8,
-    marginBottom: 4,
-  },
-  warningButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
-  },
-  cancelWarningButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: 'center',
-  },
-  cancelWarningText: {
-    fontSize: 14,
-    color: Colors.text,
-    fontWeight: '600',
-  },
-  forceCreateButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: Colors.accent,
-    alignItems: 'center',
-  },
-  forceCreateText: {
-    fontSize: 14,
-    color: Colors.surface,
-    fontWeight: '600',
-  },
-  verificationNote: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: Colors.surface,
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 40,
-  },
-  verificationNoteText: {
-    flex: 1,
-    fontSize: 12,
-    color: Colors.textSecondary,
-    lineHeight: 18,
-  },
-  parentPickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    gap: 10,
-  },
-  parentPickerText: {
-    flex: 1,
-    fontSize: 16,
-    color: Colors.text,
-  },
-  parentPickerPlaceholder: {
-    flex: 1,
-    fontSize: 16,
-    color: Colors.textSecondary,
-  },
-  parentPickerList: {
-    marginTop: 8,
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    maxHeight: 200,
-    overflow: 'hidden',
-  },
-  parentPickerItem: {
+  selector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  parentPickerItemSelected: {
-    backgroundColor: Colors.primary + '15',
-  },
-  parentPickerItemText: {
+  selectorText: {
     fontSize: 15,
     color: Colors.text,
   },
-  parentPickerItemTextSelected: {
+  selectorPlaceholder: {
+    color: Colors.textSecondary,
+  },
+  pickerDropdown: {
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    marginTop: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  pickerOption: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  pickerOptionSelected: {
+    backgroundColor: Colors.primary + '15',
+  },
+  pickerOptionText: {
+    fontSize: 15,
+    color: Colors.text,
+  },
+  pickerOptionTextSelected: {
     color: Colors.primary,
     fontWeight: '600',
   },
-  parentHint: {
+  parentPickerContainer: {
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    marginTop: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  parentSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    height: 40,
+    gap: 6,
+    marginBottom: 8,
+  },
+  parentSearchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.text,
+  },
+  parentOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  parentOptionName: {
+    fontSize: 14,
+    color: Colors.text,
+    fontWeight: '500',
+  },
+  parentOptionType: {
     fontSize: 12,
     color: Colors.textSecondary,
-    marginTop: 8,
-    fontStyle: 'italic',
+  },
+  pathPreview: {
+    backgroundColor: '#E8F5E9',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 20,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.primary,
+  },
+  pathPreviewLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.primary,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  pathPreviewText: {
+    fontSize: 14,
+    color: Colors.text,
+    lineHeight: 20,
+  },
+  createButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingVertical: 14,
+    gap: 8,
+  },
+  createButtonDisabled: {
+    opacity: 0.6,
+  },
+  createButtonText: {
+    color: Colors.surface,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

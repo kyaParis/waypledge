@@ -200,7 +200,7 @@ export default function VerifyScreen() {
           <View style={styles.infoContainer}>
             <MaterialIcons name="info-outline" size={16} color={Colors.textSecondary} />
             <Text style={styles.infoText}>
-              You can browse and join Hives, but you'll need to verify your email to create Pledges or Wishes.
+              You can browse and join Communities, but you'll need to verify your email to create Pledges or Wishes.
             </Text>
           </View>
         </View>

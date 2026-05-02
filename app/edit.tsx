@@ -10,11 +10,13 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
 import api from '../utils/api';
+import * as ImagePicker from 'expo-image-picker';
 
 const CATEGORIES = [
   'Food & Meals',
@@ -39,6 +41,8 @@ export default function EditScreen() {
   const [category, setCategory] = useState('');
   const [location, setLocation] = useState('');
   const [tags, setTags] = useState('');
+  const [image, setImage] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
   useEffect(() => {
@@ -57,6 +61,7 @@ export default function EditScreen() {
       setCategory(item.category);
       setLocation(item.location || '');
       setTags(item.tags?.join(', ') || '');
+      setImage(item.image || null);
     } catch (error) {
       console.error('Error loading item:', error);
       alert('Failed to load item');
@@ -75,12 +80,13 @@ export default function EditScreen() {
     try {
       setSaving(true);
       const endpoint = type === 'pledge' ? `/pledges/${id}` : `/wishes/${id}`;
-      const data = {
+      const data: any = {
         title: title.trim(),
         description: description.trim(),
         category,
         location: location.trim(),
         tags: tags.split(',').map(t => t.trim()).filter(t => t),
+        image: image,
       };
       
       await api.put(endpoint, data);
@@ -113,6 +119,43 @@ export default function EditScreen() {
       alert('Failed to delete');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const pickImage = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        alert('Permission to access photos is required');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.7,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setUploadingImage(true);
+        try {
+          // Upload to Cloudinary via backend
+          const response = await api.post('/upload-image', {
+            image: `data:image/jpeg;base64,${result.assets[0].base64}`,
+          });
+          setImage(response.data.url);
+        } catch (uploadError) {
+          console.error('Upload error:', uploadError);
+          alert('Failed to upload image. Please try again.');
+        } finally {
+          setUploadingImage(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      alert('Failed to pick image');
     }
   };
 
@@ -240,6 +283,48 @@ export default function EditScreen() {
               placeholder="gardening, organic, weekly (comma separated)"
               placeholderTextColor={Colors.textSecondary}
             />
+          </View>
+
+          {/* Image Section */}
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Photo</Text>
+            {image ? (
+              <View style={styles.imagePreviewContainer}>
+                <Image source={{ uri: image }} style={styles.imagePreview} />
+                <View style={styles.imageActions}>
+                  <TouchableOpacity
+                    style={styles.changeImageBtn}
+                    onPress={pickImage}
+                    disabled={uploadingImage}
+                  >
+                    <MaterialIcons name="edit" size={18} color={Colors.primary} />
+                    <Text style={styles.changeImageText}>Change</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.removeImageBtn}
+                    onPress={() => setImage(null)}
+                  >
+                    <MaterialIcons name="delete" size={18} color={Colors.error} />
+                    <Text style={styles.removeImageText}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.addImageButton}
+                onPress={pickImage}
+                disabled={uploadingImage}
+              >
+                {uploadingImage ? (
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                ) : (
+                  <>
+                    <MaterialIcons name="add-photo-alternate" size={32} color={Colors.textSecondary} />
+                    <Text style={styles.addImageText}>Add Photo</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
 
           <TouchableOpacity
@@ -412,5 +497,60 @@ const styles = StyleSheet.create({
     color: Colors.error,
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Image styles
+  imagePreviewContainer: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: Colors.surface,
+  },
+  imagePreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+  },
+  imageActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 20,
+    padding: 12,
+    backgroundColor: Colors.surface,
+  },
+  changeImageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    padding: 8,
+  },
+  changeImageText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  removeImageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    padding: 8,
+  },
+  removeImageText: {
+    color: Colors.error,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  addImageButton: {
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  addImageText: {
+    color: Colors.textSecondary,
+    fontSize: 14,
   },
 });

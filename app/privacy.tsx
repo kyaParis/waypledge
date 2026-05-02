@@ -52,7 +52,7 @@ export default function PrivacyPolicyScreen() {
           • Wishes (requests for help){'\n'}
           • Messages between users{'\n'}
           • Gratitude posts{'\n'}
-          • Hive memberships and interactions
+          • Community memberships and interactions
         </Text>
 
         <Text style={styles.subTitle}>Automatically Collected Information</Text>
@@ -79,7 +79,7 @@ export default function PrivacyPolicyScreen() {
           {'\n\n'}
           Your information may be visible to:{'\n'}
           • Other WayPledge users (pledges, wishes, gratitude posts, and profile information you choose to share){'\n'}
-          • Hive administrators for community moderation{'\n'}
+          • Community administrators for local moderation{'\n'}
           • Our team for support and safety purposes
         </Text>
 

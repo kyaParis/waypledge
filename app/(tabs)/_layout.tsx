@@ -4,28 +4,34 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { useAuthStore } from '../../store/authStore';
 import { useEffect, useState } from 'react';
-import api from '../../utils/api';
+import api, { getPendingGratitude } from '../../utils/api';
 
 export default function TabsLayout() {
   const user = useAuthStore((state) => state.user);
   const isAdmin = user?.is_admin || false;
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingGratitudeCount, setPendingGratitudeCount] = useState(0);
 
-  // Check for unread messages periodically
+  // Check for unread messages and pending gratitude periodically
   useEffect(() => {
-    const checkUnread = async () => {
+    const checkNotifications = async () => {
       if (!user) return;
       try {
-        const response = await api.get('/connections/unread-count');
-        setUnreadCount(response.data.count || 0);
+        // Check unread messages
+        const unreadResponse = await api.get('/connections/unread-count');
+        setUnreadCount(unreadResponse.data.count || 0);
+        
+        // Check pending gratitude
+        const pendingGratitude = await getPendingGratitude();
+        setPendingGratitudeCount(pendingGratitude.length || 0);
       } catch (error) {
-        // Silently fail - endpoint might not exist yet
+        // Silently fail - endpoints might not exist yet
       }
     };
 
-    checkUnread();
+    checkNotifications();
     // Check every 30 seconds
-    const interval = setInterval(checkUnread, 30000);
+    const interval = setInterval(checkNotifications, 30000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -38,14 +44,14 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: Colors.surface,
           borderTopColor: Colors.border,
-          height: 70,
-          paddingBottom: 10,
+          height: 85,
+          paddingBottom: 25,
           paddingTop: 10,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '600',
-          marginTop: 4,
+          marginTop: 2,
         },
         tabBarIconStyle: {
           marginTop: 4,
@@ -71,15 +77,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="hive"
-        options={{
-          title: 'Hive',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="hexagon" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="create"
         options={{
           title: 'Create',
@@ -89,18 +86,9 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="about"
-        options={{
-          title: 'About',
-          tabBarIcon: ({ color, size}) => (
-            <MaterialIcons name="info" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="messages"
         options={{
-          title: 'Messages',
+          title: 'Chat',
           tabBarIcon: ({ color, size }) => (
             <View>
               <MaterialIcons name="chat" size={size} color={color} />
@@ -120,18 +108,36 @@ export default function TabsLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="person" size={size} color={color} />
+            <View>
+              <MaterialIcons name="person" size={size} color={color} />
+              {pendingGratitudeCount > 0 && (
+                <View style={[styles.badge, styles.gratitudeBadge]}>
+                  <Text style={styles.badgeText}>
+                    {pendingGratitudeCount > 9 ? '9+' : pendingGratitudeCount}
+                  </Text>
+                </View>
+              )}
+            </View>
           ),
+        }}
+      />
+      {/* Hidden tabs - accessible from Profile */}
+      <Tabs.Screen
+        name="hive"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="about"
+        options={{
+          href: null, // Hide from tab bar
         }}
       />
       <Tabs.Screen
         name="admin"
         options={{
-          title: 'Admin',
-          href: isAdmin ? '/admin' : null,
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="admin-panel-settings" size={size} color={color} />
-          ),
+          href: null, // Hide from tab bar - access from Profile
         }}
       />
     </Tabs>
@@ -150,6 +156,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 4,
+  },
+  gratitudeBadge: {
+    backgroundColor: Colors.accent, // Gold color for gratitude
   },
   badgeText: {
     color: 'white',

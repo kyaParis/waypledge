@@ -13,7 +13,7 @@ import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
-type SectionKey = 'philosophy' | 'howItWorks' | 'pledgesWishes' | 'hives' | 'doNoHarm' | 'support';
+type SectionKey = 'philosophy' | 'howItWorks' | 'pledgesWishes' | 'hives' | 'safety' | 'doNoHarm' | 'support';
 
 export default function AboutScreen() {
   const [expandedSection, setExpandedSection] = useState<SectionKey | null>('philosophy');
@@ -322,7 +322,96 @@ export default function AboutScreen() {
           </View>
         )}
 
-        {/* SECTION 5: DO NO HARM PLEDGE */}
+        {/* SECTION 5: SAFETY & ACCOUNT */}
+        <TouchableOpacity 
+          style={styles.sectionHeader} 
+          onPress={() => toggleSection('safety')}
+        >
+          <View style={styles.sectionHeaderLeft}>
+            <MaterialIcons name="security" size={24} color={Colors.primary} />
+            <Text style={styles.sectionTitle}>Safety & Account</Text>
+          </View>
+          <MaterialIcons 
+            name={expandedSection === 'safety' ? "expand-less" : "expand-more"} 
+            size={24} 
+            color={Colors.textSecondary} 
+          />
+        </TouchableOpacity>
+        {expandedSection === 'safety' && (
+          <View style={styles.sectionContent}>
+            <Text style={styles.safetyIntro}>
+              Your safety and control over your account are our priorities.
+            </Text>
+
+            {/* Report & Block */}
+            <View style={styles.safetyFeature}>
+              <View style={[styles.safetyIcon, { backgroundColor: Colors.error + '15' }]}>
+                <MaterialIcons name="flag" size={24} color={Colors.error} />
+              </View>
+              <View style={styles.safetyText}>
+                <Text style={styles.safetyTitle}>Report & Block Users</Text>
+                <Text style={styles.safetyDesc}>
+                  Tap the flag icon on any pledge or wish to report inappropriate content. You can also block users to hide their content from your view.
+                </Text>
+              </View>
+            </View>
+
+            {/* Blocked Users */}
+            <View style={styles.safetyFeature}>
+              <View style={[styles.safetyIcon, { backgroundColor: Colors.textSecondary + '15' }]}>
+                <MaterialIcons name="block" size={24} color={Colors.textSecondary} />
+              </View>
+              <View style={styles.safetyText}>
+                <Text style={styles.safetyTitle}>Manage Blocked Users</Text>
+                <Text style={styles.safetyDesc}>
+                  View and manage your blocked users in Profile → Blocked Users. You can unblock anyone at any time.
+                </Text>
+              </View>
+            </View>
+
+            {/* Delete Account */}
+            <View style={styles.safetyFeature}>
+              <View style={[styles.safetyIcon, { backgroundColor: Colors.error + '15' }]}>
+                <MaterialIcons name="delete-forever" size={24} color={Colors.error} />
+              </View>
+              <View style={styles.safetyText}>
+                <Text style={styles.safetyTitle}>Delete Your Account</Text>
+                <Text style={styles.safetyDesc}>
+                  You can permanently delete your account in Profile → Delete Account. This removes all your data including pledges, wishes, and messages.
+                </Text>
+              </View>
+            </View>
+
+            {/* Prohibited Items Warning */}
+            <View style={styles.warningBox}>
+              <MaterialIcons name="warning" size={24} color="#E65100" />
+              <View style={styles.warningTextContainer}>
+                <Text style={styles.warningTitle}>Prohibited Items</Text>
+                <Text style={styles.warningDesc}>
+                  The following may NOT be pledged or requested:{'\n'}
+                  • Alcohol, tobacco, or controlled substances{'\n'}
+                  • Weapons or dangerous materials{'\n'}
+                  • Adult/explicit content{'\n'}
+                  • Gambling services
+                </Text>
+              </View>
+            </View>
+
+            {/* Meeting Safety Tips */}
+            <View style={styles.tipsBox}>
+              <MaterialIcons name="tips-and-updates" size={24} color={Colors.accent} />
+              <View style={styles.tipsContent}>
+                <Text style={styles.tipsTitle}>Meeting Safety Tips</Text>
+                <Text style={styles.tipsItem}>• Meet in public places when possible</Text>
+                <Text style={styles.tipsItem}>• Tell someone where you are going</Text>
+                <Text style={styles.tipsItem}>• Trust your instincts</Text>
+                <Text style={styles.tipsItem}>• Report any concerning behavior</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* SECTION 6: DO NO HARM PLEDGE */}
         <TouchableOpacity 
           style={[styles.sectionHeader, styles.doNoHarmHeader]} 
           onPress={() => toggleSection('doNoHarm')}
@@ -952,5 +1041,90 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 16,
     fontStyle: 'italic',
+  },
+  // Safety & Account styles
+  safetyIntro: {
+    fontSize: 15,
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: 20,
+    fontStyle: 'italic',
+  },
+  safetyFeature: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+    marginBottom: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  safetyIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  safetyText: {
+    flex: 1,
+  },
+  safetyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 6,
+  },
+  safetyDesc: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 21,
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: '#FFF8E1',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFB300',
+  },
+  warningTextContainer: {
+    flex: 1,
+  },
+  warningTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#E65100',
+    marginBottom: 6,
+  },
+  warningDesc: {
+    fontSize: 13,
+    color: '#5D4037',
+    lineHeight: 20,
+  },
+  tipsBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: Colors.accent + '10',
+    padding: 16,
+    borderRadius: 12,
+  },
+  tipsContent: {
+    flex: 1,
+  },
+  tipsTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.accent,
+    marginBottom: 8,
+  },
+  tipsItem: {
+    fontSize: 13,
+    color: Colors.text,
+    lineHeight: 22,
   },
 });

@@ -9,37 +9,38 @@ import {
   SafeAreaView,
   Image,
   AppState,
+  Linking,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
-import api, { Pledge, Wish, Gratitude } from '../../utils/api';
+import api, { Pledge, Wish } from '../../utils/api';
 import WelcomeModal from '../../components/WelcomeModal';
 
+const OPEN_COLLECTIVE_URL = 'https://opencollective.com/waypledge';
+
 export default function HomeScreen() {
+  const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const [recentPledges, setRecentPledges] = useState<Pledge[]>([]);
   const [recentWishes, setRecentWishes] = useState<Wish[]>([]);
-  const [recentGratitude, setRecentGratitude] = useState<Gratitude[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   
   // Auto-refresh state
-  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isFocusedRef = useRef(true);
 
   const loadData = useCallback(async () => {
     try {
-      const [pledgesRes, wishesRes, gratitudeRes] = await Promise.all([
+      const [pledgesRes, wishesRes] = await Promise.all([
         api.get('/pledges'),
         api.get('/wishes'),
-        api.get('/gratitude/wall'),
       ]);
       setRecentPledges(pledgesRes.data.slice(0, 3));
       setRecentWishes(wishesRes.data.slice(0, 3));
-      setRecentGratitude(gratitudeRes.data.slice(0, 5));
     } catch (error) {
       console.error('Error loading data:', error);
     }
@@ -223,23 +224,45 @@ export default function HomeScreen() {
           )}
         </View>
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Gratitude Wall</Text>
+        {/* Gratitude Section - Thank people & Support WayPledge */}
+        {/* Gratitude Section */}
+        <View style={styles.gratitudeSection}>
+          <View style={styles.gratitudeSectionHeader}>
             <MaterialIcons name="favorite" size={24} color={Colors.accent} />
+            <Text style={styles.gratitudeSectionTitle}>Gratitude</Text>
           </View>
-          {recentGratitude.length > 0 ? (
-            recentGratitude.map((gratitude) => (
-              <View key={gratitude.id} style={styles.gratitudeCard}>
-                <Text style={styles.gratitudeMessage}>"{gratitude.message}"</Text>
-                <Text style={styles.gratitudeAuthor}>
-                  {gratitude.from_user_name} → {gratitude.to_user_name}
-                </Text>
-              </View>
-            ))
-          ) : (
-            <Text style={styles.emptyText}>No gratitude messages yet</Text>
-          )}
+          
+          <TouchableOpacity 
+            style={styles.gratitudeButton}
+            onPress={() => router.push('/gratitude')}
+          >
+            <MaterialIcons name="volunteer-activism" size={22} color={Colors.accent} />
+            <View style={styles.gratitudeButtonText}>
+              <Text style={styles.gratitudeButtonTitle}>Say Thank You</Text>
+              <Text style={styles.gratitudeButtonSubtitle}>Thank someone in the community</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color={Colors.textSecondary} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.gratitudeButton}
+            onPress={() => Linking.openURL(OPEN_COLLECTIVE_URL)}
+          >
+            <MaterialIcons name="favorite-border" size={22} color={Colors.accent} />
+            <View style={styles.gratitudeButtonText}>
+              <Text style={styles.gratitudeButtonTitle}>Support WayPledge</Text>
+              <Text style={styles.gratitudeButtonSubtitle}>Help keep the community running</Text>
+            </View>
+            <MaterialIcons name="open-in-new" size={20} color={Colors.textSecondary} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.wallLinkSmall}
+            onPress={() => router.push('/wall')}
+          >
+            <Text style={styles.wallLinkSmallText}>View Gratitude Wall & Stories</Text>
+            <MaterialIcons name="chevron-right" size={18} color={Colors.primary} />
+          </TouchableOpacity>
         </View>
 
         <View style={{ height: 40 }} />
@@ -488,5 +511,58 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
     paddingVertical: 20,
+  },
+  gratitudeSection: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.accent,
+  },
+  gratitudeSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  gratitudeSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  gratitudeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  gratitudeButtonText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  gratitudeButtonTitle: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: Colors.text,
+  },
+  gratitudeButtonSubtitle: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  wallLinkSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 12,
+    gap: 4,
+  },
+  wallLinkSmallText: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '500',
   },
 });
