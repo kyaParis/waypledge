@@ -323,6 +323,7 @@ class ConnectionResponse(BaseModel):
     item_type: Optional[str] = None  # "pledge" or "wish"
     status: str
     created_at: datetime
+    has_unread: bool = False  # Whether this connection has unread messages for current user
 
 class MessageCreate(BaseModel):
     connection_id: str
@@ -1439,6 +1440,13 @@ async def get_connections(
             item_title = wish["title"] if wish else "Deleted Wish"
             item_type = "wish"
         
+        # Check for unread messages in this connection for the current user
+        unread_count = await db.messages.count_documents({
+            "connection_id": str(c["_id"]),
+            "receiver_id": user_id,
+            "read": False
+        })
+        
         result.append(ConnectionResponse(
             id=str(c["_id"]),
             pledge_id=c.get("pledge_id"),
@@ -1450,7 +1458,8 @@ async def get_connections(
             item_title=item_title,
             item_type=item_type,
             status=c["status"],
-            created_at=c["created_at"]
+            created_at=c["created_at"],
+            has_unread=unread_count > 0
         ))
     
     return result
