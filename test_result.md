@@ -504,3 +504,48 @@ agent_communication:
       message: "📖 STORIES ENDPOINTS TESTING COMPLETE! Comprehensive testing of Stories endpoints for Gratitude Wall feature completed successfully. ✅ VERIFIED: All 6 endpoints working correctly - POST /api/stories (submit story with auth + validation), GET /api/stories (public approved stories), GET /api/stories/mine (user's own stories), GET /api/admin/stories/pending (admin view pending), POST /api/admin/stories/{id}/approve (admin approve), POST /api/admin/stories/{id}/reject (admin reject). ✅ FIXED: Admin access control to use proper is_user_admin() function instead of direct database flag check. ✅ VERIFIED: Complete workflow - story submission → pending status → admin approval/rejection → public visibility control. All authentication, validation (min 50 chars content, min 5 chars title), and authorization working perfectly. Stories system is production-ready for Gratitude Wall feature."
     - agent: "testing"
       message: "🏗️ PARENT HIERARCHY AUTO-CREATION TESTING COMPLETE! Comprehensive testing of the new parent hierarchy auto-creation feature completed with 100% success rate (16/16 tests passed). ✅ CORE FUNCTIONALITY VERIFIED: POST /api/hives/check-existing-parents correctly identifies existing/missing parent communities with proper response structure (existing_parents, missing_parents, will_auto_join arrays), POST /api/hives with parents_to_create array successfully creates missing parent communities in correct hierarchy order (country→city→town→neighborhood→street), GET /api/hives verifies all created communities exist with proper parent-child linking. ✅ VERIFIED FEATURES: User becomes founder of all created parent communities, duplicate parent prevention works correctly (existing parents reused instead of creating duplicates), hierarchy linking follows proper order with correct parent_hive_id references, authentication required for all endpoints (403 for unauthenticated). ✅ EDGE CASES TESTED: Empty hierarchy data handled gracefully, invalid entries filtered correctly, special characters in names supported, malformed parents_to_create data handled properly, very long names processed correctly. The parent hierarchy auto-creation system is production-ready and enables seamless community creation with automatic parent community generation and proper hierarchy management."
+
+## CRITICAL TEMPORARY CHANGES - MUST BE RESTORED LATER
+## =====================================================
+## The following changes were made temporarily to fix iOS build issues:
+##
+## 1. PUSH NOTIFICATIONS DISABLED (2026-05-02)
+##    - File: /app/frontend/app.json
+##    - Issue: Provisioning profile doesn't support Push Notifications capability
+##    - What was changed: Added "UIBackgroundModes": [] to infoPlist to disable push notifications
+##    - Why: EAS builds were failing because the Apple Developer account provisioning profile
+##           doesn't have Push Notifications capability enabled
+##    - To restore: 
+##      a. User needs to enable Push Notifications in Apple Developer Portal for app ID me.waypledge.app
+##      b. Remove "UIBackgroundModes": [] from app.json
+##      c. Rebuild with push notifications enabled
+##    - Impact: Users will NOT receive push notifications until this is restored
+##
+## 2. UNREAD MESSAGE INDICATOR ADDED (2026-05-02)
+##    - Files: /app/backend/server.py, /app/frontend/utils/api.ts, /app/frontend/app/(tabs)/messages.tsx
+##    - Added has_unread field to ConnectionResponse and Connection interface
+##    - Conversations with unread messages now show blue dot + bold title + blue left border
+##    - This is a PERMANENT improvement, not temporary
+##
+## 3. iOS BUILD NUMBER INCREMENTED
+##    - File: /app/frontend/app.json
+##    - buildNumber changed from "5" to "6"
+##
+## PROFILE SCREEN FEATURES (for reference):
+## The profile screen (/app/frontend/app/(tabs)/profile.tsx) should show these sections:
+## - Header (name, email, bio)
+## - Stats (Pledges, Wishes, Gratitude counts)
+## - Pending Gratitude approvals
+## - My Pledges list
+## - My Wishes list
+## - Gratitude Received list
+## - Language selector
+## - Notifications toggle
+## - Admin Panel (admin users only)
+## - Blocked Users
+## - Quick Links (Invite Friends, Communities, Help, About)
+## - Logout button
+## - Delete Account button
+##
+## If the app on phone only shows Pledges/Wishes/Logout, the build is outdated and needs to be rebuilt
+## with the latest code from GitHub.
