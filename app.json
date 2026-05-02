@@ -15,12 +15,13 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "me.waypledge.app",
-      "buildNumber": "5",
+      "buildNumber": "6",
       "infoPlist": {
         "NSCameraUsageDescription": "Take photos for your pledges",
         "NSPhotoLibraryUsageDescription": "Share photos from your gallery",
         "NSLocationWhenInUseUsageDescription": "Find pledges and wishes near you",
-        "CFBundleAllowMixedLocalizations": true
+        "CFBundleAllowMixedLocalizations": true,
+        "UIBackgroundModes": []
       },
       "config": {
         "usesNonExemptEncryption": false
