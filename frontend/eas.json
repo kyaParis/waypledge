@@ -32,8 +32,7 @@
         "autoIncrement": "buildNumber"
       },
       "android": {
-        "buildType": "app-bundle",
-        "autoIncrement": "versionCode"
+        "buildType": "app-bundle"
       },
       "env": {
         "EXPO_PUBLIC_BACKEND_URL": "https://pledge-app-redesign.preview.emergentagent.com"
