@@ -181,7 +181,8 @@ export default function GratitudeWallScreen() {
           <MaterialIcons name="favorite" size={28} color={Colors.accent} />
           <View style={styles.supportCardText}>
             <Text style={styles.supportCardTitle}>Support WayPledge</Text>
-            <Text style={styles.supportCardSubtitle}>Help keep this community running</Text>
+            <Text style={styles.supportCardSubtitle}>100% transparent via Open Collective</Text>
+            <Text style={styles.supportCardNote}>All contributions go towards hosting & growth - no fees, no profit</Text>
           </View>
         </View>
         <MaterialIcons name="open-in-new" size={20} color={Colors.textSecondary} />
@@ -605,5 +606,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     marginTop: 2,
+  },
+  supportCardNote: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
 });
