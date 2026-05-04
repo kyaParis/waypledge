@@ -11,10 +11,11 @@ import {
   RefreshControl,
   SafeAreaView,
   Alert,
+  Modal,
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
-import api, { Connection, Message } from '../../utils/api';
+import api, { Connection, Message, blockUser } from '../../utils/api';
 import { useAuthStore } from '../../store/authStore';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -25,6 +26,8 @@ export default function MessagesScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [menuConnection, setMenuConnection] = useState<Connection | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
     loadConnections();
@@ -80,6 +83,98 @@ export default function MessagesScreen() {
       await loadMessages(selectedConnection.id);
     }
     setRefreshing(false);
+  };
+
+  const handleOpenMenu = (connection: Connection) => {
+    setMenuConnection(connection);
+    setShowMenu(true);
+  };
+
+  const handleArchiveConversation = async () => {
+    if (!menuConnection) return;
+    setShowMenu(false);
+    Alert.alert(
+      'Archive Conversation',
+      'This will hide the conversation from your list. You can still view it later in your archived messages.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Archive',
+          onPress: async () => {
+            try {
+              await api.post(`/connections/${menuConnection.id}/archive`);
+              setConnections(connections.filter(c => c.id !== menuConnection.id));
+              Alert.alert('Done', 'Conversation archived');
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.detail || 'Could not archive conversation');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleBlockUser = async () => {
+    if (!menuConnection) return;
+    const otherUserId = menuConnection.pledger_id === user?.id 
+      ? menuConnection.wisher_id 
+      : menuConnection.pledger_id;
+    const otherUserName = menuConnection.pledger_id === user?.id 
+      ? menuConnection.wisher_name 
+      : menuConnection.pledger_name;
+    
+    setShowMenu(false);
+    Alert.alert(
+      'Block User',
+      `Are you sure you want to block ${otherUserName}? You won't see their pledges, wishes, or messages.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await blockUser(otherUserId);
+              setConnections(connections.filter(c => c.id !== menuConnection.id));
+              Alert.alert('Done', `${otherUserName} has been blocked`);
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.detail || 'Could not block user');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleReportConversation = () => {
+    if (!menuConnection) return;
+    const otherUserName = menuConnection.pledger_id === user?.id 
+      ? menuConnection.wisher_name 
+      : menuConnection.pledger_name;
+    
+    setShowMenu(false);
+    Alert.alert(
+      'Report Issue',
+      `Report a problem with this conversation with ${otherUserName}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Report',
+          onPress: async () => {
+            try {
+              await api.post('/reports', {
+                reported_type: 'conversation',
+                reported_id: menuConnection.id,
+                reason: 'User reported from messages screen'
+              });
+              Alert.alert('Thank You', 'Your report has been submitted. Our team will review it.');
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.detail || 'Could not submit report');
+            }
+          }
+        }
+      ]
+    );
   };
 
   if (selectedConnection) {
@@ -213,51 +308,57 @@ export default function MessagesScreen() {
             const itemType = connection.item_type || (connection.pledge_id ? 'pledge' : 'wish');
             
             return (
-              <TouchableOpacity
-                key={connection.id}
-                style={[
-                  styles.connectionCard,
-                  connection.has_unread && styles.connectionCardUnread
-                ]}
-                onPress={() => setSelectedConnection(connection)}
-              >
-                <View
-                  style={[
-                    styles.connectionIcon,
-                    {
-                      backgroundColor: itemType === 'pledge'
-                        ? Colors.pledgeLight
-                        : Colors.wishLight,
-                    },
-                  ]}
+              <View key={connection.id} style={[
+                styles.connectionCard,
+                connection.has_unread && styles.connectionCardUnread
+              ]}>
+                <TouchableOpacity
+                  style={styles.connectionContent}
+                  onPress={() => setSelectedConnection(connection)}
                 >
-                  <MaterialIcons
-                    name={itemType === 'pledge' ? 'card-giftcard' : 'star'}
-                    size={24}
-                    color={itemType === 'pledge' ? Colors.pledgeDark : Colors.wishDark}
-                  />
-                </View>
-                <View style={styles.connectionInfo}>
-                  <View style={styles.connectionTitleRow}>
-                    <Text style={[
-                      styles.connectionTitle,
-                      connection.has_unread && styles.connectionTitleUnread
-                    ]} numberOfLines={1}>
-                      {connection.item_title || (itemType === 'pledge' ? 'Pledge' : 'Wish')}
-                    </Text>
-                    {connection.has_unread && (
-                      <View style={styles.unreadDot} />
-                    )}
+                  <View
+                    style={[
+                      styles.connectionIcon,
+                      {
+                        backgroundColor: itemType === 'pledge'
+                          ? Colors.pledgeLight
+                          : Colors.wishLight,
+                      },
+                    ]}
+                  >
+                    <MaterialIcons
+                      name={itemType === 'pledge' ? 'card-giftcard' : 'star'}
+                      size={24}
+                      color={itemType === 'pledge' ? Colors.pledgeDark : Colors.wishDark}
+                    />
                   </View>
-                  <Text style={styles.connectionPerson}>
-                    with {otherPersonName || 'Unknown'}
-                  </Text>
-                  <Text style={styles.connectionSubtitle}>
-                    {formatDistanceToNow(new Date(connection.created_at), { addSuffix: true })}
-                  </Text>
-                </View>
-                <MaterialIcons name="chevron-right" size={24} color={Colors.textSecondary} />
-              </TouchableOpacity>
+                  <View style={styles.connectionInfo}>
+                    <View style={styles.connectionTitleRow}>
+                      <Text style={[
+                        styles.connectionTitle,
+                        connection.has_unread && styles.connectionTitleUnread
+                      ]} numberOfLines={1}>
+                        {connection.item_title || (itemType === 'pledge' ? 'Pledge' : 'Wish')}
+                      </Text>
+                      {connection.has_unread && (
+                        <View style={styles.unreadDot} />
+                      )}
+                    </View>
+                    <Text style={styles.connectionPerson}>
+                      with {otherPersonName || 'Unknown'}
+                    </Text>
+                    <Text style={styles.connectionSubtitle}>
+                      {formatDistanceToNow(new Date(connection.created_at), { addSuffix: true })}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.menuButton}
+                  onPress={() => handleOpenMenu(connection)}
+                >
+                  <MaterialIcons name="more-vert" size={24} color={Colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
             );
           })
         ) : (
@@ -279,6 +380,55 @@ export default function MessagesScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Conversation Options Menu Modal */}
+      <Modal
+        visible={showMenu}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowMenu(false)}
+      >
+        <TouchableOpacity 
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMenu(false)}
+        >
+          <View style={styles.menuContainer}>
+            <Text style={styles.menuTitle}>Options</Text>
+            
+            <TouchableOpacity 
+              style={styles.menuOption}
+              onPress={handleArchiveConversation}
+            >
+              <MaterialIcons name="archive" size={24} color={Colors.text} />
+              <Text style={styles.menuOptionText}>Archive conversation</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.menuOption}
+              onPress={handleReportConversation}
+            >
+              <MaterialIcons name="flag" size={24} color={Colors.warning} />
+              <Text style={[styles.menuOptionText, { color: Colors.warning }]}>Report an issue</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.menuOption}
+              onPress={handleBlockUser}
+            >
+              <MaterialIcons name="block" size={24} color={Colors.error} />
+              <Text style={[styles.menuOptionText, { color: Colors.error }]}>Block user</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.menuOption, styles.menuCancelOption]}
+              onPress={() => setShowMenu(false)}
+            >
+              <Text style={styles.menuCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -511,5 +661,56 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: Colors.border,
+  },
+  connectionContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  menuButton: {
+    padding: 8,
+    marginLeft: 4,
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  menuContainer: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  menuTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  menuOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  menuOptionText: {
+    fontSize: 16,
+    color: Colors.text,
+    marginLeft: 16,
+  },
+  menuCancelOption: {
+    borderBottomWidth: 0,
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  menuCancelText: {
+    fontSize: 16,
+    color: Colors.primary,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
