@@ -561,41 +561,52 @@ export default function ProfileScreen() {
           onRequestClose={() => setShowPendingModal(false)}
         >
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
+            <View style={[styles.modalContent, { maxHeight: '80%' }]}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Pending Users</Text>
-                <TouchableOpacity onPress={() => setShowPendingModal(false)}>
-                  <MaterialIcons name="close" size={24} color={Colors.text} />
+                <TouchableOpacity 
+                  onPress={() => setShowPendingModal(false)}
+                  style={{ padding: 8 }}
+                >
+                  <MaterialIcons name="close" size={28} color={Colors.text} />
                 </TouchableOpacity>
               </View>
-              {loadingPending ? (
-                <ActivityIndicator size="large" color={Colors.primary} style={{ padding: 20 }} />
-              ) : pendingUsers.length === 0 ? (
-                <Text style={styles.emptyBlockedText}>No pending users</Text>
-              ) : (
-                pendingUsers.map((pendingUser) => (
-                  <View key={pendingUser.id} style={styles.pendingUserItem}>
-                    <View style={styles.pendingUserInfo}>
-                      <Text style={styles.pendingUserName}>{pendingUser.name}</Text>
-                      <Text style={styles.pendingUserEmail}>{pendingUser.email}</Text>
+              <ScrollView style={{ maxHeight: 400 }}>
+                {loadingPending ? (
+                  <ActivityIndicator size="large" color={Colors.primary} style={{ padding: 20 }} />
+                ) : pendingUsers.length === 0 ? (
+                  <Text style={styles.emptyBlockedText}>No pending users</Text>
+                ) : (
+                  pendingUsers.map((pendingUser) => (
+                    <View key={pendingUser.id} style={styles.pendingUserItem}>
+                      <View style={styles.pendingUserInfo}>
+                        <Text style={styles.pendingUserName}>{pendingUser.name}</Text>
+                        <Text style={styles.pendingUserEmail}>{pendingUser.email}</Text>
+                      </View>
+                      <View style={styles.pendingActions}>
+                        <TouchableOpacity
+                          style={styles.pendingApproveButton}
+                          onPress={() => handleApproveUser(pendingUser.id, pendingUser.name)}
+                        >
+                          <MaterialIcons name="check" size={24} color={Colors.surface} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.rejectButton}
+                          onPress={() => handleRejectUser(pendingUser.id, pendingUser.name)}
+                        >
+                          <MaterialIcons name="close" size={24} color={Colors.surface} />
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                    <View style={styles.pendingActions}>
-                      <TouchableOpacity
-                        style={styles.pendingApproveButton}
-                        onPress={() => handleApproveUser(pendingUser.id, pendingUser.name)}
-                      >
-                        <MaterialIcons name="check" size={24} color={Colors.surface} />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.rejectButton}
-                        onPress={() => handleRejectUser(pendingUser.id, pendingUser.name)}
-                      >
-                        <MaterialIcons name="close" size={24} color={Colors.surface} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ))
-              )}
+                  ))
+                )}
+              </ScrollView>
+              <TouchableOpacity 
+                style={styles.closeModalButton}
+                onPress={() => setShowPendingModal(false)}
+              >
+                <Text style={styles.closeModalButtonText}>Close</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
@@ -1512,5 +1523,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     marginTop: 4,
+  },
+  closeModalButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  closeModalButtonText: {
+    color: Colors.surface,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
