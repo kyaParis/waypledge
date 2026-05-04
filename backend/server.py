@@ -1417,7 +1417,8 @@ async def get_connections(
 ):
     user_id = str(current_user["_id"])
     connections = await db.connections.find({
-        "$or": [{"pledger_id": user_id}, {"wisher_id": user_id}]
+        "$or": [{"pledger_id": user_id}, {"wisher_id": user_id}],
+        "archived_by": {"$ne": user_id}  # Exclude archived connections
     }).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
     
     result = []
@@ -1545,6 +1546,32 @@ async def get_unread_count(current_user = Depends(get_current_user)):
     })
     
     return {"count": unread_count}
+
+
+@api_router.post("/connections/{connection_id}/archive")
+async def archive_connection(connection_id: str, current_user = Depends(get_current_user)):
+    """Archive a connection (hide from user's list)"""
+    user_id = str(current_user["_id"])
+    
+    connection = await db.connections.find_one({"_id": ObjectId(connection_id)})
+    if not connection:
+        raise HTTPException(status_code=404, detail="Connection not found")
+    
+    # Verify user is part of this connection
+    if connection["pledger_id"] != user_id and connection["wisher_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Add user to archived_by list
+    archived_by = connection.get("archived_by", [])
+    if user_id not in archived_by:
+        archived_by.append(user_id)
+        await db.connections.update_one(
+            {"_id": ObjectId(connection_id)},
+            {"$set": {"archived_by": archived_by}}
+        )
+    
+    return {"message": "Connection archived"}
+
 
 # Gratitude endpoints (with approval workflow)
 @api_router.post("/gratitude", response_model=GratitudeResponse)
