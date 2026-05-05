@@ -3767,6 +3767,38 @@ async def sync_wishes_from_partner(
     
     return {"success": True, "synced": synced, "message": f"Synced {synced} wishes from {partner['platform_name']}"}
 
+# Signal Chat Endpoint
+class SignalChatRequest(BaseModel):
+    messages: List[dict]
+    system: str
+
+@api_router.post("/signal/chat")
+async def signal_chat(request: SignalChatRequest):
+    """Signal chat endpoint using Claude"""
+    try:
+        emergent_key = os.environ.get("EMERGENT_LLM_KEY")
+        if not emergent_key:
+            raise HTTPException(status_code=500, detail="LLM key not configured")
+        
+        # Create chat instance with Claude
+        chat = LlmChat(
+            api_key=emergent_key,
+            session_id=f"signal-{datetime.utcnow().timestamp()}",
+            system_message=request.system
+        ).with_model("anthropic", "claude-opus-4-6")
+        
+        # Send all messages to build context, get response for last one
+        response = None
+        for msg in request.messages:
+            if msg.get("role") == "user":
+                user_message = UserMessage(text=msg.get("content", ""))
+                response = await chat.send_message(user_message)
+        
+        return {"response": response or ""}
+    except Exception as e:
+        logger.error(f"Signal chat error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Include the router
 app.include_router(api_router)
 
@@ -4217,36 +4249,3 @@ async def data_deletion_page():
 </body>
 </html>
 """
-
-# Signal Chat Endpoint
-class SignalChatRequest(BaseModel):
-    messages: List[dict]
-    system: str
-
-@api_router.post("/signal/chat")
-async def signal_chat(request: SignalChatRequest):
-    """Signal chat endpoint using Claude"""
-    try:
-        emergent_key = os.environ.get("EMERGENT_LLM_KEY")
-        if not emergent_key:
-            raise HTTPException(status_code=500, detail="LLM key not configured")
-        
-        # Create chat instance with Claude
-        chat = LlmChat(
-            api_key=emergent_key,
-            session_id=f"signal-{datetime.utcnow().timestamp()}",
-            system_message=request.system
-        ).with_model("anthropic", "claude-opus-4-6")
-        
-        # Send all messages to build context, get response for last one
-        response = None
-        for msg in request.messages:
-            if msg.get("role") == "user":
-                user_message = UserMessage(text=msg.get("content", ""))
-                response = await chat.send_message(user_message)
-        
-        return {"response": response or ""}
-    except Exception as e:
-        logger.error(f"Signal chat error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
