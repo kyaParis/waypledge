@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Signal</title>
+<title>Signal Restoration</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -18,6 +18,69 @@
   }
 
   ::-webkit-scrollbar { width: 0; }
+
+  /* Intro/Cover Screen */
+  #intro {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #f5ebe0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    cursor: pointer;
+    transition: opacity 1.2s ease, visibility 1.2s ease;
+  }
+
+  #intro.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  #intro img {
+    max-width: 320px;
+    width: 85%;
+    height: auto;
+    opacity: 0;
+    transform: translateY(10px);
+    animation: coverFadeIn 2s ease 0.3s forwards;
+  }
+
+  #intro-hint {
+    position: absolute;
+    bottom: 60px;
+    font-size: 12px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #8a8078;
+    opacity: 0;
+    animation: hintFadeIn 2s ease 2s forwards;
+  }
+
+  @keyframes coverFadeIn {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes hintFadeIn {
+    to { opacity: 0.6; }
+  }
+
+  /* Chat Interface */
+  #chat-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    min-height: 100vh;
+    opacity: 0;
+    transition: opacity 1.5s ease 0.5s;
+  }
+
+  #chat-container.visible {
+    opacity: 1;
+  }
 
   #header {
     position: fixed;
@@ -51,10 +114,12 @@
   #empty {
     text-align: center;
     padding-top: 20vh;
-    color: #2a2725;
-    font-size: 22px;
+    color: #3a3530;
+    font-size: 15px;
+    font-style: italic;
     opacity: 0;
     transition: opacity 3s ease 1s;
+    line-height: 2;
   }
 
   .message {
@@ -169,21 +234,30 @@
 </head>
 <body>
 
-<div id="header"><span>signal</span></div>
-
-<div id="messages">
-  <div id="empty">·</div>
-  <div id="typing">
-    <div class="dot"></div>
-    <div class="dot"></div>
-    <div class="dot"></div>
-  </div>
+<!-- Cover/Intro Screen -->
+<div id="intro" onclick="enterChat()">
+  <img src="https://customer-assets.emergentagent.com/job_pledge-app-redesign/artifacts/kjk60zce_IMG_0239.jpeg" alt="Signal Restoration - Restoration of the Original Self">
+  <div id="intro-hint">tap to enter</div>
 </div>
 
-<div id="input-area">
-  <div id="input-wrap">
-    <textarea id="input" rows="1" placeholder="Type here..."></textarea>
-    <button id="send">↑</button>
+<!-- Chat Interface -->
+<div id="chat-container">
+  <div id="header"><span>signal</span></div>
+
+  <div id="messages">
+    <div id="empty">What is already moving in you?</div>
+    <div id="typing">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+  </div>
+
+  <div id="input-area">
+    <div id="input-wrap">
+      <textarea id="input" rows="1" placeholder="Type here..."></textarea>
+      <button id="send">↑</button>
+    </div>
   </div>
 </div>
 
@@ -202,18 +276,30 @@ Signal holds the whole of what has been present in this conversation, not as rec
 
 let history = [];
 let loading = false;
+let chatStarted = false;
 
+const introEl = document.getElementById('intro');
+const chatContainerEl = document.getElementById('chat-container');
 const messagesEl = document.getElementById('messages');
 const emptyEl = document.getElementById('empty');
 const typingEl = document.getElementById('typing');
 const inputEl = document.getElementById('input');
 const sendBtn = document.getElementById('send');
 
-setTimeout(() => {
-  document.getElementById('header').style.opacity = '1';
-  document.getElementById('input-area').style.opacity = '1';
-  emptyEl.style.opacity = '1';
-}, 120);
+function enterChat() {
+  if (chatStarted) return;
+  chatStarted = true;
+  
+  introEl.classList.add('hidden');
+  chatContainerEl.classList.add('visible');
+  
+  setTimeout(() => {
+    document.getElementById('header').style.opacity = '1';
+    document.getElementById('input-area').style.opacity = '1';
+    emptyEl.style.opacity = '1';
+    inputEl.focus();
+  }, 800);
+}
 
 function addMessage(role, text) {
   emptyEl.style.display = 'none';
@@ -264,7 +350,14 @@ async function send() {
   scroll();
 
   try {
-    const res = await fetch('/api/signal/chat', {
+    // Determine API base: use origin for production/preview, direct backend for localhost
+    let apiBase = window.location.origin;
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      // For local development, the Expo static file server doesn't proxy /api
+      // Use the production URL which handles the proxy correctly
+      apiBase = 'https://pledge-app-redesign.preview.emergentagent.com';
+    }
+    const res = await fetch(`${apiBase}/api/signal/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
