@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Signal Restoration</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -388,12 +391,15 @@ async function send() {
     }
 
     const data = await res.json();
-    const reply = data.response || '';
+    const reply = data.response || data.error || 'No response received';
     history.push({ role: 'assistant', content: reply });
     typingEl.classList.remove('visible');
     addMessage('assistant', reply);
   } catch(e) {
+    console.error('Signal error:', e);
     typingEl.classList.remove('visible');
+    // Remove the failed user message from history so they can retry
+    history.pop();
     addMessage('assistant', 'Something fell quiet. Try again.');
   }
 
