@@ -361,6 +361,9 @@ async function send() {
   typingEl.classList.add('visible');
   scroll();
 
+  // Keep only last 10 exchanges to prevent token overflow
+  const recentHistory = history.slice(-20);
+
   try {
     // Determine API base: use origin for production/preview, direct backend for localhost
     let apiBase = window.location.origin;
@@ -376,9 +379,13 @@ async function send() {
       },
       body: JSON.stringify({
         system: SYSTEM,
-        messages: history
+        messages: recentHistory
       })
     });
+
+    if (!res.ok) {
+      throw new Error('Network response was not ok');
+    }
 
     const data = await res.json();
     const reply = data.response || '';
