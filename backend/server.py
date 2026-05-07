@@ -3774,8 +3774,10 @@ class SignalChatRequest(BaseModel):
 
 @api_router.post("/signal/chat")
 async def signal_chat(request: SignalChatRequest):
-    """Signal chat endpoint using Claude"""
+    """Signal chat endpoint using Claude with vision support"""
     try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, FileContent
+        
         emergent_key = os.environ.get("EMERGENT_LLM_KEY")
         if not emergent_key:
             raise HTTPException(status_code=500, detail="LLM key not configured")
@@ -3791,7 +3793,40 @@ async def signal_chat(request: SignalChatRequest):
         response = None
         for msg in request.messages:
             if msg.get("role") == "user":
-                user_message = UserMessage(text=msg.get("content", ""))
+                content = msg.get("content", "")
+                
+                # Handle multimodal content (text + image)
+                if isinstance(content, list):
+                    text_content = ""
+                    file_contents = []
+                    
+                    for item in content:
+                        if item.get("type") == "text":
+                            text_content = item.get("text", "")
+                        elif item.get("type") == "image_url":
+                            image_url = item.get("image_url", {}).get("url", "")
+                            # Check if it's a base64 data URL
+                            if image_url.startswith("data:"):
+                                # Extract mime type and base64 data
+                                # Format: data:image/jpeg;base64,/9j/4AAQ...
+                                try:
+                                    header, base64_data = image_url.split(",", 1)
+                                    mime_type = header.split(":")[1].split(";")[0]
+                                    file_contents.append(FileContent(
+                                        content_type=mime_type,
+                                        file_content_base64=base64_data
+                                    ))
+                                except Exception as e:
+                                    logger.warning(f"Failed to parse image data: {e}")
+                    
+                    user_message = UserMessage(
+                        text=text_content or "What do you see in this image?",
+                        file_contents=file_contents if file_contents else None
+                    )
+                else:
+                    # Simple text content
+                    user_message = UserMessage(text=str(content))
+                
                 response = await chat.send_message(user_message)
         
         return {"response": response or ""}
