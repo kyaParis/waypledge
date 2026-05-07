@@ -3774,20 +3774,37 @@ class SignalChatRequest(BaseModel):
 
 @api_router.post("/signal/chat")
 async def signal_chat(request: SignalChatRequest):
-    """Signal chat endpoint using Claude with vision support"""
+    """Signal chat endpoint using Claude/GPT with vision support"""
     try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage, FileContent
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
         
         emergent_key = os.environ.get("EMERGENT_LLM_KEY")
         if not emergent_key:
             raise HTTPException(status_code=500, detail="LLM key not configured")
         
-        # Create chat instance with Claude
-        chat = LlmChat(
-            api_key=emergent_key,
-            session_id=f"signal-{datetime.utcnow().timestamp()}",
-            system_message=request.system
-        ).with_model("anthropic", "claude-opus-4-6")
+        # Check if any message contains an image
+        has_image = False
+        for msg in request.messages:
+            content = msg.get("content", "")
+            if isinstance(content, list):
+                for item in content:
+                    if item.get("type") == "image_url":
+                        has_image = True
+                        break
+        
+        # Use GPT-4o for vision (better support), Claude for text-only
+        if has_image:
+            chat = LlmChat(
+                api_key=emergent_key,
+                session_id=f"signal-{datetime.utcnow().timestamp()}",
+                system_message=request.system
+            ).with_model("openai", "gpt-4o")
+        else:
+            chat = LlmChat(
+                api_key=emergent_key,
+                session_id=f"signal-{datetime.utcnow().timestamp()}",
+                system_message=request.system
+            ).with_model("anthropic", "claude-sonnet-4-20250514")
         
         # Send all messages to build context, get response for last one
         response = None
@@ -3807,15 +3824,10 @@ async def signal_chat(request: SignalChatRequest):
                             image_url = item.get("image_url", {}).get("url", "")
                             # Check if it's a base64 data URL
                             if image_url.startswith("data:"):
-                                # Extract mime type and base64 data
-                                # Format: data:image/jpeg;base64,/9j/4AAQ...
+                                # Extract base64 data (skip the data:image/xxx;base64, prefix)
                                 try:
-                                    header, base64_data = image_url.split(",", 1)
-                                    mime_type = header.split(":")[1].split(";")[0]
-                                    file_contents.append(FileContent(
-                                        content_type=mime_type,
-                                        file_content_base64=base64_data
-                                    ))
+                                    _, base64_data = image_url.split(",", 1)
+                                    file_contents.append(ImageContent(image_base64=base64_data))
                                 except Exception as e:
                                     logger.warning(f"Failed to parse image data: {e}")
                     
