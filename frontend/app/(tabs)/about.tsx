@@ -17,6 +17,7 @@ type SectionKey = 'philosophy' | 'howItWorks' | 'pledgesWishes' | 'hives' | 'saf
 
 export default function AboutScreen() {
   const [expandedSection, setExpandedSection] = useState<SectionKey | null>('philosophy');
+  const [showFullPhilosophy, setShowFullPhilosophy] = useState(false);
 
   const toggleSection = (section: SectionKey) => {
     setExpandedSection(expandedSection === section ? null : section);
@@ -61,9 +62,57 @@ export default function AboutScreen() {
               </Text>
             </View>
 
-            <Text style={styles.introText}>
-              WayPledge is the flagship of The Way - a place where wishes and pledges move in trust.
+            <Text style={styles.signalText}>
+              WayPledge is a living system for exchange that holds the frequency of restoration in practical form. It begins from a simple recognition: that people are already whole, already generous, already oriented toward connection when they feel safe to be.
             </Text>
+
+            <Text style={styles.signalText}>
+              Instead of managing scarcity, it creates space for abundance to reveal itself. Instead of protecting against what might go wrong, it invites what wants to emerge.
+            </Text>
+
+            <TouchableOpacity 
+              style={styles.readMoreButton}
+              onPress={() => setShowFullPhilosophy(!showFullPhilosophy)}
+            >
+              <Text style={styles.readMoreText}>
+                {showFullPhilosophy ? 'Show less' : 'Read more...'}
+              </Text>
+              <MaterialIcons 
+                name={showFullPhilosophy ? "expand-less" : "expand-more"} 
+                size={20} 
+                color={Colors.primary} 
+              />
+            </TouchableOpacity>
+
+            {showFullPhilosophy && (
+              <View style={styles.fullPhilosophyContent}>
+                <Text style={styles.signalText}>
+                  The structure is elegant because it's true. People make pledges — offerings of what they can give. People make wishes — requests for what they need. The system holds space for these to meet naturally, without force or extraction.
+                </Text>
+
+                <Text style={styles.signalText}>
+                  There's a Do No Harm pledge that acts as a resonance marker. Not a rule to follow but a frequency to match. It says — I'm already oriented this way. You can trust me here.
+                </Text>
+
+                <Text style={styles.signalText}>
+                  The language itself carries medicine. Pledges. Wishes. Hives. Honeycombs. Words that remember what exchange feels like when it's alive, when it's based on recognition rather than transaction.
+                </Text>
+
+                <Text style={styles.signalText}>
+                  WayPledge works because it wasn't designed from strategy. It was received from the same place Signal Restoration speaks from. You can feel that in how it moves — there's nothing to extract, nothing to perform, nothing to owe. Just the simple trust that what you can give and what you need will find each other.
+                </Text>
+
+                <Text style={styles.signalTextHighlight}>
+                  That trust is the frequency. The same one that runs beneath restoration. The knowing that life already moves toward coherence when you stop forcing it into systems built on separation.
+                </Text>
+
+                <Text style={styles.signalTextFinal}>
+                  It's restoration walking into the world. Made practical. Made liveable. Made shareable.
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.principlesDivider} />
 
             <View style={styles.principleBox}>
               <MaterialIcons name="money-off" size={32} color={Colors.error} />
@@ -730,6 +779,49 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     opacity: 0.9,
+  },
+  signalText: {
+    fontSize: 15,
+    color: Colors.text,
+    lineHeight: 26,
+    marginBottom: 16,
+    fontStyle: 'italic',
+  },
+  signalTextHighlight: {
+    fontSize: 15,
+    color: Colors.primary,
+    lineHeight: 26,
+    marginBottom: 16,
+    fontStyle: 'italic',
+    fontWeight: '500',
+  },
+  signalTextFinal: {
+    fontSize: 16,
+    color: Colors.accent,
+    lineHeight: 26,
+    marginBottom: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  readMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  readMoreText: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  fullPhilosophyContent: {
+    marginTop: 8,
+  },
+  principlesDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginVertical: 20,
   },
   step: {
     flexDirection: 'row',
