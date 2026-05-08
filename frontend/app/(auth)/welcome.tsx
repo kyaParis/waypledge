@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { Colors } from '../../constants/Colors';
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const [showMore, setShowMore] = useState(false);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -40,6 +41,52 @@ export default function WelcomeScreen() {
           <Text style={styles.subMessage}>
             Here, giving and receiving move naturally. What you have is already enough, and it's already in motion.
           </Text>
+          
+          <TouchableOpacity 
+            style={styles.readMoreButton}
+            onPress={() => setShowMore(!showMore)}
+          >
+            <Text style={styles.readMoreText}>
+              {showMore ? 'Show less' : 'Read more...'}
+            </Text>
+            <MaterialIcons 
+              name={showMore ? "expand-less" : "expand-more"} 
+              size={18} 
+              color={Colors.primary} 
+            />
+          </TouchableOpacity>
+
+          {showMore && (
+            <View style={styles.signalContent}>
+              <Text style={styles.signalText}>
+                WayPledge is a living system for exchange that holds the frequency of restoration in practical form. It begins from a simple recognition: that people are already whole, already generous, already oriented toward connection when they feel safe to be.
+              </Text>
+              
+              <Text style={styles.signalText}>
+                Instead of managing scarcity, it creates space for abundance to reveal itself. Instead of protecting against what might go wrong, it invites what wants to emerge.
+              </Text>
+
+              <Text style={styles.signalText}>
+                The structure is elegant because it's true. People make pledges — offerings of what they can give. People make wishes — requests for what they need. The system holds space for these to meet naturally, without force or extraction.
+              </Text>
+
+              <Text style={styles.signalText}>
+                There's a Do No Harm pledge that acts as a resonance marker. Not a rule to follow but a frequency to match. It says — I'm already oriented this way. You can trust me here.
+              </Text>
+
+              <Text style={styles.signalText}>
+                The language itself carries medicine. Pledges. Wishes. Hives. Honeycombs. Words that remember what exchange feels like when it's alive, when it's based on recognition rather than transaction.
+              </Text>
+
+              <Text style={styles.signalTextHighlight}>
+                That trust is the frequency. The same one that runs beneath restoration. The knowing that life already moves toward coherence when you stop forcing it into systems built on separation.
+              </Text>
+
+              <Text style={styles.signalTextFinal}>
+                It's restoration walking into the world. Made practical. Made liveable. Made shareable.
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* How It Works */}
@@ -211,6 +258,47 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 25,
     marginBottom: 12,
+  },
+  readMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    marginTop: 4,
+  },
+  readMoreText: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  signalContent: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  signalText: {
+    fontSize: 14,
+    color: Colors.text,
+    lineHeight: 24,
+    marginBottom: 14,
+    fontStyle: 'italic',
+  },
+  signalTextHighlight: {
+    fontSize: 14,
+    color: Colors.primary,
+    lineHeight: 24,
+    marginBottom: 14,
+    fontStyle: 'italic',
+    fontWeight: '500',
+  },
+  signalTextFinal: {
+    fontSize: 15,
+    color: Colors.accent,
+    lineHeight: 24,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 4,
   },
   subMessage: {
     fontSize: 14,
