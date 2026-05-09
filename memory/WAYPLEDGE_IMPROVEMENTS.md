@@ -8,7 +8,17 @@
 
 ## HIGH PRIORITY IMPROVEMENTS
 
-### 1. Onboarding Flow Enhancement
+### 1. Inspiring Prompts & Suggestions
+- **Current:** Users see empty create forms without guidance
+- **Suggested:** Add contextual prompts throughout the app:
+  - On Browse: "What could you offer today?" / "Need something? Just ask"
+  - On Create Pledge: "What do you need to clear out?" / "What skill could you share?"
+  - On Create Wish: "What would make your day easier?" / "What do you need help with?"
+  - Rotating inspiration cards on home screen
+- **Why:** Helps users think of what to contribute; reduces blank page anxiety
+- **Status:** ✅ IMPLEMENTED
+
+### 2. Onboarding Flow Enhancement
 - **Current:** Users jump straight into the app after signup
 - **Suggested:** Add a 3-4 screen onboarding flow that explains:
   - What Pledges are (with visual example)

@@ -41,6 +41,41 @@ export default function CreateScreen() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   
+  // Inspiration prompts
+  const pledgePrompts = [
+    "What do you need to clear out?",
+    "What skill could you share today?",
+    "What's gathering dust that someone else needs?",
+    "What do you do well that others struggle with?",
+    "What would you love to give away?",
+    "What talent have you been hiding?",
+  ];
+  
+  const wishPrompts = [
+    "What would make your day easier?",
+    "What have you been putting off asking for?",
+    "What skill would you love to learn?",
+    "What small thing would help right now?",
+    "What do you need that money can't buy?",
+    "What would free up your time?",
+  ];
+  
+  const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
+  
+  // Rotate prompts periodically
+  useEffect(() => {
+    const prompts = type === 'pledge' ? pledgePrompts : wishPrompts;
+    const interval = setInterval(() => {
+      setCurrentPromptIndex((prev) => (prev + 1) % prompts.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [type]);
+  
+  // Reset prompt index when type changes
+  useEffect(() => {
+    setCurrentPromptIndex(0);
+  }, [type]);
+  
   // Ref to prevent double-submission
   const isSubmittingRef = useRef(false);
   
@@ -354,6 +389,21 @@ export default function CreateScreen() {
             </Text>
             <Text style={styles.typeDescription}>Request something</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Inspiration Prompt */}
+        <View style={styles.inspirationCard}>
+          <MaterialIcons 
+            name="lightbulb-outline" 
+            size={18} 
+            color={type === 'pledge' ? Colors.pledgeDark : Colors.wishDark} 
+          />
+          <Text style={[
+            styles.inspirationText,
+            { color: type === 'pledge' ? Colors.pledgeDark : Colors.wishDark }
+          ]}>
+            {type === 'pledge' ? pledgePrompts[currentPromptIndex] : wishPrompts[currentPromptIndex]}
+          </Text>
         </View>
 
         <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
@@ -962,6 +1012,25 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 100,
     textAlignVertical: 'top',
+  },
+  inspirationCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    marginHorizontal: 20,
+    marginBottom: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.accent,
+    gap: 10,
+  },
+  inspirationText: {
+    flex: 1,
+    fontSize: 14,
+    fontStyle: 'italic',
+    lineHeight: 20,
   },
   categoryScroll: {
     marginTop: 8,
