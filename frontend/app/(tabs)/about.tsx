@@ -296,7 +296,7 @@ export default function AboutScreen() {
         >
           <View style={styles.sectionHeaderLeft}>
             <MaterialIcons name="hexagon" size={24} color={Colors.accent} />
-            <Text style={styles.sectionTitle}>The Hive Network</Text>
+            <Text style={styles.sectionTitle}>Communities (Hives)</Text>
           </View>
           <MaterialIcons 
             name={expandedSection === 'hives' ? "expand-less" : "expand-more"} 
@@ -307,7 +307,7 @@ export default function AboutScreen() {
         {expandedSection === 'hives' && (
           <View style={styles.sectionContent}>
             <Text style={styles.text}>
-              WayPledge is organized like a honeycomb - many connected communities (Hives) working together in harmony.
+              In WayPledge, we call communities "Hives" — like a honeycomb, many connected groups working together in harmony. It's the same thing, just our word for it.
             </Text>
 
             <View style={styles.hiveStructure}>
@@ -316,9 +316,9 @@ export default function AboutScreen() {
                   <MaterialIcons name="public" size={28} color={Colors.primary} />
                 </View>
                 <View style={styles.hiveLevelText}>
-                  <Text style={styles.hiveLevelTitle}>Country Hives</Text>
+                  <Text style={styles.hiveLevelTitle}>Country Communities</Text>
                   <Text style={styles.hiveLevelDesc}>
-                    National communities like "WayPledge Spain", "WayPledge UK"
+                    National hives like "WayPledge Spain", "WayPledge UK"
                   </Text>
                 </View>
               </View>
@@ -333,7 +333,7 @@ export default function AboutScreen() {
                   <MaterialIcons name="location-city" size={28} color={Colors.accent} />
                 </View>
                 <View style={styles.hiveLevelText}>
-                  <Text style={styles.hiveLevelTitle}>Local Hives</Text>
+                  <Text style={styles.hiveLevelTitle}>Local Communities</Text>
                   <Text style={styles.hiveLevelDesc}>
                     Your neighborhood: "Altaona", "Brighton", "Murcia Centro"
                   </Text>
@@ -345,19 +345,19 @@ export default function AboutScreen() {
               <View style={styles.hiveFeature}>
                 <MaterialIcons name="check-circle" size={20} color={Colors.success} />
                 <Text style={styles.hiveFeatureText}>
-                  Join your local Hive to connect with people nearby
+                  Join your local community to connect with people nearby
                 </Text>
               </View>
               <View style={styles.hiveFeature}>
                 <MaterialIcons name="check-circle" size={20} color={Colors.success} />
                 <Text style={styles.hiveFeatureText}>
-                  Tag pledges and wishes to your Hive for local discovery
+                  Tag pledges and wishes to your community for local discovery
                 </Text>
               </View>
               <View style={styles.hiveFeature}>
                 <MaterialIcons name="check-circle" size={20} color={Colors.success} />
                 <Text style={styles.hiveFeatureText}>
-                  Create a new Hive if your community doesn't exist yet
+                  Create a new community if yours doesn't exist yet
                 </Text>
               </View>
             </View>
@@ -365,7 +365,7 @@ export default function AboutScreen() {
             <View style={styles.noticeBox}>
               <MaterialIcons name="hub" size={24} color={Colors.accent} />
               <Text style={styles.noticeText}>
-                Hives can also federate with other gift economy platforms, creating a global network of mutual support communities.
+                Communities (Hives) can also connect with other gift economy platforms, creating a global network of mutual support.
               </Text>
             </View>
           </View>

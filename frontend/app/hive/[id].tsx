@@ -550,7 +550,7 @@ export default function HiveDetailScreen() {
 
           {activeTab === 'pledges' && (
             <View>
-              <Text style={styles.sectionTitle}>Pledges in This Hive</Text>
+              <Text style={styles.sectionTitle}>Pledges in This Community</Text>
               {pledges.length > 0 ? (
                 pledges.map((pledge) => (
                   <View key={pledge.id} style={[styles.itemCard, { borderLeftColor: Colors.pledgeDark }]}>
@@ -565,14 +565,14 @@ export default function HiveDetailScreen() {
                   </View>
                 ))
               ) : (
-                <Text style={styles.emptyText}>No pledges in this hive yet. Be the first to contribute!</Text>
+                <Text style={styles.emptyText}>No pledges in this community yet. Be the first to contribute!</Text>
               )}
             </View>
           )}
 
           {activeTab === 'wishes' && (
             <View>
-              <Text style={styles.sectionTitle}>Wishes in This Hive</Text>
+              <Text style={styles.sectionTitle}>Wishes in This Community</Text>
               {wishes.length > 0 ? (
                 wishes.map((wish) => (
                   <View key={wish.id} style={[styles.itemCard, { borderLeftColor: Colors.wishDark }]}>
@@ -587,7 +587,7 @@ export default function HiveDetailScreen() {
                   </View>
                 ))
               ) : (
-                <Text style={styles.emptyText}>No wishes in this hive yet.</Text>
+                <Text style={styles.emptyText}>No wishes in this community yet.</Text>
               )}
             </View>
           )}
