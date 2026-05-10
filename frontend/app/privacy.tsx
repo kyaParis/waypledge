@@ -25,7 +25,18 @@ export default function PrivacyPolicyScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        <Text style={styles.lastUpdated}>Last Updated: March 30, 2026</Text>
+        <Text style={styles.lastUpdated}>Last Updated: May 2025</Text>
+
+        <View style={styles.summaryBox}>
+          <Text style={styles.summaryTitle}>Quick Summary</Text>
+          <Text style={styles.summaryText}>
+            • We collect only what's needed to run WayPledge{'\n'}
+            • We never sell your data{'\n'}
+            • Your name is private unless you choose to share it{'\n'}
+            • You can delete your account and data anytime{'\n'}
+            • UK/EU users have full GDPR rights
+          </Text>
+        </View>
 
         <Text style={styles.sectionTitle}>Introduction</Text>
         <Text style={styles.text}>
@@ -122,6 +133,26 @@ export default function PrivacyPolicyScreen() {
           WayPledge operates globally. By using our service, you consent to the transfer of your information to our servers, which may be located in different countries.
         </Text>
 
+        <Text style={styles.sectionTitle}>UK & EU Users (GDPR)</Text>
+        <Text style={styles.text}>
+          If you are in the UK or European Union, you have additional rights under the General Data Protection Regulation (GDPR):{'\n\n'}
+          <Text style={styles.bold}>Legal Basis for Processing:</Text>{'\n'}
+          • Consent: When you create an account and agree to our terms{'\n'}
+          • Contract: To provide the WayPledge service you requested{'\n'}
+          • Legitimate Interest: To improve our service and ensure safety{'\n\n'}
+          <Text style={styles.bold}>Your GDPR Rights:</Text>{'\n'}
+          • Right to access your data{'\n'}
+          • Right to rectification (correct errors){'\n'}
+          • Right to erasure ("right to be forgotten"){'\n'}
+          • Right to restrict processing{'\n'}
+          • Right to data portability{'\n'}
+          • Right to object to processing{'\n'}
+          • Right to withdraw consent{'\n\n'}
+          <Text style={styles.bold}>Data Location:</Text>{'\n'}
+          Your data is stored on secure servers. We take appropriate safeguards when transferring data internationally.{'\n\n'}
+          To exercise any of these rights, contact privacy@waypledge.me. We will respond within 30 days.
+        </Text>
+
         <Text style={styles.sectionTitle}>Changes to This Policy</Text>
         <Text style={styles.text}>
           We may update this Privacy Policy from time to time. We will notify you of significant changes through the app or via email. Continued use of WayPledge after changes constitutes acceptance of the updated policy.
@@ -179,7 +210,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     fontStyle: 'italic',
+    marginBottom: 16,
+  },
+  summaryBox: {
+    backgroundColor: Colors.primaryLight + '15',
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 24,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primary,
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginBottom: 10,
+  },
+  summaryText: {
+    fontSize: 14,
+    color: Colors.text,
+    lineHeight: 22,
   },
   sectionTitle: {
     fontSize: 20,
