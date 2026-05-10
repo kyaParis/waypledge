@@ -37,6 +37,11 @@ export default function ProfileScreen() {
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [currentLang, setCurrentLang] = useState(getCurrentLanguage());
   
+  // View All toggles
+  const [showAllPledges, setShowAllPledges] = useState(false);
+  const [showAllWishes, setShowAllWishes] = useState(false);
+  const [showAllGratitude, setShowAllGratitude] = useState(false);
+  
   // Delete Account Modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
@@ -351,10 +356,19 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>My Pledges</Text>
-            <MaterialIcons name="card-giftcard" size={24} color={Colors.pledgeDark} />
+            <View style={styles.sectionHeaderRight}>
+              {myPledges.length > 3 && (
+                <TouchableOpacity onPress={() => setShowAllPledges(!showAllPledges)}>
+                  <Text style={styles.viewAllText}>
+                    {showAllPledges ? 'Show Less' : `View All (${myPledges.length})`}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <MaterialIcons name="card-giftcard" size={24} color={Colors.pledgeDark} />
+            </View>
           </View>
           {myPledges.length > 0 ? (
-            myPledges.slice(0, 3).map((pledge) => (
+            (showAllPledges ? myPledges : myPledges.slice(0, 3)).map((pledge) => (
               <TouchableOpacity 
                 key={pledge.id} 
                 style={[styles.itemCard, { borderLeftColor: Colors.pledgeDark }]}
@@ -391,10 +405,19 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>My Wishes</Text>
-            <MaterialIcons name="star" size={24} color={Colors.wishDark} />
+            <View style={styles.sectionHeaderRight}>
+              {myWishes.length > 3 && (
+                <TouchableOpacity onPress={() => setShowAllWishes(!showAllWishes)}>
+                  <Text style={styles.viewAllText}>
+                    {showAllWishes ? 'Show Less' : `View All (${myWishes.length})`}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <MaterialIcons name="star" size={24} color={Colors.wishDark} />
+            </View>
           </View>
           {myWishes.length > 0 ? (
-            myWishes.slice(0, 3).map((wish) => (
+            (showAllWishes ? myWishes : myWishes.slice(0, 3)).map((wish) => (
               <TouchableOpacity 
                 key={wish.id} 
                 style={[styles.itemCard, { borderLeftColor: Colors.wishDark }]}
@@ -431,10 +454,19 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Gratitude Received</Text>
-            <MaterialIcons name="favorite" size={24} color={Colors.accent} />
+            <View style={styles.sectionHeaderRight}>
+              {myGratitude.length > 3 && (
+                <TouchableOpacity onPress={() => setShowAllGratitude(!showAllGratitude)}>
+                  <Text style={styles.viewAllText}>
+                    {showAllGratitude ? 'Show Less' : `View All (${myGratitude.length})`}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <MaterialIcons name="favorite" size={24} color={Colors.accent} />
+            </View>
           </View>
           {myGratitude.length > 0 ? (
-            myGratitude.map((gratitude) => (
+            (showAllGratitude ? myGratitude : myGratitude.slice(0, 3)).map((gratitude) => (
               <View key={gratitude.id} style={styles.gratitudeCard}>
                 <Text style={styles.gratitudeCardMessage}>&quot;{gratitude.message}&quot;</Text>
                 <Text style={styles.gratitudeAuthor}>from {gratitude.from_user_name}</Text>
@@ -947,6 +979,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
+  },
+  sectionHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  viewAllText: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '600',
   },
   sectionTitle: {
     fontSize: 20,
