@@ -296,7 +296,7 @@ export default function RegisterScreen() {
                 placeholderTextColor={Colors.textSecondary}
               />
             </View>
-            <Text style={styles.fieldHint}>Your real name (kept private, only shared when you choose)</Text>
+            <Text style={styles.fieldHint}>For account purposes. Never shown publicly without your consent.</Text>
 
             <View style={styles.inputContainer}>
               <MaterialIcons name="badge" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
@@ -409,6 +409,14 @@ export default function RegisterScreen() {
                 <Text style={styles.registerButtonText}>Create Account</Text>
               )}
             </TouchableOpacity>
+
+            <Text style={styles.privacyNote}>
+              By creating an account, you agree to our{' '}
+              <Text style={styles.privacyLink} onPress={() => router.push('/terms')}>Terms</Text>
+              {' '}and{' '}
+              <Text style={styles.privacyLink} onPress={() => router.push('/privacy')}>Privacy Policy</Text>.
+              {'\n'}Your data is stored securely and never sold.
+            </Text>
 
             <TouchableOpacity
               onPress={() => router.push('/(auth)/login')}
@@ -619,6 +627,18 @@ const styles = StyleSheet.create({
     color: Colors.surface,
     fontSize: 18,
     fontWeight: '600',
+  },
+  privacyNote: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginTop: 12,
+    paddingHorizontal: 10,
+  },
+  privacyLink: {
+    color: Colors.primary,
+    textDecorationLine: 'underline',
   },
   loginLink: {
     alignItems: 'center',
