@@ -12,12 +12,46 @@ import {
   ActivityIndicator,
   SafeAreaView,
   Linking,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { useAuthStore } from '../../store/authStore';
 import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
+
+// Common countries list
+const COUNTRIES = [
+  'United Kingdom',
+  'United States',
+  'Australia',
+  'Canada',
+  'Ireland',
+  'New Zealand',
+  'Spain',
+  'France',
+  'Germany',
+  'Netherlands',
+  'Belgium',
+  'Italy',
+  'Portugal',
+  'Sweden',
+  'Norway',
+  'Denmark',
+  'Finland',
+  'Austria',
+  'Switzerland',
+  'Poland',
+  'South Africa',
+  'India',
+  'Singapore',
+  'Japan',
+  'Brazil',
+  'Mexico',
+  'Argentina',
+  'Other',
+];
 
 // BETA MODE - Set to true to disable registration
 const BETA_MODE = false;  // Registration open with approval required
@@ -80,7 +114,9 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [bio, setBio] = useState('');
-  const [location, setLocation] = useState('');
+  const [city, setCity] = useState('');
+  const [country, setCountry] = useState('');
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -118,16 +154,20 @@ export default function RegisterScreen() {
       
       if (addresses && addresses.length > 0) {
         const addr = addresses[0];
-        // Build a readable location string
-        const parts = [];
-        if (addr.city) parts.push(addr.city);
-        if (addr.region) parts.push(addr.region);
-        if (addr.country) parts.push(addr.country);
+        // Set city (prefer city, fallback to region)
+        const cityValue = addr.city || addr.region || addr.subregion || '';
+        setCity(cityValue);
         
-        const locationString = parts.join(', ') || `${lat.toFixed(2)}, ${lng.toFixed(2)}`;
-        setLocation(locationString);
+        // Set country
+        if (addr.country) {
+          // Check if country is in our list
+          const matchedCountry = COUNTRIES.find(c => 
+            c.toLowerCase() === addr.country?.toLowerCase()
+          );
+          setCountry(matchedCountry || 'Other');
+        }
       } else {
-        setLocation(`${lat.toFixed(2)}, ${lng.toFixed(2)}`);
+        setCity(`${lat.toFixed(2)}, ${lng.toFixed(2)}`);
       }
     } catch (error) {
       setErrorMessage('Could not get your location. Please enter it manually.');
@@ -175,10 +215,17 @@ export default function RegisterScreen() {
       setErrorMessage('Password must be at least 6 characters');
       return;
     }
-    if (!location.trim()) {
-      setErrorMessage('Please enter your location or tap the GPS button');
+    if (!country) {
+      setErrorMessage('Please select your country');
       return;
     }
+    if (!city.trim()) {
+      setErrorMessage('Please enter your city or area');
+      return;
+    }
+
+    // Combine city and country for location
+    const location = `${city.trim()}, ${country}`;
 
     setIsLoading(true);
     setSuccessMessage('Creating your account...');
@@ -189,7 +236,7 @@ export default function RegisterScreen() {
         password, 
         name.trim(), 
         bio.trim(), 
-        location.trim(), 
+        location, 
         latitude, 
         longitude,
         displayName.trim() || undefined
@@ -298,14 +345,27 @@ export default function RegisterScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Country Picker */}
+            <TouchableOpacity 
+              style={styles.inputContainer}
+              onPress={() => setShowCountryPicker(true)}
+            >
+              <MaterialIcons name="public" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
+              <Text style={[styles.input, !country && { color: Colors.textSecondary }]}>
+                {country || 'Select Country *'}
+              </Text>
+              <MaterialIcons name="arrow-drop-down" size={24} color={Colors.textSecondary} />
+            </TouchableOpacity>
+
+            {/* City Input with GPS */}
             <View style={styles.locationContainer}>
               <View style={[styles.inputContainer, styles.locationInput]}>
                 <MaterialIcons name="location-on" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="City, Country *"
-                  value={location}
-                  onChangeText={setLocation}
+                  placeholder="City or Area *"
+                  value={city}
+                  onChangeText={setCity}
                   placeholderTextColor={Colors.textSecondary}
                 />
               </View>
@@ -321,7 +381,7 @@ export default function RegisterScreen() {
                 )}
               </TouchableOpacity>
             </View>
-            <Text style={styles.locationHint}>e.g. "Manchester, UK" or tap GPS</Text>
+            <Text style={styles.locationHint}>e.g. "Manchester" or "Worsley" - tap GPS to auto-fill</Text>
 
             {errorMessage ? (
               <View style={styles.errorContainer}>
@@ -362,6 +422,51 @@ export default function RegisterScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Country Picker Modal */}
+      <Modal
+        visible={showCountryPicker}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCountryPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Country</Text>
+              <TouchableOpacity onPress={() => setShowCountryPicker(false)}>
+                <MaterialIcons name="close" size={24} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={COUNTRIES}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.countryItem,
+                    country === item && styles.countryItemSelected
+                  ]}
+                  onPress={() => {
+                    setCountry(item);
+                    setShowCountryPicker(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.countryItemText,
+                    country === item && styles.countryItemTextSelected
+                  ]}>
+                    {item}
+                  </Text>
+                  {country === item && (
+                    <MaterialIcons name="check" size={20} color={Colors.primary} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -604,5 +709,50 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.primary,
     fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: Colors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  countryItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  countryItemSelected: {
+    backgroundColor: Colors.primaryLight + '20',
+  },
+  countryItemText: {
+    fontSize: 16,
+    color: Colors.text,
+  },
+  countryItemTextSelected: {
+    color: Colors.primary,
+    fontWeight: '600',
   },
 });
