@@ -26,8 +26,9 @@
   - How to find/join a Community (Hive)
   - The Do No Harm pledge concept
 - **Why:** New users may feel lost without understanding the unique WayPledge philosophy
+- **Status:** ✅ IMPLEMENTED
 
-### 2. Home/Dashboard Screen
+### 3. Home/Dashboard Screen
 - **Current:** Browse tab shows all pledges/wishes immediately
 - **Suggested:** Create a true "Home" dashboard showing:
   - Your active pledges count
@@ -59,7 +60,16 @@
 
 ## MEDIUM PRIORITY IMPROVEMENTS
 
-### 5. Visual Storytelling
+### 5. Post to Communities - Make More Prominent
+- **Current:** "Post to Communities (optional)" exists but is easy to miss
+- **Suggested:**
+  - Make it more prominent/visible in the create flow
+  - Better prompt: "Share with your communities?"
+  - Auto-suggest their communities if they have any
+  - Clearer explanation of what happens if they don't select communities
+- **Why:** Communities are core to WayPledge; encouraging community posting builds connection
+
+### 6. Visual Storytelling
 - **Current:** Text-heavy explanations
 - **Suggested:** Add illustrations/icons throughout that show:
   - The circle of giving/receiving

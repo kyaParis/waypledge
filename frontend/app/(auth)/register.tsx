@@ -194,10 +194,10 @@ export default function RegisterScreen() {
         longitude,
         displayName.trim() || undefined
       );
-      setSuccessMessage('Account created! Taking you to WayPledge...');
+      setSuccessMessage('Account created! Welcome to WayPledge...');
       setTimeout(() => {
-        // Go directly to home - email verification disabled
-        router.replace('/(tabs)/home');
+        // Show onboarding for new users
+        router.replace('/(auth)/onboarding');
       }, 500);
     } catch (error: any) {
       setSuccessMessage('');
