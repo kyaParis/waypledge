@@ -303,7 +303,7 @@ export default function RegisterScreen() {
                 <MaterialIcons name="location-on" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Location *"
+                  placeholder="City, Country *"
                   value={location}
                   onChangeText={setLocation}
                   placeholderTextColor={Colors.textSecondary}
@@ -321,7 +321,7 @@ export default function RegisterScreen() {
                 )}
               </TouchableOpacity>
             </View>
-            <Text style={styles.locationHint}>Enter your city/area or tap the GPS button</Text>
+            <Text style={styles.locationHint}>e.g. "Manchester, UK" or tap GPS</Text>
 
             {errorMessage ? (
               <View style={styles.errorContainer}>
