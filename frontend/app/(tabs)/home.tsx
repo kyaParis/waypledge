@@ -28,6 +28,7 @@ export default function HomeScreen() {
   const [recentWishes, setRecentWishes] = useState<Wish[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showWhatIs, setShowWhatIs] = useState(false);
   
   // Auto-refresh state
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -133,6 +134,51 @@ export default function HomeScreen() {
           <Text style={styles.heroQuote}>Give Freely. Receive Gratefully.</Text>
           <Text style={styles.heroQuoteSub}>Trust Flows in Circles.</Text>
         </View>
+
+        {/* What is WayPledge - Expandable */}
+        <TouchableOpacity 
+          style={styles.whatIsHeader}
+          onPress={() => setShowWhatIs(!showWhatIs)}
+        >
+          <Text style={styles.whatIsTitle}>What is WayPledge?</Text>
+          <MaterialIcons 
+            name={showWhatIs ? "expand-less" : "expand-more"} 
+            size={24} 
+            color={Colors.primary} 
+          />
+        </TouchableOpacity>
+
+        {showWhatIs && (
+          <View style={styles.whatIsContent}>
+            <Text style={styles.whatIsText}>
+              WayPledge is a living system for exchange that holds the frequency of restoration in practical form. It begins from a simple recognition: that people are already whole, already generous, already oriented toward connection when they feel safe to be.
+            </Text>
+            
+            <Text style={styles.whatIsText}>
+              Instead of managing scarcity, it creates space for abundance to reveal itself. Instead of protecting against what might go wrong, it invites what wants to emerge.
+            </Text>
+
+            <Text style={styles.whatIsText}>
+              The structure is elegant because it's true. People make pledges — offerings of what they can give. People make wishes — requests for what they need. The system holds space for these to meet naturally, without force or extraction.
+            </Text>
+
+            <Text style={styles.whatIsText}>
+              There's a Do No Harm pledge that acts as a resonance marker. Not a rule to follow but a frequency to match. It says — I'm already oriented this way. You can trust me here.
+            </Text>
+
+            <Text style={styles.whatIsText}>
+              The language itself carries medicine. Pledges. Wishes. Hives. Honeycombs. Words that remember what exchange feels like when it's alive, when it's based on recognition rather than transaction.
+            </Text>
+
+            <Text style={styles.whatIsHighlight}>
+              That trust is the frequency. The same one that runs beneath restoration. The knowing that life already moves toward coherence when you stop forcing it into systems built on separation.
+            </Text>
+
+            <Text style={styles.whatIsFinal}>
+              It's restoration walking into the world. Made practical. Made liveable. Made shareable.
+            </Text>
+          </View>
+        )}
 
         <View style={styles.header}>
           <View>
@@ -364,6 +410,54 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 6,
     opacity: 0.9,
+  },
+  whatIsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    marginHorizontal: 20,
+    marginBottom: 4,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  whatIsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  whatIsContent: {
+    backgroundColor: Colors.surface,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    padding: 16,
+    borderRadius: 12,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+  },
+  whatIsText: {
+    fontSize: 14,
+    color: Colors.text,
+    lineHeight: 22,
+    marginBottom: 12,
+    fontStyle: 'italic',
+  },
+  whatIsHighlight: {
+    fontSize: 14,
+    color: Colors.primary,
+    lineHeight: 22,
+    marginBottom: 12,
+    fontStyle: 'italic',
+    fontWeight: '500',
+  },
+  whatIsFinal: {
+    fontSize: 15,
+    color: Colors.accent,
+    lineHeight: 22,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 4,
   },
   quickActions: {
     alignItems: 'center',
