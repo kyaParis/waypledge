@@ -26,6 +26,7 @@ export default function HomeScreen() {
   const user = useAuthStore((state) => state.user);
   const [recentPledges, setRecentPledges] = useState<Pledge[]>([]);
   const [recentWishes, setRecentWishes] = useState<Wish[]>([]);
+  const [myCommunities, setMyCommunities] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showWhatIs, setShowWhatIs] = useState(false);
@@ -36,12 +37,14 @@ export default function HomeScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [pledgesRes, wishesRes] = await Promise.all([
+      const [pledgesRes, wishesRes, communitiesRes] = await Promise.all([
         api.get('/pledges'),
         api.get('/wishes'),
+        api.get('/hives/my'),
       ]);
       setRecentPledges(pledgesRes.data.slice(0, 3));
       setRecentWishes(wishesRes.data.slice(0, 3));
+      setMyCommunities(communitiesRes.data || []);
     } catch (error) {
       console.error('Error loading data:', error);
     }
@@ -215,6 +218,35 @@ export default function HomeScreen() {
             <Text style={styles.statLabel}>Recent Wishes</Text>
           </View>
         </View>
+
+        {/* Community Discovery Card */}
+        <TouchableOpacity 
+          style={styles.communityCard}
+          onPress={() => router.push('/(tabs)/hive')}
+        >
+          <View style={styles.communityCardLeft}>
+            <View style={styles.communityIconBox}>
+              <MaterialIcons name="hexagon" size={28} color={Colors.accent} />
+            </View>
+            <View style={styles.communityCardText}>
+              {myCommunities.length === 0 ? (
+                <>
+                  <Text style={styles.communityCardTitle}>Find Your Community</Text>
+                  <Text style={styles.communityCardSubtitle}>Join local groups to connect with people nearby</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.communityCardTitle}>My Communities ({myCommunities.length})</Text>
+                  <Text style={styles.communityCardSubtitle}>
+                    {myCommunities.slice(0, 2).map(c => c.name).join(', ')}
+                    {myCommunities.length > 2 ? ` +${myCommunities.length - 2} more` : ''}
+                  </Text>
+                </>
+              )}
+            </View>
+          </View>
+          <MaterialIcons name="chevron-right" size={24} color={Colors.textSecondary} />
+        </TouchableOpacity>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -458,6 +490,45 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     marginTop: 4,
+  },
+  communityCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.surface,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    padding: 16,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.accent,
+  },
+  communityCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  communityIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.accent + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  communityCardText: {
+    flex: 1,
+  },
+  communityCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  communityCardSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
   },
   quickActions: {
     alignItems: 'center',
