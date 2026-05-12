@@ -38,9 +38,9 @@ export default function HomeScreen() {
   const loadData = useCallback(async () => {
     try {
       const [pledgesRes, wishesRes, communitiesRes] = await Promise.all([
-        api.get('/pledges'),
-        api.get('/wishes'),
-        api.get('/hives/my'),
+        api.get('/pledges/mine'),
+        api.get('/wishes/mine'),
+        api.get('/hives/my/memberships'),
       ]);
       setRecentPledges(pledgesRes.data.slice(0, 3));
       setRecentWishes(wishesRes.data.slice(0, 3));
