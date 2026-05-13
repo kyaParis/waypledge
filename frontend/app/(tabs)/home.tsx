@@ -10,6 +10,7 @@ import {
   Image,
   AppState,
   Linking,
+  Share,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -106,6 +107,17 @@ export default function HomeScreen() {
     }
   };
 
+  const handleShareApp = async () => {
+    try {
+      await Share.share({
+        message: `Join me on WayPledge - a community where we help each other freely, without money. Give what you can, receive what you need. 🐝\n\nDownload: https://waypledge.me`,
+        title: 'Share WayPledge',
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
     await loadData();
@@ -137,6 +149,21 @@ export default function HomeScreen() {
           <Text style={styles.heroQuote}>Give Freely. Receive Gratefully.</Text>
           <Text style={styles.heroQuoteSub}>Trust Flows in Circles.</Text>
         </View>
+
+        {/* Share WayPledge - Prominent */}
+        <TouchableOpacity style={styles.shareCard} onPress={handleShareApp}>
+          <View style={styles.shareCardContent}>
+            <MaterialIcons name="favorite" size={24} color={Colors.accent} />
+            <View style={styles.shareCardText}>
+              <Text style={styles.shareCardTitle}>Love WayPledge?</Text>
+              <Text style={styles.shareCardSubtitle}>Share it with friends & family</Text>
+            </View>
+          </View>
+          <View style={styles.shareCardButton}>
+            <MaterialIcons name="share" size={20} color={Colors.surface} />
+            <Text style={styles.shareCardButtonText}>Share</Text>
+          </View>
+        </TouchableOpacity>
 
         {/* What is WayPledge - Expandable */}
         <TouchableOpacity 
@@ -442,6 +469,51 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 6,
     opacity: 0.9,
+  },
+  shareCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.accent + '15',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.accent + '30',
+  },
+  shareCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  shareCardText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  shareCardTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  shareCardSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  shareCardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.accent,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    gap: 6,
+  },
+  shareCardButtonText: {
+    color: Colors.surface,
+    fontSize: 14,
+    fontWeight: '600',
   },
   whatIsHeader: {
     flexDirection: 'row',
