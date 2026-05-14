@@ -248,7 +248,18 @@ export default function RegisterScreen() {
       }, 500);
     } catch (error: any) {
       setSuccessMessage('');
-      setErrorMessage(error.message || 'Registration failed. Please try again.');
+      // Provide more specific error messages
+      if (error.message?.includes('Email already registered')) {
+        setErrorMessage('This email is already registered. Try signing in instead.');
+      } else if (error.message?.includes('network') || error.message?.includes('Network')) {
+        setErrorMessage('Connection problem. Please check your internet and try again.');
+      } else if (error.response?.data?.detail) {
+        setErrorMessage(error.response.data.detail);
+      } else if (error.message) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage('Something went wrong. Please check all fields and try again.');
+      }
     } finally {
       setIsLoading(false);
     }
