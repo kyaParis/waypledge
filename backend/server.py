@@ -1325,6 +1325,90 @@ async def get_wish(wish_id: str):
         created_at=wish["created_at"]
     )
 
+# Activity Feed Endpoint
+class ActivityItem(BaseModel):
+    id: str
+    type: str  # 'pledge', 'wish', 'gratitude', 'member'
+    title: str
+    description: str
+    user_name: str
+    user_id: str
+    community_name: Optional[str] = None
+    created_at: datetime
+
+@api_router.get("/activity/feed", response_model=List[ActivityItem])
+async def get_activity_feed(current_user = Depends(get_current_user), limit: int = 20):
+    """Get activity feed from user's communities"""
+    try:
+        user_id = str(current_user["_id"])
+        
+        # Get user's community IDs
+        memberships = await db.hive_memberships.find({"user_id": user_id}).to_list(100)
+        community_ids = [m["hive_id"] for m in memberships]
+        
+        # Get community names for reference
+        communities = await db.hives.find({"_id": {"$in": [ObjectId(cid) for cid in community_ids]}}).to_list(100)
+        community_names = {str(c["_id"]): c["name"] for c in communities}
+        
+        activities = []
+        
+        # Get recent pledges from communities
+        if community_ids:
+            pledges = await db.pledges.find({
+                "hive_ids": {"$in": community_ids},
+                "status": "active",
+                "user_id": {"$ne": user_id}  # Exclude own items
+            }).sort("created_at", -1).limit(limit).to_list(limit)
+            
+            for p in pledges:
+                hive_name = None
+                for hid in p.get("hive_ids", []):
+                    if hid in community_names:
+                        hive_name = community_names[hid]
+                        break
+                activities.append(ActivityItem(
+                    id=str(p["_id"]),
+                    type="pledge",
+                    title=p["title"],
+                    description=p.get("description", "")[:100],
+                    user_name=p["user_name"],
+                    user_id=p["user_id"],
+                    community_name=hive_name,
+                    created_at=p["created_at"]
+                ))
+            
+            # Get recent wishes from communities
+            wishes = await db.wishes.find({
+                "hive_ids": {"$in": community_ids},
+                "status": "active",
+                "user_id": {"$ne": user_id}  # Exclude own items
+            }).sort("created_at", -1).limit(limit).to_list(limit)
+            
+            for w in wishes:
+                hive_name = None
+                for hid in w.get("hive_ids", []):
+                    if hid in community_names:
+                        hive_name = community_names[hid]
+                        break
+                activities.append(ActivityItem(
+                    id=str(w["_id"]),
+                    type="wish",
+                    title=w["title"],
+                    description=w.get("description", "")[:100],
+                    user_name=w["user_name"],
+                    user_id=w["user_id"],
+                    community_name=hive_name,
+                    created_at=w["created_at"]
+                ))
+        
+        # Sort by created_at and limit
+        activities.sort(key=lambda x: x.created_at, reverse=True)
+        return activities[:limit]
+        
+    except Exception as e:
+        logger.error(f"Error getting activity feed: {e}")
+        return []
+
 @api_router.put("/wishes/{wish_id}", response_model=WishResponse)
 async def update_wish(wish_id: str, wish_data: WishCreate, current_user = Depends(get_current_user)):
     # Check if wish exists and belongs to user

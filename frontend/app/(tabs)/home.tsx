@@ -28,6 +28,7 @@ export default function HomeScreen() {
   const [recentPledges, setRecentPledges] = useState<Pledge[]>([]);
   const [recentWishes, setRecentWishes] = useState<Wish[]>([]);
   const [myCommunities, setMyCommunities] = useState<any[]>([]);
+  const [activityFeed, setActivityFeed] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showWhatIs, setShowWhatIs] = useState(false);
@@ -38,14 +39,16 @@ export default function HomeScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [pledgesRes, wishesRes, communitiesRes] = await Promise.all([
+      const [pledgesRes, wishesRes, communitiesRes, activityRes] = await Promise.all([
         api.get('/pledges/mine'),
         api.get('/wishes/mine'),
         api.get('/hives/my/memberships'),
+        api.get('/activity/feed'),
       ]);
       setRecentPledges(pledgesRes.data.slice(0, 3));
       setRecentWishes(wishesRes.data.slice(0, 3));
       setMyCommunities(communitiesRes.data || []);
+      setActivityFeed(activityRes.data || []);
     } catch (error) {
       console.error('Error loading data:', error);
     }
@@ -274,6 +277,49 @@ export default function HomeScreen() {
           </View>
           <MaterialIcons name="chevron-right" size={24} color={Colors.textSecondary} />
         </TouchableOpacity>
+
+        {/* Activity Feed */}
+        {activityFeed.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Community Activity</Text>
+              <MaterialIcons name="dynamic-feed" size={24} color={Colors.primary} />
+            </View>
+            {activityFeed.slice(0, 5).map((item) => (
+              <TouchableOpacity 
+                key={item.id} 
+                style={[
+                  styles.activityItem,
+                  { borderLeftColor: item.type === 'pledge' ? Colors.pledgeDark : Colors.wishDark }
+                ]}
+                onPress={() => router.push(item.type === 'pledge' ? `/pledge/${item.id}` : `/wish/${item.id}`)}
+              >
+                <View style={styles.activityIconBox}>
+                  <MaterialIcons 
+                    name={item.type === 'pledge' ? 'card-giftcard' : 'star'} 
+                    size={18} 
+                    color={item.type === 'pledge' ? Colors.pledgeDark : Colors.wishDark} 
+                  />
+                </View>
+                <View style={styles.activityContent}>
+                  <Text style={styles.activityTitle} numberOfLines={1}>{item.title}</Text>
+                  <Text style={styles.activityMeta}>
+                    {item.type === 'pledge' ? 'Pledge' : 'Wish'} by {item.user_name}
+                    {item.community_name ? ` in ${item.community_name}` : ''}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {myCommunities.length > 0 && activityFeed.length === 0 && (
+          <View style={styles.emptyActivityBox}>
+            <MaterialIcons name="dynamic-feed" size={32} color={Colors.textSecondary} />
+            <Text style={styles.emptyActivityText}>No recent activity in your communities</Text>
+            <Text style={styles.emptyActivitySubtext}>New pledges and wishes will appear here</Text>
+          </View>
+        )}
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -601,6 +647,56 @@ const styles = StyleSheet.create({
   communityCardSubtitle: {
     fontSize: 13,
     color: Colors.textSecondary,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 8,
+    borderLeftWidth: 3,
+  },
+  activityIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  activityContent: {
+    flex: 1,
+  },
+  activityTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  activityMeta: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  emptyActivityBox: {
+    backgroundColor: Colors.surface,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    padding: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  emptyActivityText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.textSecondary,
+    marginTop: 12,
+  },
+  emptyActivitySubtext: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 4,
   },
   quickActions: {
     alignItems: 'center',
