@@ -321,59 +321,17 @@ export default function HomeScreen() {
           </View>
         )}
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Pledges</Text>
-            <MaterialIcons name="card-giftcard" size={24} color={Colors.pledgeDark} />
-          </View>
-          {recentPledges.length > 0 ? (
-            recentPledges.map((pledge) => (
-              <View key={pledge.id} style={[styles.itemCard, { borderLeftColor: Colors.pledgeDark }]}>
-                <Text style={styles.itemTitle}>{pledge.title}</Text>
-                <Text style={styles.itemDescription} numberOfLines={2}>
-                  {pledge.description}
-                </Text>
-                <View style={styles.itemFooter}>
-                  <Text style={styles.itemAuthor}>by {pledge.user_name}</Text>
-                  <View style={[styles.categoryBadge, { backgroundColor: Colors.pledgeLight }]}>
-                    <Text style={[styles.categoryText, { color: Colors.pledgeDark }]}>
-                      {pledge.category}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            ))
-          ) : (
-            <Text style={styles.emptyText}>No recent pledges yet</Text>
-          )}
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Wishes</Text>
-            <MaterialIcons name="star" size={24} color={Colors.wishDark} />
-          </View>
-          {recentWishes.length > 0 ? (
-            recentWishes.map((wish) => (
-              <View key={wish.id} style={[styles.itemCard, { borderLeftColor: Colors.wishDark }]}>
-                <Text style={styles.itemTitle}>{wish.title}</Text>
-                <Text style={styles.itemDescription} numberOfLines={2}>
-                  {wish.description}
-                </Text>
-                <View style={styles.itemFooter}>
-                  <Text style={styles.itemAuthor}>by {wish.user_name}</Text>
-                  <View style={[styles.categoryBadge, { backgroundColor: Colors.wishLight }]}>
-                    <Text style={[styles.categoryText, { color: Colors.wishDark }]}>
-                      {wish.category}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            ))
-          ) : (
-            <Text style={styles.emptyText}>No recent wishes yet</Text>
-          )}
-        </View>
+        {/* Helpful tip - where to find things */}
+        <TouchableOpacity 
+          style={styles.helpTipCard}
+          onPress={() => router.push('/(tabs)/profile')}
+        >
+          <MaterialIcons name="lightbulb-outline" size={20} color={Colors.primary} />
+          <Text style={styles.helpTipText}>
+            Looking for your pledges & wishes? They're in your <Text style={styles.helpTipBold}>Profile</Text>
+          </Text>
+          <MaterialIcons name="chevron-right" size={20} color={Colors.textSecondary} />
+        </TouchableOpacity>
 
         {/* Gratitude Section - Thank people & Support WayPledge */}
         {/* Gratitude Section */}
@@ -697,6 +655,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     marginTop: 4,
+  },
+  helpTipCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primaryLight + '15',
+    marginHorizontal: 20,
+    marginBottom: 20,
+    padding: 14,
+    borderRadius: 10,
+    gap: 10,
+  },
+  helpTipText: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.text,
+  },
+  helpTipBold: {
+    fontWeight: '700',
+    color: Colors.primary,
   },
   quickActions: {
     alignItems: 'center',
