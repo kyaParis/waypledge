@@ -33,6 +33,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showWhatIs, setShowWhatIs] = useState(false);
+  const [showHelpAI, setShowHelpAI] = useState(false);
   
   // Auto-refresh state
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -131,6 +132,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <WelcomeModal visible={showWelcome} onClose={handleCloseWelcome} />
+      <HelpAIModal visible={showHelpAI} onClose={() => setShowHelpAI(false)} />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -221,9 +223,9 @@ export default function HomeScreen() {
           </View>
           <TouchableOpacity
             style={styles.helpButton}
-            onPress={() => setShowWelcome(true)}
+            onPress={() => setShowHelpAI(true)}
           >
-            <MaterialIcons name="help-outline" size={28} color={Colors.primary} />
+            <MaterialIcons name="support-agent" size={28} color={Colors.primary} />
           </TouchableOpacity>
         </View>
 
