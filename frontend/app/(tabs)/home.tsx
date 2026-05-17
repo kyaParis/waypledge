@@ -19,6 +19,7 @@ import { Colors } from '../../constants/Colors';
 import { MaterialIcons } from '@expo/vector-icons';
 import api, { Pledge, Wish } from '../../utils/api';
 import WelcomeModal from '../../components/WelcomeModal';
+import HelpAIModal from '../../components/HelpAIModal';
 
 const OPEN_COLLECTIVE_URL = 'https://opencollective.com/waypledge';
 
